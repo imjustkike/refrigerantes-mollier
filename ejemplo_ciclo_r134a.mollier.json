@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "name": "Ciclo Frigorífico Estándar R134a",
+  "createdAt": "2026-09-08T20:00:00.000Z",
+  "updatedAt": "2026-09-08T20:00:00.000Z",
+  "engine": "CoolProp",
+  "engineVersion": "8.0.0",
+  "refrigerant": "R134a",
+  "refrigerantDisplayName": "R134a",
+  "points": [
+    {
+      "id": "p1",
+      "name": "1 - Aspiración Compresor (-5°C)",
+      "color": "#38bdf8",
+      "input1_type": "P",
+      "input1_val": 2.0,
+      "input2_type": "T",
+      "input2_val": -5.0,
+      "state": {
+        "fluid_id": "R134a",
+        "pressure_bar": 2.0,
+        "temperature_c": -5.0,
+        "enthalpy_kj_kg": 395.34,
+        "entropy_kj_kg_k": 1.765,
+        "density_kg_m3": 9.94,
+        "specific_volume_m3_kg": 0.1006,
+        "vapor_quality": null,
+        "phase": "Vapor sobrecalentado",
+        "is_valid": true
+      },
+      "labelOffset": {
+        "x": -60,
+        "y": -40
+      }
+    },
+    {
+      "id": "p2",
+      "name": "2 - Descarga Compresor (55°C)",
+      "color": "#f43f5e",
+      "input1_type": "P",
+      "input1_val": 10.16,
+      "input2_type": "T",
+      "input2_val": 55.0,
+      "state": {
+        "fluid_id": "R134a",
+        "pressure_bar": 10.16,
+        "temperature_c": 55.0,
+        "enthalpy_kj_kg": 433.82,
+        "entropy_kj_kg_k": 1.765,
+        "density_kg_m3": 47.38,
+        "specific_volume_m3_kg": 0.0211,
+        "vapor_quality": null,
+        "phase": "Vapor sobrecalentado",
+        "is_valid": true
+      },
+      "labelOffset": {
+        "x": 25,
+        "y": -25
+      }
+    },
+    {
+      "id": "p3",
+      "name": "3 - Salida Condensador (35°C)",
+      "color": "#10b981",
+      "input1_type": "P",
+      "input1_val": 10.16,
+      "input2_type": "T",
+      "input2_val": 35.0,
+      "state": {
+        "fluid_id": "R134a",
+        "pressure_bar": 10.16,
+        "temperature_c": 35.0,
+        "enthalpy_kj_kg": 249.08,
+        "entropy_kj_kg_k": 1.167,
+        "density_kg_m3": 1168.2,
+        "specific_volume_m3_kg": 0.000856,
+        "vapor_quality": null,
+        "phase": "Líquido subenfriado",
+        "is_valid": true
+      },
+      "labelOffset": {
+        "x": -70,
+        "y": 25
+      }
+    },
+    {
+      "id": "p4",
+      "name": "4 - Entrada Evaporador (x=28%)",
+      "color": "#a855f7",
+      "input1_type": "P",
+      "input1_val": 2.0,
+      "input2_type": "H",
+      "input2_val": 249.08,
+      "state": {
+        "fluid_id": "R134a",
+        "pressure_bar": 2.0,
+        "temperature_c": -10.09,
+        "enthalpy_kj_kg": 249.08,
+        "entropy_kj_kg_k": 1.189,
+        "density_kg_m3": 33.68,
+        "specific_volume_m3_kg": 0.02969,
+        "vapor_quality": 0.281,
+        "phase": "Bifásico (líquido + vapor, x = 28.1%)",
+        "is_valid": true
+      },
+      "labelOffset": {
+        "x": 20,
+        "y": 20
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "fromPointId": "p1",
+      "toPointId": "p2",
+      "name": "Compresión Isentrópica (1→2)",
+      "color": "#f43f5e",
+      "processType": "isentropic",
+      "delta_h_kj_kg": 38.48,
+      "delta_t_c": 60.0
+    },
+    {
+      "id": "c2",
+      "fromPointId": "p2",
+      "toPointId": "p3",
+      "name": "Condensación Isobárica (2→3)",
+      "color": "#10b981",
+      "processType": "isobaric",
+      "delta_h_kj_kg": -184.74,
+      "delta_t_c": -20.0
+    },
+    {
+      "id": "c3",
+      "fromPointId": "p3",
+      "toPointId": "p4",
+      "name": "Expansión Isoentálpica (3→4)",
+      "color": "#a855f7",
+      "processType": "isenthalpic",
+      "delta_h_kj_kg": 0.0,
+      "delta_t_c": -45.09
+    },
+    {
+      "id": "c4",
+      "fromPointId": "p4",
+      "toPointId": "p1",
+      "name": "Evaporación Isobárica (4→1)",
+      "color": "#38bdf8",
+      "processType": "isobaric",
+      "delta_h_kj_kg": 146.26,
+      "delta_t_c": 5.09
+    }
+  ],
+  "curveVisibility": {
+    "saturation": true,
+    "isotherms": true,
+    "isentropics": true,
+    "isochores": true,
+    "qualityLines": true,
+    "showCurveLabels": true,
+    "showPointLabels": true,
+    "pointLabelMode": "full"
+  },
+  "notes": "Ciclo frigorífico estándar de compresión mecánica simple de vapor con R134a. Evaporación a 2.0 bar (-10.1 °C con 5.1 K de recalentamiento útil), condensación a 10.16 bar (40 °C con 5 K de subenfriamiento líquido)."
+}
