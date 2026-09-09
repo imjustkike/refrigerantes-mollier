@@ -103,10 +103,31 @@ export interface ThermodynamicState {
   warning?: string;
 }
 
-export type InputPairType = 'P-h' | 'P-T' | 'P-s' | 'P-Q' | 'T-Q' | 'P-v' | 'T-h';
+export type InputPairType =
+  | 'P-T'
+  | 'P-h'
+  | 'h-P'
+  | 'h-T'
+  | 'P-sat_vap'
+  | 'P-sat_liq'
+  | 'P-Q'
+  | 'T-sat_vap'
+  | 'T-sat_liq'
+  | 'T-Q'
+  | 'P-s'
+  | 'P-v';
+
+export interface DiagramLayer {
+  id: string;
+  name: string;
+  color: string;
+  isVisible: boolean;
+  isLocked?: boolean;
+}
 
 export interface DiagramPoint {
   id: string;
+  layerId?: string;
   name: string;
   color: string;
   input1_type: string;
@@ -127,6 +148,7 @@ export type ProcessType =
 
 export interface DiagramConnection {
   id: string;
+  layerId?: string;
   fromPointId: string;
   toPointId: string;
   name: string;
@@ -159,6 +181,8 @@ export interface ProjectData {
   engineVersion: string;
   refrigerant: string;
   refrigerantDisplayName: string;
+  layers?: DiagramLayer[];
+  activeLayerId?: string;
   points: DiagramPoint[];
   connections: DiagramConnection[];
   curveVisibility: CurveVisibilityConfig;

@@ -1,17 +1,14 @@
 import React, { useRef } from 'react';
-import { ConnectionEditor } from './components/ConnectionEditor/ConnectionEditor';
 import { MollierDiagram } from './components/Diagram/MollierDiagram';
 import { Header } from './components/Header/Header';
 import { AvailabilityMatrixModal } from './components/Modals/AvailabilityMatrixModal';
 import { SampleCyclesModal } from './components/Modals/SampleCyclesModal';
-import { PointEditor } from './components/PointEditor/PointEditor';
 import { PointsTable } from './components/PointsTable/PointsTable';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 
 const MainAppContent: React.FC = () => {
   const {
-    selectedConnectionId,
     toastMessage,
     projectName,
     selectedFluidId,
@@ -38,18 +35,13 @@ const MainAppContent: React.FC = () => {
 
       {/* Main Workspace */}
       <div className="flex flex-1 h-[calc(100vh-56px)] overflow-hidden relative">
-        {/* Left Sidebar (Catalog, Curves, Info) */}
+        {/* Left Sidebar (Layers, Points, Connections, Editor) */}
         <Sidebar />
 
-        {/* Center Diagram */}
+        {/* Center Diagram (Expanded to full width) */}
         <div className="flex-1 h-full relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
           <MollierDiagram canvasExportRef={canvasExportRef} />
         </div>
-
-        {/* Right Sidebar (Point / Connection Inspector) */}
-        <aside className="w-80 h-full bg-slate-900/90 border-l border-slate-800/80 flex flex-col z-20 backdrop-blur-md shadow-2xl">
-          {selectedConnectionId ? <ConnectionEditor /> : <PointEditor />}
-        </aside>
 
         {/* Collapsible Bottom Points Table */}
         <PointsTable />

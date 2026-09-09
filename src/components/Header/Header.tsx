@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   Activity,
-  ChevronDown,
   FileCode,
   FilePlus,
   FolderOpen,
@@ -12,6 +11,9 @@ import {
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 
+import { RefrigerantSelectorDropdown } from './RefrigerantSelectorDropdown';
+import { CurvesDropdown } from './CurvesDropdown';
+
 interface HeaderProps {
   onExportPng: () => void;
 }
@@ -21,7 +23,6 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
     projectName,
     setProjectName,
     selectedFluidId,
-    selectedFluidItem,
     catalog,
     newProject,
     saveProjectJson,
@@ -114,26 +115,18 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
         </div>
       </div>
 
-      {/* Refrigerant Selector Pill */}
-      <div className="flex items-center">
-        <button
-          className="flex items-center gap-2.5 px-3.5 py-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/60 rounded-full transition-all duration-200 shadow-sm hover:shadow-cyan-500/10 group"
-          onClick={() => setIsAvailabilityModalOpen(true)}
-          title="Ver matriz de disponibilidad y cambiar refrigerante"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-          <span className="text-xs font-bold text-slate-100 group-hover:text-cyan-400 transition-colors">
-            {selectedFluidItem?.display_name || selectedFluidId}
-          </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 font-medium">
-            {selectedFluidItem?.fluid_type || 'Refrigerante'}
-          </span>
-          <ChevronDown size={13} className="text-slate-400 group-hover:text-cyan-400 transition-colors" />
-        </button>
-      </div>
+      {/* Right Controls: Refrigerant, Curves & Action Buttons */}
+      <div className="flex items-center gap-2.5">
+        {/* Refrigerant Selector */}
+        <RefrigerantSelectorDropdown />
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1.5">
+        {/* Curves Toggles */}
+        <CurvesDropdown />
+
+        <div className="w-[1px] h-6 bg-slate-800 mx-1" />
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1.5">
         <button
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all hover:shadow-lg hover:shadow-amber-500/10"
           onClick={() => setIsSampleCyclesModalOpen(true)}
@@ -202,6 +195,7 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
         >
           <HelpCircle size={16} />
         </button>
+      </div>
       </div>
     </header>
   );

@@ -28,6 +28,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     selectedFluidId,
     selectedFluidItem,
     points,
+    layers,
     selectedPointId,
     setSelectedPointId,
     movePoint,
@@ -228,8 +229,14 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     }
   };
 
+  const isDraggingPointRef = useRef<boolean>(false);
+
   // Point Selection / Connect Tool Mode
   const handlePointSelect = (pointId: string) => {
+    if (isDraggingPointRef.current) {
+      isDraggingPointRef.current = false;
+      return;
+    }
     if (toolMode === 'connect') {
       if (!connectSourcePointId) {
         setConnectSourcePointId(pointId);
@@ -239,7 +246,8 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
         setConnectSourcePointId(null);
       }
     } else {
-      setSelectedPointId(pointId);
+      // Toggle point selection on click: click to deploy, click again to hide
+      setSelectedPointId(selectedPointId === pointId ? null : pointId);
       setSelectedConnectionId(null);
     }
   };
@@ -248,7 +256,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
   const handlePointMouseDown = (e: React.MouseEvent, pointId: string) => {
     if (toolMode === 'connect') return;
     e.stopPropagation();
-    setSelectedPointId(pointId);
+    isDraggingPointRef.current = false;
 
     const svg = getChartSvg();
     if (!svg) return;
@@ -265,15 +273,26 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
       const currentSvg = getChartSvg();
       if (!currentSvg) return;
 
-      const phys = DiagramInteraction.getPhysicalPointFromEvent(
-        moveEvent.clientX,
-        moveEvent.clientY,
-        currentSvg,
-        transform
+      const dist = Math.hypot(
+        moveEvent.clientX - dragRef.current.startClientX,
+        moveEvent.clientY - dragRef.current.startClientY
       );
 
-      if (phys.pPa > 1000) {
-        movePoint(dragRef.current.id, Units.jkgToKjkg(phys.hJkg), Units.paToBar(phys.pPa));
+      if (dist > 4) {
+        isDraggingPointRef.current = true;
+      }
+
+      if (isDraggingPointRef.current) {
+        const phys = DiagramInteraction.getPhysicalPointFromEvent(
+          moveEvent.clientX,
+          moveEvent.clientY,
+          currentSvg,
+          transform
+        );
+
+        if (phys.pPa > 1000) {
+          movePoint(dragRef.current.id, Units.jkgToKjkg(phys.hJkg), Units.paToBar(phys.pPa));
+        }
       }
     };
 
@@ -281,6 +300,10 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
       dragRef.current = null;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      // Reset isDraggingPointRef slightly after click event completes
+      setTimeout(() => {
+        isDraggingPointRef.current = false;
+      }, 60);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -564,6 +587,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
             dataset={dataset}
             visibility={curveVisibility}
             theme={diagramTheme}
+            layers={layers}
             points={points}
             connections={connections}
             selectedPointId={selectedPointId}
@@ -575,22 +599,33 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Live Cursor Inspector (SVG Mode) */}
           {cursorState && (
-            <div className="absolute bottom-3 left-4 flex items-center gap-3 px-3.5 py-2 bg-slate-900/90 border border-slate-700/60 rounded-xl backdrop-blur-xl shadow-xl font-mono text-xs text-slate-300 pointer-events-none z-15">
+            <div className="absolute bottom-3 left-4 flex items-center gap-3.5 px-4 py-2 bg-slate-900/95 border border-slate-700/70 rounded-xl backdrop-blur-xl shadow-2xl font-mono text-xs text-slate-300 pointer-events-none z-15">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-500">P:</span>{' '}
+                <span className="text-slate-500 font-semibold">P:</span>{' '}
                 <strong className="text-cyan-400 font-bold">
                   {Units.paToBar(cursorState.pPa).toFixed(2)} bar
                 </strong>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-500">h:</span>{' '}
-                <strong className="text-slate-100 font-bold">
-                  {Units.jkgToKjkg(cursorState.hJkg).toFixed(1)} kJ/kg
-                </strong>
+
+              {/* Isentropics (s) placed directly ABOVE Enthalpy (h) with its unit */}
+              <div className="flex flex-col justify-center border-l border-r border-slate-800/90 px-3 py-0.5 gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-amber-400 font-bold text-[11px]">s:</span>{' '}
+                  <strong className="text-amber-300 font-bold text-[11px]">
+                    {cursorState.sKjkgk !== undefined ? cursorState.sKjkgk.toFixed(4) : '—'} kJ/(kg·K)
+                  </strong>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400 font-bold text-[11px]">h:</span>{' '}
+                  <strong className="text-slate-100 font-bold text-[11px]">
+                    {Units.jkgToKjkg(cursorState.hJkg).toFixed(1)} kJ/kg
+                  </strong>
+                </div>
               </div>
+
               {cursorState.tC !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500">T:</span>{' '}
+                  <span className="text-slate-500 font-semibold">T:</span>{' '}
                   <strong className="text-emerald-400 font-bold">
                     {cursorState.tC.toFixed(1)} °C
                   </strong>
@@ -598,7 +633,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
               )}
               {cursorState.vM3kg !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500">v:</span>{' '}
+                  <span className="text-slate-500 font-semibold">v:</span>{' '}
                   <strong className="text-purple-400 font-bold">
                     {cursorState.vM3kg < 0.01
                       ? cursorState.vM3kg.toExponential(2)

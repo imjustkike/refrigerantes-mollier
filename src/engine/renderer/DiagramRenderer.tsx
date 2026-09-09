@@ -3,6 +3,7 @@ import { DiagramTransform } from '../transform/DiagramTransform';
 import {
   CurveVisibilityConfig,
   DiagramConnection,
+  DiagramLayer,
   DiagramPoint,
 } from '../../types/thermo';
 import { FullDiagramDataset, Units } from '../types/thermoContract';
@@ -14,6 +15,7 @@ export interface DiagramRendererProps {
   dataset: FullDiagramDataset | null;
   visibility: CurveVisibilityConfig;
   theme: 'danfoss' | 'dark';
+  layers?: DiagramLayer[];
   points: DiagramPoint[];
   connections: DiagramConnection[];
   selectedPointId: string | null;
@@ -29,6 +31,7 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
   dataset,
   visibility,
   theme,
+  layers,
   points,
   connections,
   selectedPointId,
@@ -40,6 +43,20 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
 }) => {
   const { rect, viewBounds } = transform;
   const isDanfoss = theme === 'danfoss';
+
+  // Filter by layer visibility
+  const hiddenLayerIds = useMemo(() => {
+    if (!layers) return new Set<string>();
+    return new Set(layers.filter((l) => !l.isVisible).map((l) => l.id));
+  }, [layers]);
+
+  const activePoints = useMemo(() => {
+    return points.filter((p) => !p.layerId || !hiddenLayerIds.has(p.layerId));
+  }, [points, hiddenLayerIds]);
+
+  const activeConnections = useMemo(() => {
+    return connections.filter((c) => !c.layerId || !hiddenLayerIds.has(c.layerId));
+  }, [connections, hiddenLayerIds]);
 
   // 1. Compute Grid Ticks based on current view bounds
   const hTicks = useMemo(() => {
@@ -494,7 +511,7 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
         ))}
 
         {/* User Connections / Processes */}
-        {connections.map((conn) => {
+        {activeConnections.map((conn) => {
           const p1 = points.find((p) => p.id === conn.fromPointId);
           const p2 = points.find((p) => p.id === conn.toPointId);
           if (!p1 || !p2) return null;
@@ -539,7 +556,7 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
         })}
 
         {/* User Points and Labels */}
-        {points.map((pt) => {
+        {activePoints.map((pt) => {
           const { x, y } = transform.project(
             Units.kjkgToJkg(pt.state.enthalpy_kj_kg),
             Units.barToPa(pt.state.pressure_bar)
@@ -567,8 +584,23 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                 />
               </g>
 
-              {/* Point Label Card */}
-              {visibility.showPointLabels && visibility.pointLabelMode !== 'hidden' && (
+              {/* Point Index Tag when not selected */}
+              {!isSelected && (
+                <text
+                  x={x + 10}
+                  y={y + 4}
+                  fill={isDanfoss ? '#334155' : '#cbd5e1'}
+                  fontSize={10}
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                  className="pointer-events-none select-none"
+                >
+                  {pt.name}
+                </text>
+              )}
+
+              {/* Point Label Card: ONLY displayed when clicked (selected), another click hides it */}
+              {isSelected && (
                 <g
                   transform={`translate(${x + pt.labelOffset.x}, ${y + pt.labelOffset.y})`}
                   className="cursor-move select-none"
@@ -577,14 +609,39 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                   <rect
                     x={0}
                     y={0}
-                    width={130}
-                    height={75}
+                    width={152}
+                    height={90}
                     rx={6}
-                    fill={isDanfoss ? 'rgba(255,255,255,0.94)' : 'rgba(11,17,32,0.92)'}
+                    fill={isDanfoss ? 'rgba(255,255,255,0.96)' : 'rgba(11,17,32,0.94)'}
                     stroke={pt.color || '#38bdf8'}
-                    strokeWidth={isSelected ? 1.8 : 1.2}
-                    filter="drop-shadow(0 4px 6px rgba(0,0,0,0.3))"
+                    strokeWidth={2}
+                    filter="drop-shadow(0 6px 14px rgba(0,0,0,0.45))"
                   />
+
+                  {/* Close / Hide Button */}
+                  <g
+                    transform="translate(138, 14)"
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPointSelect?.(pt.id);
+                    }}
+                  >
+                    <title>Ocultar información del punto</title>
+                    <circle r={6.5} fill={isDanfoss ? '#e2e8f0' : '#1e293b'} />
+                    <text
+                      x={0}
+                      y={3}
+                      textAnchor="middle"
+                      fill={isDanfoss ? '#64748b' : '#94a3b8'}
+                      fontSize={9}
+                      fontWeight="bold"
+                      className="pointer-events-none select-none"
+                    >
+                      ×
+                    </text>
+                  </g>
+
                   <text
                     x={8}
                     y={16}
@@ -595,18 +652,22 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                   >
                     {pt.name}
                   </text>
+
+                  {/* Isentropic entropy (s): displayed above enthalpy */}
                   <text
                     x={8}
-                    y={30}
-                    fill={isDanfoss ? '#0f172a' : '#f8fafc'}
-                    fontSize={9}
+                    y={29}
+                    fill="#f59e0b"
+                    fontSize={8.5}
                     fontFamily="monospace"
+                    fontWeight="bold"
                   >
-                    T = {pt.state.temperature_c.toFixed(1)} °C
+                    s = {pt.state.entropy_kj_kg_k.toFixed(4)} kJ/(kg·K)
                   </text>
+
                   <text
                     x={8}
-                    y={44}
+                    y={43}
                     fill={isDanfoss ? '#0f172a' : '#f8fafc'}
                     fontSize={9}
                     fontFamily="monospace"
@@ -615,7 +676,16 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                   </text>
                   <text
                     x={8}
-                    y={58}
+                    y={56}
+                    fill={isDanfoss ? '#0f172a' : '#f8fafc'}
+                    fontSize={9}
+                    fontFamily="monospace"
+                  >
+                    T = {pt.state.temperature_c.toFixed(1)} °C
+                  </text>
+                  <text
+                    x={8}
+                    y={69}
                     fill={isDanfoss ? '#0f172a' : '#f8fafc'}
                     fontSize={9}
                     fontFamily="monospace"
@@ -624,7 +694,7 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                   </text>
                   <text
                     x={8}
-                    y={70}
+                    y={82}
                     fill="#0284c7"
                     fontSize={9}
                     fontFamily="monospace"

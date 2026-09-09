@@ -12,7 +12,7 @@ export const PointsTable: React.FC = () => {
 
   return (
     <div
-      className="absolute bottom-0 left-80 right-80 bg-slate-900/95 border-t border-slate-800/90 flex flex-col z-25 backdrop-blur-xl shadow-2xl transition-all duration-200"
+      className="absolute bottom-0 left-88 sm:left-92 md:left-96 right-0 bg-slate-900/95 border-t border-slate-800/90 flex flex-col z-25 backdrop-blur-xl shadow-2xl transition-all duration-200"
       style={{
         height: isExpanded ? 210 : 36,
       }}

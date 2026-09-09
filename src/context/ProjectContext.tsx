@@ -5,6 +5,7 @@ import {
   CurveVisibilityConfig,
   DiagramConnection,
   DiagramCurvesResponse,
+  DiagramLayer,
   DiagramPoint,
   FluidInfo,
   ProcessType,
@@ -36,6 +37,14 @@ interface ProjectContextType {
   setProjectName: (name: string) => void;
   projectNotes: string;
   setProjectNotes: (notes: string) => void;
+
+  // Layers System
+  layers: DiagramLayer[];
+  activeLayerId: string;
+  setActiveLayerId: (id: string) => void;
+  addLayer: (name?: string, color?: string) => DiagramLayer;
+  updateLayer: (id: string, updates: Partial<DiagramLayer>) => void;
+  removeLayer: (id: string) => void;
 
   // Points
   points: DiagramPoint[];
@@ -69,6 +78,8 @@ interface ProjectContextType {
   setToolMode: (mode: 'select' | 'add_point' | 'connect') => void;
   connectSourcePointId: string | null;
   setConnectSourcePointId: (id: string | null) => void;
+  sidebarTab: 'layers_points' | 'connections' | 'editor';
+  setSidebarTab: (tab: 'layers_points' | 'connections' | 'editor') => void;
 
   // Notifications & Modals
   toastMessage: string | null;
@@ -125,15 +136,6 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [projectName, setProjectName] = useState<string>('Ciclo de Refrigeración');
   const [projectNotes, setProjectNotes] = useState<string>('');
 
-  const [points, setPoints] = useState<DiagramPoint[]>([]);
-  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
-
-  const [connections, setConnections] = useState<DiagramConnection[]>([]);
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-
-  const [toolMode, setToolMode] = useState<'select' | 'add_point' | 'connect'>('select');
-  const [connectSourcePointId, setConnectSourcePointId] = useState<string | null>(null);
-
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [isSampleCyclesModalOpen, setIsSampleCyclesModalOpen] = useState(false);
@@ -142,6 +144,77 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   }, []);
+
+  // Layers System State
+  const [layers, setLayers] = useState<DiagramLayer[]>([
+    { id: 'layer-1', name: 'Capa 1', color: '#38bdf8', isVisible: true },
+  ]);
+  const [activeLayerId, setActiveLayerId] = useState<string>('layer-1');
+
+  const addLayer = useCallback((name?: string, color?: string): DiagramLayer => {
+    const nextIdx = layers.length + 1;
+    const newColor = color || POINT_COLORS[(nextIdx - 1) % POINT_COLORS.length];
+    const newLayer: DiagramLayer = {
+      id: `layer-${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      name: name || `Capa ${nextIdx}`,
+      color: newColor,
+      isVisible: true,
+    };
+    setLayers((prev) => [...prev, newLayer]);
+    setActiveLayerId(newLayer.id);
+    showToast(`Capa '${newLayer.name}' creada`);
+    return newLayer;
+  }, [layers.length, showToast]);
+
+  const updateLayer = useCallback((id: string, updates: Partial<DiagramLayer>) => {
+    setLayers((prev) =>
+      prev.map((layer) => (layer.id === id ? { ...layer, ...updates } : layer))
+    );
+
+    // If color updated, keep points and connections of this layer in sync
+    if (updates.color) {
+      setPoints((prev) =>
+        prev.map((p) => (p.layerId === id ? { ...p, color: updates.color! } : p))
+      );
+      setConnections((prev) =>
+        prev.map((c) => (c.layerId === id ? { ...c, color: updates.color! } : c))
+      );
+    }
+  }, []);
+
+  const removeLayer = useCallback((id: string) => {
+    if (layers.length <= 1) {
+      showToast('Debe existir al menos una capa');
+      return;
+    }
+    const remaining = layers.filter((l) => l.id !== id);
+    const targetLayerId = remaining[0].id;
+    const targetLayerColor = remaining[0].color;
+
+    // Reassign points & connections of deleted layer to the target layer
+    setPoints((prev) =>
+      prev.map((p) => (p.layerId === id ? { ...p, layerId: targetLayerId, color: targetLayerColor } : p))
+    );
+    setConnections((prev) =>
+      prev.map((c) => (c.layerId === id ? { ...c, layerId: targetLayerId, color: targetLayerColor } : c))
+    );
+
+    setLayers(remaining);
+    if (activeLayerId === id) {
+      setActiveLayerId(targetLayerId);
+    }
+    showToast('Capa eliminada y elementos reasignados');
+  }, [layers, activeLayerId, showToast]);
+
+  const [points, setPoints] = useState<DiagramPoint[]>([]);
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+
+  const [connections, setConnections] = useState<DiagramConnection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+
+  const [toolMode, setToolMode] = useState<'select' | 'add_point' | 'connect'>('select');
+  const [connectSourcePointId, setConnectSourcePointId] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<'layers_points' | 'connections' | 'editor'>('layers_points');
 
   // Initial Load: Fetch Catalog
   useEffect(() => {
@@ -201,13 +274,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
           p_bar
         );
 
+        const activeLayer = layers.find((l) => l.id === activeLayerId) || layers[0];
+        const pointColor = activeLayer?.color || POINT_COLORS[0];
         const pointIndex = points.length + 1;
-        const color = POINT_COLORS[(pointIndex - 1) % POINT_COLORS.length];
 
         const newPoint: DiagramPoint = {
           id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          layerId: activeLayer?.id,
           name: `Punto ${pointIndex}`,
-          color,
+          color: pointColor,
           input1_type: 'P',
           input1_val: state.pressure_bar,
           input2_type: 'h',
@@ -225,7 +300,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return null;
       }
     },
-    [selectedFluidId, points.length, showToast]
+    [selectedFluidId, points.length, layers, activeLayerId, showToast]
   );
 
   // Add or Update Point from Numerical Form
@@ -248,6 +323,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
           in2Val
         );
 
+        const activeLayer = layers.find((l) => l.id === activeLayerId) || layers[0];
+
         if (pointId) {
           // Update existing point
           setPoints((prev) =>
@@ -256,7 +333,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return {
                   ...p,
                   name,
-                  color,
+                  color: color || p.color,
                   input1_type: in1Type,
                   input1_val: in1Val,
                   input2_type: in2Type,
@@ -274,10 +351,12 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else {
           // Create new point
           const pointIndex = points.length + 1;
+          const assignedColor = color || activeLayer?.color || POINT_COLORS[(pointIndex - 1) % POINT_COLORS.length];
           const newPoint: DiagramPoint = {
             id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            layerId: activeLayer?.id,
             name: name || `Punto ${pointIndex}`,
-            color: color || POINT_COLORS[(pointIndex - 1) % POINT_COLORS.length],
+            color: assignedColor,
             input1_type: in1Type,
             input1_val: in1Val,
             input2_type: in2Type,
@@ -295,7 +374,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return null;
       }
     },
-    [selectedFluidId, points.length, showToast]
+    [selectedFluidId, points.length, layers, activeLayerId, showToast]
   );
 
   // Move Point by drag
@@ -396,12 +475,14 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
           processType
         );
 
+        const activeLayer = layers.find((l) => l.id === activeLayerId) || layers[0];
         const newConn: DiagramConnection = {
           id: `c_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          layerId: activeLayer?.id || p1.layerId,
           fromPointId: fromId,
           toPointId: toId,
           name: `${p1.name} → ${p2.name}`,
-          color: p1.color,
+          color: activeLayer?.color || p1.color,
           processType,
           delta_h_kj_kg: res.delta_h_kj_kg,
           delta_t_c: res.delta_t_c,
@@ -419,7 +500,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return null;
       }
     },
-    [points, selectedFluidId, showToast]
+    [points, selectedFluidId, layers, activeLayerId, showToast]
   );
 
   const updateConnection = useCallback(
@@ -501,6 +582,14 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [points, connections, addConnection, showToast]);
 
   const newProject = useCallback(() => {
+    const defaultLayer: DiagramLayer = {
+      id: 'layer-1',
+      name: 'Capa 1',
+      color: '#38bdf8',
+      isVisible: true,
+    };
+    setLayers([defaultLayer]);
+    setActiveLayerId('layer-1');
     setPoints([]);
     setConnections([]);
     setSelectedPointId(null);
@@ -520,6 +609,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       engineVersion: catalog?.engine_version || '8.0.0',
       refrigerant: selectedFluidId,
       refrigerantDisplayName: selectedFluidItem?.display_name || selectedFluidId,
+      layers,
+      activeLayerId,
       points,
       connections,
       curveVisibility,
@@ -531,6 +622,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     catalog?.engine_version,
     selectedFluidId,
     selectedFluidItem?.display_name,
+    layers,
+    activeLayerId,
     points,
     connections,
     curveVisibility,
@@ -549,6 +642,20 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setProjectName(data.name || 'Proyecto');
         setProjectNotes(data.notes || '');
         if (data.curveVisibility) setCurveVisibility(data.curveVisibility);
+
+        if (data.layers && data.layers.length > 0) {
+          setLayers(data.layers);
+          setActiveLayerId(data.activeLayerId || data.layers[0].id);
+        } else {
+          const defaultLayer: DiagramLayer = {
+            id: 'layer-1',
+            name: 'Capa 1',
+            color: data.points[0]?.color || '#38bdf8',
+            isVisible: true,
+          };
+          setLayers([defaultLayer]);
+          setActiveLayerId(defaultLayer.id);
+        }
 
         // Recalculate all points to guarantee thermodynamic accuracy
         const recomputedPoints: DiagramPoint[] = [];
@@ -838,6 +945,12 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setProjectName,
         projectNotes,
         setProjectNotes,
+        layers,
+        activeLayerId,
+        setActiveLayerId,
+        addLayer,
+        updateLayer,
+        removeLayer,
         points,
         selectedPointId,
         setSelectedPointId,
@@ -857,6 +970,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setToolMode,
         connectSourcePointId,
         setConnectSourcePointId,
+        sidebarTab,
+        setSidebarTab,
         toastMessage,
         showToast,
         isAvailabilityModalOpen,

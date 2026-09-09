@@ -801,6 +801,34 @@ function mockCalculateState(
     t = calculateTsat(model, p);
     const { hL, hV } = calculateSatEnthalpies(model, t);
     h = hL + (hV - hL) * q;
+  } else if ((t1 === 'T' && t2 === 'Q') || (t1 === 'Q' && t2 === 'T')) {
+    t = t1 === 'T' ? in1Val : in2Val;
+    q = t1 === 'Q' ? in1Val : in2Val;
+    p = calculatePsat(model, t);
+    const { hL, hV } = calculateSatEnthalpies(model, t);
+    h = hL + (hV - hL) * q;
+  } else if ((t1 === 'H' && t2 === 'T') || (t1 === 'T' && t2 === 'H')) {
+    h = t1 === 'H' ? in1Val : in2Val;
+    t = t1 === 'T' ? in1Val : in2Val;
+    const pSat = calculatePsat(model, t);
+    const { hL, hV } = calculateSatEnthalpies(model, t);
+    if (h >= hL && h <= hV) {
+      p = pSat;
+      q = (h - hL) / (hV - hL);
+    } else if (h < hL) {
+      p = Math.min(model.p_max_bar, pSat + (hL - h) * 1.5);
+    } else {
+      p = Math.max(model.p_min_bar, pSat * Math.exp(-(h - hV) / 45));
+    }
+  } else if ((t1 === 'P' && t2 === 'S') || (t1 === 'S' && t2 === 'P')) {
+    p = t1 === 'P' ? in1Val : in2Val;
+    const sVal = t1 === 'S' ? in1Val : in2Val;
+    h = 200 + (sVal - 1.75) * 280 + model.h_ref_0c_liq;
+    t = calculateTsat(model, p);
+  } else if ((t1 === 'P' && t2 === 'V') || (t1 === 'V' && t2 === 'P')) {
+    p = t1 === 'P' ? in1Val : in2Val;
+    t = calculateTsat(model, p) + 15;
+    h = calculateSuperheatedEnthalpy(model, t, p);
   } else if (t1 === 'H' && t2 === 'P') {
     return mockCalculateState(fluidId, 'P', in2Val, 'H', in1Val);
   } else if (t1 === 'T' && t2 === 'P') {
