@@ -69,7 +69,7 @@ export const LayersManager: React.FC = () => {
       </div>
 
       {/* Layers List */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
         {layers.map((layer) => {
           const isActive = layer.id === activeLayerId;
           const layerPointsCount = points.filter((p) => p.layerId === layer.id).length;

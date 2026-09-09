@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { DiagramPoint } from '../../types/thermo';
 import { useProject } from '../../context/ProjectContext';
+import { formatSpecificVolume } from '../../utils/formatters';
 
 interface DiagramOverlayProps {
   xScale: (h: number) => number;
@@ -269,10 +270,7 @@ export const DiagramOverlay: React.FC<DiagramOverlayProps> = ({
                       h = {pt.state.enthalpy_kj_kg.toFixed(1)} kJ/kg
                     </text>
                     <text x={8} y={56} fill="#94a3b8" fontSize="9.5">
-                      v = {pt.state.specific_volume_m3_kg < 0.01
-                        ? pt.state.specific_volume_m3_kg.toExponential(3)
-                        : pt.state.specific_volume_m3_kg.toFixed(4)}{' '}
-                      m³/kg
+                      v = {formatSpecificVolume(pt.state.specific_volume_m3_kg).display}
                     </text>
                     <text x={8} y={70} fill="#38bdf8" fontWeight="600" fontSize="9.5">
                       P = {pt.state.pressure_bar.toFixed(2)} bar(a)

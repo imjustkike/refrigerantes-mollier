@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   CatalogItem,
   CatalogResponse,
@@ -80,6 +80,16 @@ interface ProjectContextType {
   setConnectSourcePointId: (id: string | null) => void;
   sidebarTab: 'layers_points' | 'connections' | 'editor';
   setSidebarTab: (tab: 'layers_points' | 'connections' | 'editor') => void;
+
+  // Diagram View & Engine controls
+  diagramTheme: 'danfoss' | 'dark';
+  setDiagramTheme: React.Dispatch<React.SetStateAction<'danfoss' | 'dark'>>;
+  engineMode: 'svg' | 'plotly';
+  setEngineMode: React.Dispatch<React.SetStateAction<'svg' | 'plotly'>>;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+  registerDiagramActions: (actions: { zoomIn: () => void; zoomOut: () => void; resetView: () => void }) => void;
 
   // Notifications & Modals
   toastMessage: string | null;
@@ -216,6 +226,23 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [connectSourcePointId, setConnectSourcePointId] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'layers_points' | 'connections' | 'editor'>('layers_points');
 
+  // Diagram View & Engine States
+  const [diagramTheme, setDiagramTheme] = useState<'danfoss' | 'dark'>('danfoss');
+  const [engineMode, setEngineMode] = useState<'svg' | 'plotly'>('svg');
+  const diagramActionsRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void }>({
+    zoomIn: () => {},
+    zoomOut: () => {},
+    resetView: () => {},
+  });
+
+  const registerDiagramActions = useCallback((actions: { zoomIn: () => void; zoomOut: () => void; resetView: () => void }) => {
+    diagramActionsRef.current = actions;
+  }, []);
+
+  const zoomIn = useCallback(() => diagramActionsRef.current.zoomIn(), []);
+  const zoomOut = useCallback(() => diagramActionsRef.current.zoomOut(), []);
+  const resetView = useCallback(() => diagramActionsRef.current.resetView(), []);
+
   // Initial Load: Fetch Catalog
   useEffect(() => {
     thermoService
@@ -308,7 +335,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     async (
       pointId: string | null,
       name: string,
-      color: string,
+      _color: string,
       in1Type: string,
       in1Val: number,
       in2Type: string,
@@ -326,14 +353,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const activeLayer = layers.find((l) => l.id === activeLayerId) || layers[0];
 
         if (pointId) {
-          // Update existing point
+          // Update existing point (preserves layer color)
           setPoints((prev) =>
             prev.map((p) => {
               if (p.id === pointId) {
+                const pLayer = layers.find((l) => l.id === p.layerId) || activeLayer;
                 return {
                   ...p,
                   name,
-                  color: color || p.color,
+                  color: pLayer?.color || p.color,
                   input1_type: in1Type,
                   input1_val: in1Val,
                   input2_type: in2Type,
@@ -349,9 +377,9 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
           recalculateConnectionsForPoint(pointId, state);
           return null;
         } else {
-          // Create new point
+          // Create new point with active layer's color
           const pointIndex = points.length + 1;
-          const assignedColor = color || activeLayer?.color || POINT_COLORS[(pointIndex - 1) % POINT_COLORS.length];
+          const assignedColor = activeLayer?.color || POINT_COLORS[0];
           const newPoint: DiagramPoint = {
             id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
             layerId: activeLayer?.id,
@@ -972,6 +1000,14 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnectSourcePointId,
         sidebarTab,
         setSidebarTab,
+        diagramTheme,
+        setDiagramTheme,
+        engineMode,
+        setEngineMode,
+        zoomIn,
+        zoomOut,
+        resetView,
+        registerDiagramActions,
         toastMessage,
         showToast,
         isAvailabilityModalOpen,

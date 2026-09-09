@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
-import { DiagramToolbar } from './DiagramToolbar';
+import { formatSpecificVolume } from '../../utils/formatters';
 import { DiagramRenderer } from '../../engine/renderer/DiagramRenderer';
 import { DiagramTransform, ViewportRect } from '../../engine/transform/DiagramTransform';
 import { DiagramInteraction, DraggingState } from '../../engine/interaction/DiagramInteraction';
@@ -40,6 +40,9 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     setConnectSourcePointId,
     addConnection,
     showToast,
+    diagramTheme,
+    engineMode,
+    registerDiagramActions,
   } = useProject();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,9 +51,6 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     width: 900,
     height: 600,
   });
-
-  const [diagramTheme, setDiagramTheme] = useState<'danfoss' | 'dark'>('danfoss');
-  const [engineMode, setEngineMode] = useState<'svg' | 'plotly'>('svg');
 
   // Margins around plot interior (34px top for top isochore labels, 65px right for isochoric v-scale)
   const margin = useMemo(() => ({ top: 34, right: 65, bottom: 45, left: 65 }), []);
@@ -142,6 +142,14 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
   const handleResetView = useCallback(() => {
     setTransform((prev) => prev.resetView());
   }, []);
+
+  useEffect(() => {
+    registerDiagramActions({
+      zoomIn: handleZoomIn,
+      zoomOut: handleZoomOut,
+      resetView: handleResetView,
+    });
+  }, [registerDiagramActions, handleZoomIn, handleZoomOut, handleResetView]);
 
   // Canvas Mouse Down
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
@@ -522,66 +530,158 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
   return (
     <div
-      ref={containerRef}
-      className={`w-full h-full relative overflow-hidden select-none ${
-        diagramTheme === 'danfoss' ? 'theme-danfoss bg-slate-200/60' : 'theme-dark bg-slate-950'
+      className={`w-full h-full flex flex-col overflow-hidden select-none ${
+        diagramTheme === 'danfoss' ? 'theme-danfoss bg-slate-100' : 'theme-dark bg-slate-950'
       }`}
-      onWheel={handleWheel}
-      onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleCanvasMouseMove}
-      style={{
-        cursor:
-          toolMode === 'add_point'
-            ? 'crosshair'
-            : toolMode === 'connect'
-            ? 'pointer'
-            : 'default',
-      }}
     >
-      <DiagramToolbar
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetView={handleResetView}
-        diagramTheme={diagramTheme}
-        onToggleTheme={() => setDiagramTheme((t) => (t === 'danfoss' ? 'dark' : 'danfoss'))}
-        engineMode={engineMode}
-        onToggleEngine={() => setEngineMode((m) => (m === 'svg' ? 'plotly' : 'svg'))}
-      />
-
-      {/* Loading Overlay */}
-      {isLoadingCurves && (
-        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-3 z-40">
-          <Loader2 className="animate-spin text-cyan-400" size={36} />
-          <div className="text-sm font-bold text-white tracking-tight">
-            Calculando malla termodinámica de {selectedFluidItem?.display_name || selectedFluidId}...
+      {/* Top Inspector Status Bar - Fixed at top-left, never overlaps the diagram */}
+      <div
+        className={`h-10 px-3 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-20 transition-colors ${
+          diagramTheme === 'danfoss'
+            ? 'bg-slate-200/90 border-slate-300 text-slate-800'
+            : 'bg-slate-900/90 border-slate-800/80 text-slate-200'
+        }`}
+      >
+        {/* Pinned to top-left: compact square tiles */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Tile P */}
+          <div
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+              diagramTheme === 'danfoss'
+                ? 'bg-white border-slate-300 text-slate-800'
+                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+            }`}
+          >
+            <span className="font-bold text-cyan-400 text-[10px]">P</span>
+            <span className="font-semibold text-[11px]">
+              {cursorState ? `${Units.paToBar(cursorState.pPa).toFixed(2)} bar` : '— bar'}
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-mono">
-            Resolviendo ecuaciones de estado Helmholtz en CoolProp
+
+          {/* Tile T */}
+          <div
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+              diagramTheme === 'danfoss'
+                ? 'bg-white border-slate-300 text-slate-800'
+                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+            }`}
+          >
+            <span className="font-bold text-emerald-400 text-[10px]">T</span>
+            <span className="font-semibold text-[11px]">
+              {cursorState?.tC !== undefined ? `${cursorState.tC.toFixed(1)} °C` : '— °C'}
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* Error Banner */}
-      {curvesError && (
-        <div className="absolute top-14 left-4 right-4 p-3 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-300 text-xs z-35 backdrop-blur-md">
-          <strong className="text-white">Error de cálculo termodinámico:</strong> {curvesError}
-        </div>
-      )}
+          {/* Tile h */}
+          <div
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+              diagramTheme === 'danfoss'
+                ? 'bg-white border-slate-300 text-slate-800'
+                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+            }`}
+          >
+            <span className="font-bold text-sky-400 text-[10px]">h</span>
+            <span className="font-semibold text-[11px]">
+              {cursorState ? `${Units.jkgToKjkg(cursorState.hJkg).toFixed(1)} kJ/kg` : '— kJ/kg'}
+            </span>
+          </div>
 
-      {/* Diagram Rendering: Plotly or Native SVG */}
-      {engineMode === 'plotly' ? (
-        <React.Suspense
-          fallback={
-            <div className="w-full h-full flex items-center justify-center text-slate-400">
-              <Loader2 className="animate-spin text-emerald-400 mr-2" size={28} />
-              <span>Cargando motor Plotly.js...</span>
+          {/* Tile s */}
+          <div
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+              diagramTheme === 'danfoss'
+                ? 'bg-white border-slate-300 text-slate-800'
+                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+            }`}
+          >
+            <span className="font-bold text-amber-400 text-[10px]">s</span>
+            <span className="font-semibold text-[11px]">
+              {cursorState?.sKjkgk !== undefined ? `${cursorState.sKjkgk.toFixed(4)} kJ/(kg·K)` : '— kJ/(kg·K)'}
+            </span>
+          </div>
+
+          {/* Tile v with logarithmic format when small */}
+          {(() => {
+            const vFmt = formatSpecificVolume(cursorState?.vM3kg);
+            return (
+              <div
+                title={vFmt.tooltip}
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm cursor-help ${
+                  diagramTheme === 'danfoss'
+                    ? 'bg-white border-slate-300 text-slate-800'
+                    : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                }`}
+              >
+                <span className="font-bold text-purple-400 text-[10px]">v</span>
+                <span className={`font-semibold text-[11px] ${vFmt.isSci ? 'text-purple-300 font-bold' : ''}`}>
+                  {cursorState?.vM3kg !== undefined ? vFmt.display : '— m³/kg'}
+                </span>
+              </div>
+            );
+          })()}
+
+          {/* Tile Fase */}
+          {cursorState?.phase && (
+            <span className="px-2 py-0.5 rounded-lg bg-cyan-950/80 text-cyan-300 border border-cyan-800/50 text-[10px] font-bold shadow-sm">
+              {cursorState.phase}
+            </span>
+          )}
+        </div>
+
+        <div className="text-[10px] text-slate-500 font-mono hidden md:block select-none">
+          {cursorState ? 'Inspección activa' : 'Pase el cursor por el diagrama'}
+        </div>
+      </div>
+
+      {/* Main Diagram Canvas Area */}
+      <div
+        ref={containerRef}
+        className="flex-1 w-full h-full relative overflow-hidden select-none"
+        onWheel={handleWheel}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        style={{
+          cursor:
+            toolMode === 'add_point'
+              ? 'crosshair'
+              : toolMode === 'connect'
+              ? 'pointer'
+              : 'default',
+        }}
+      >
+        {/* Loading Overlay */}
+        {isLoadingCurves && (
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-3 z-40">
+            <Loader2 className="animate-spin text-cyan-400" size={36} />
+            <div className="text-sm font-bold text-white tracking-tight">
+              Calculando malla termodinámica de {selectedFluidItem?.display_name || selectedFluidId}...
             </div>
-          }
-        >
-          <PlotlyMollierDiagram theme={diagramTheme} />
-        </React.Suspense>
-      ) : (
-        <>
+            <div className="text-xs text-slate-400 font-mono">
+              Resolviendo ecuaciones de estado Helmholtz en CoolProp
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {curvesError && (
+          <div className="absolute top-4 left-4 right-4 p-3 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-300 text-xs z-35 backdrop-blur-md">
+            <strong className="text-white">Error de cálculo termodinámico:</strong> {curvesError}
+          </div>
+        )}
+
+        {/* Diagram Rendering: Plotly or Native SVG */}
+        {engineMode === 'plotly' ? (
+          <React.Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center text-slate-400">
+                <Loader2 className="animate-spin text-emerald-400 mr-2" size={28} />
+                <span>Cargando motor Plotly.js...</span>
+              </div>
+            }
+          >
+            <PlotlyMollierDiagram theme={diagramTheme} />
+          </React.Suspense>
+        ) : (
           <DiagramRenderer
             transform={transform}
             dataset={dataset}
@@ -596,61 +696,8 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
             onPointMouseDown={handlePointMouseDown}
             onLabelMouseDown={handleLabelMouseDown}
           />
-
-          {/* Live Cursor Inspector (SVG Mode) */}
-          {cursorState && (
-            <div className="absolute bottom-3 left-4 flex items-center gap-3.5 px-4 py-2 bg-slate-900/95 border border-slate-700/70 rounded-xl backdrop-blur-xl shadow-2xl font-mono text-xs text-slate-300 pointer-events-none z-15">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 font-semibold">P:</span>{' '}
-                <strong className="text-cyan-400 font-bold">
-                  {Units.paToBar(cursorState.pPa).toFixed(2)} bar
-                </strong>
-              </div>
-
-              {/* Isentropics (s) placed directly ABOVE Enthalpy (h) with its unit */}
-              <div className="flex flex-col justify-center border-l border-r border-slate-800/90 px-3 py-0.5 gap-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-amber-400 font-bold text-[11px]">s:</span>{' '}
-                  <strong className="text-amber-300 font-bold text-[11px]">
-                    {cursorState.sKjkgk !== undefined ? cursorState.sKjkgk.toFixed(4) : '—'} kJ/(kg·K)
-                  </strong>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 font-bold text-[11px]">h:</span>{' '}
-                  <strong className="text-slate-100 font-bold text-[11px]">
-                    {Units.jkgToKjkg(cursorState.hJkg).toFixed(1)} kJ/kg
-                  </strong>
-                </div>
-              </div>
-
-              {cursorState.tC !== undefined && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500 font-semibold">T:</span>{' '}
-                  <strong className="text-emerald-400 font-bold">
-                    {cursorState.tC.toFixed(1)} °C
-                  </strong>
-                </div>
-              )}
-              {cursorState.vM3kg !== undefined && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500 font-semibold">v:</span>{' '}
-                  <strong className="text-purple-400 font-bold">
-                    {cursorState.vM3kg < 0.01
-                      ? cursorState.vM3kg.toExponential(2)
-                      : cursorState.vM3kg.toFixed(4)}{' '}
-                    m³/kg
-                  </strong>
-                </div>
-              )}
-              {cursorState.phase && (
-                <span className="px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/40 text-[10px] font-bold">
-                  {cursorState.phase}
-                </span>
-              )}
-            </div>
-          )}
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };

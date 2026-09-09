@@ -3,7 +3,6 @@ import { MollierDiagram } from './components/Diagram/MollierDiagram';
 import { Header } from './components/Header/Header';
 import { AvailabilityMatrixModal } from './components/Modals/AvailabilityMatrixModal';
 import { SampleCyclesModal } from './components/Modals/SampleCyclesModal';
-import { PointsTable } from './components/PointsTable/PointsTable';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 
@@ -42,9 +41,6 @@ const MainAppContent: React.FC = () => {
         <div className="flex-1 h-full relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
           <MollierDiagram canvasExportRef={canvasExportRef} />
         </div>
-
-        {/* Collapsible Bottom Points Table */}
-        <PointsTable />
       </div>
 
       {/* Modals */}
