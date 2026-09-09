@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { MollierDiagram } from './components/Diagram/MollierDiagram';
 import { Refrigeration3DView } from './components/Refrigeration3D/Refrigeration3DView';
+import { SchematicCanvas } from './components/Schematic/SchematicCanvas';
 import { Header } from './components/Header/Header';
 import { AvailabilityMatrixModal } from './components/Modals/AvailabilityMatrixModal';
 import { SampleCyclesModal } from './components/Modals/SampleCyclesModal';
@@ -36,14 +37,20 @@ const MainAppContent: React.FC = () => {
       <Header onExportPng={handleExportPng} />
 
       {/* Main Workspace */}
-      <div className="flex flex-1 h-[calc(100vh-56px)] overflow-hidden relative">
-        {/* Left Sidebar (Layers, Points, Connections) */}
-        <Sidebar />
+      <div className="flex flex-1 h-[calc(100vh-52px)] overflow-hidden relative">
+        {/* Left Sidebar (Layers, Points, Connections) - show in diagram and split mode */}
+        {(mainViewMode === 'diagram' || mainViewMode === 'split') && (
+          <Sidebar />
+        )}
 
         {/* Central Workspace Area */}
         <div className="flex-1 h-full relative overflow-hidden bg-slate-200/70 dark:bg-[#12141a]">
           {mainViewMode === 'diagram' && (
             <MollierDiagram canvasExportRef={canvasExportRef} />
+          )}
+
+          {mainViewMode === 'schematic' && (
+            <SchematicCanvas />
           )}
 
           {mainViewMode === '3d' && (
@@ -57,9 +64,9 @@ const MainAppContent: React.FC = () => {
                 <MollierDiagram canvasExportRef={canvasExportRef} />
               </div>
 
-              {/* Right half: 3D Refrigeration Circuit */}
+              {/* Right half: Schematic P&ID Circuit */}
               <div className="flex-1 h-full relative">
-                <Refrigeration3DView />
+                <SchematicCanvas />
               </div>
             </div>
           )}

@@ -10,6 +10,7 @@ import {
   Repeat,
   Share2,
   Sun,
+  Workflow,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -104,6 +105,19 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
 
           <button
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              mainViewMode === 'schematic'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setMainViewMode('schematic')}
+            title="Esquema Interactivo de Principio P&ID"
+          >
+            <Workflow size={13} />
+            <span className="hidden sm:inline">Esquema P&ID</span>
+          </button>
+
+          <button
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
               mainViewMode === '3d'
                 ? 'bg-sky-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -122,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
             onClick={() => setMainViewMode('split')}
-            title="Vista Dividida (Mollier + Ciclo 3D en simultáneo)"
+            title="Vista Dividida (Mollier + Esquema P&ID)"
           >
             <Columns2 size={13} />
             <span className="hidden md:inline">Split</span>
