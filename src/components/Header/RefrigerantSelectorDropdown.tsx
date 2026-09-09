@@ -67,18 +67,13 @@ export const RefrigerantSelectorDropdown: React.FC = () => {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-100 dark:bg-[#181b22] hover:bg-slate-200/80 dark:hover:bg-[#20242e] border border-slate-300 dark:border-slate-700/80 rounded-lg transition-colors shadow-2xs group cursor-pointer"
-        title="Seleccionar refrigerante"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-[#181b22] hover:bg-slate-200/80 dark:hover:bg-[#20242e] border border-slate-300 dark:border-slate-700/80 rounded-lg transition-colors shadow-2xs group cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
+        title={`Refrigerante: ${selectedFluidItem?.display_name || selectedFluidId}${selectedFluidItem?.fluid_type ? ` (${selectedFluidItem.fluid_type})` : ''}`}
       >
         <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-        <div className="flex flex-col text-left">
-          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors leading-none">
-            {selectedFluidItem?.display_name || selectedFluidId}
-          </span>
-          <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono leading-tight mt-0.5">
-            {selectedFluidItem?.fluid_type || 'Refrigerante'}
-          </span>
-        </div>
+        <span className="font-semibold text-slate-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors max-w-[150px] sm:max-w-[180px] truncate">
+          {selectedFluidItem?.display_name || selectedFluidId}
+        </span>
         <ChevronDown
           size={13}
           className={`text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-150 ${

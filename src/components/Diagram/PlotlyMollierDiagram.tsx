@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import Plotly from 'plotly.js-dist-min';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
+import type * as Plotly from 'plotly.js-dist-min';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { Units } from '../../engine/types/thermoContract';
 
@@ -7,8 +8,46 @@ interface PlotlyMollierDiagramProps {
   theme?: 'danfoss' | 'dark';
 }
 
-// Ensure proper interop for CJS/ESM Plotly bundle
-const PlotlyLib = (Plotly as any)?.default || Plotly;
+let plotlyLoaderPromise: Promise<any> | null = null;
+
+function loadPlotly(): Promise<any> {
+  if (typeof window !== 'undefined' && (window as any).Plotly?.react) {
+    return Promise.resolve((window as any).Plotly);
+  }
+  if (!plotlyLoaderPromise) {
+    plotlyLoaderPromise = new Promise((resolve, reject) => {
+      let script = document.querySelector('script[src="/plotly.min.js"]') as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement('script');
+        script.src = '/plotly.min.js';
+        script.async = true;
+        document.head.appendChild(script);
+      }
+
+      if ((window as any).Plotly?.react) {
+        resolve((window as any).Plotly);
+        return;
+      }
+
+      const onScriptLoad = () => {
+        if ((window as any).Plotly?.react) {
+          resolve((window as any).Plotly);
+        } else {
+          reject(new Error('Plotly script cargado pero window.Plotly no está disponible'));
+        }
+      };
+
+      const onScriptError = () => {
+        plotlyLoaderPromise = null;
+        reject(new Error('No se pudo cargar el script de Plotly (/plotly.min.js)'));
+      };
+
+      script.addEventListener('load', onScriptLoad, { once: true });
+      script.addEventListener('error', onScriptError, { once: true });
+    });
+  }
+  return plotlyLoaderPromise;
+}
 
 export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ theme = 'danfoss' }) => {
   const {
@@ -24,6 +63,25 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
 
   const plotContainerRef = useRef<HTMLDivElement>(null);
   const isDanfoss = theme === 'danfoss';
+
+  const [isPlotlyReady, setIsPlotlyReady] = useState<boolean>(() =>
+    Boolean(typeof window !== 'undefined' && (window as any).Plotly?.react)
+  );
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    loadPlotly()
+      .then(() => {
+        if (isMounted) setIsPlotlyReady(true);
+      })
+      .catch((err) => {
+        if (isMounted) setLoadError(err?.message || 'Error cargando motor Plotly');
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Build Plotly Traces from thermodynamic dataset safely
   const plotData = useMemo<Plotly.Data[]>(() => {
@@ -282,9 +340,10 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
 
   // Render & Update Plotly
   useEffect(() => {
-    if (!plotContainerRef.current || !dataset) return;
-    if (!PlotlyLib || typeof PlotlyLib.react !== 'function') {
-      console.warn('PlotlyLib.react is not available');
+    if (!isPlotlyReady || !plotContainerRef.current || !dataset) return;
+    const Plotly = (window as any).Plotly;
+    if (!Plotly || typeof Plotly.react !== 'function') {
+      console.warn('Plotly.react is not available on window');
       return;
     }
 
@@ -355,7 +414,7 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
     };
 
     let isSubscribed = true;
-    PlotlyLib.react(plotContainerRef.current, plotData, layout, config)
+    Plotly.react(plotContainerRef.current, plotData, layout, config)
       .then((elem: any) => {
         if (!isSubscribed || !elem || !elem.on) return;
         elem.removeAllListeners?.('plotly_click');
@@ -378,6 +437,7 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
       isSubscribed = false;
     };
   }, [
+    isPlotlyReady,
     dataset,
     plotData,
     isDanfoss,
@@ -391,15 +451,34 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
   useEffect(() => {
     const container = plotContainerRef.current;
     return () => {
-      if (container && PlotlyLib && typeof PlotlyLib.purge === 'function') {
+      const Plotly = (window as any).Plotly;
+      if (container && Plotly && typeof Plotly.purge === 'function') {
         try {
-          PlotlyLib.purge(container);
+          Plotly.purge(container);
         } catch {
           // ignore cleanup errors
         }
       }
     };
   }, []);
+
+  if (loadError) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center text-rose-400">
+        <AlertTriangle size={28} />
+        <span className="text-xs font-mono">{loadError}</span>
+      </div>
+    );
+  }
+
+  if (!isPlotlyReady) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-slate-400 gap-2">
+        <Loader2 className="animate-spin text-sky-400" size={24} />
+        <span className="text-xs font-mono">Cargando motor Plotly.js...</span>
+      </div>
+    );
+  }
 
   return <div ref={plotContainerRef} className="w-full h-full block" />;
 };

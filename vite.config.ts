@@ -10,7 +10,7 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    include: ["plotly.js-dist-min"],
+    exclude: ["plotly.js-dist-min"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
