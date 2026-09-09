@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Activity,
   Maximize2,
   Moon,
   MousePointer,
@@ -42,13 +41,15 @@ export const Header: React.FC<HeaderProps> = () => {
     <header className="h-14 px-4 bg-slate-900/95 border-b border-slate-800/80 flex items-center justify-between gap-4 z-30 backdrop-blur-xl shadow-lg shadow-black/20">
       {/* Brand & Project Name */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 via-cyan-500 to-teal-400 p-[1px] shadow-lg shadow-cyan-500/20 flex items-center justify-center">
-          <div className="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
-            <Activity size={18} className="text-cyan-400" />
-          </div>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 via-cyan-500 to-teal-400 p-[1px] shadow-lg shadow-cyan-500/20 flex items-center justify-center overflow-hidden">
+          <img src="/icon.png" alt="CoolMollier" className="w-full h-full object-cover rounded-[11px]" />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
+            <span className="text-xs font-black tracking-wider uppercase bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-300 bg-clip-text text-transparent select-none">
+              CoolMollier
+            </span>
+            <span className="text-slate-600 text-xs">•</span>
             {isEditingName ? (
               <input
                 type="text"
@@ -61,7 +62,7 @@ export const Header: React.FC<HeaderProps> = () => {
               />
             ) : (
               <span
-                className="text-sm font-bold text-slate-100 tracking-tight cursor-pointer hover:text-cyan-400 transition-colors"
+                className="text-xs font-semibold text-slate-200 tracking-tight cursor-pointer hover:text-cyan-400 transition-colors"
                 onClick={() => setIsEditingName(true)}
                 title="Haga clic para editar el nombre del proyecto"
               >
