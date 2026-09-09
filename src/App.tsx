@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { MollierDiagram } from './components/Diagram/MollierDiagram';
+import { Refrigeration3DView } from './components/Refrigeration3D/Refrigeration3DView';
 import { Header } from './components/Header/Header';
 import { AvailabilityMatrixModal } from './components/Modals/AvailabilityMatrixModal';
 import { SampleCyclesModal } from './components/Modals/SampleCyclesModal';
@@ -12,6 +13,7 @@ const MainAppContent: React.FC = () => {
     projectName,
     selectedFluidId,
     themeMode,
+    mainViewMode,
   } = useProject();
 
   const canvasExportRef = useRef<(() => Promise<string | null>) | null>(null);
@@ -38,9 +40,29 @@ const MainAppContent: React.FC = () => {
         {/* Left Sidebar (Layers, Points, Connections) */}
         <Sidebar />
 
-        {/* Center Diagram */}
+        {/* Central Workspace Area */}
         <div className="flex-1 h-full relative overflow-hidden bg-slate-200/70 dark:bg-[#12141a]">
-          <MollierDiagram canvasExportRef={canvasExportRef} />
+          {mainViewMode === 'diagram' && (
+            <MollierDiagram canvasExportRef={canvasExportRef} />
+          )}
+
+          {mainViewMode === '3d' && (
+            <Refrigeration3DView />
+          )}
+
+          {mainViewMode === 'split' && (
+            <div className="flex w-full h-full">
+              {/* Left half: Mollier log(P)-h Diagram */}
+              <div className="flex-1 h-full relative border-r border-slate-300 dark:border-slate-800">
+                <MollierDiagram canvasExportRef={canvasExportRef} />
+              </div>
+
+              {/* Right half: 3D Refrigeration Circuit */}
+              <div className="flex-1 h-full relative">
+                <Refrigeration3DView />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

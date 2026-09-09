@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import {
+  Box,
+  Columns2,
   Download,
+  LineChart,
   Maximize2,
   Moon,
   MousePointer,
@@ -34,6 +37,8 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
     toggleThemeMode,
     engineMode,
     setEngineMode,
+    mainViewMode,
+    setMainViewMode,
   } = useProject();
 
   const [isEditingName, setIsEditingName] = useState(false);
@@ -80,8 +85,52 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
         </div>
       </div>
 
-      {/* Right Controls: Refrigerant, Curves, Tools & Engine */}
+      {/* Right Controls: View Switcher, Refrigerant, Curves, Tools & Engine */}
       <div className="flex items-center gap-2">
+        {/* Main View Mode Selector (Diagram, 3D, Split) */}
+        <div className="flex items-center bg-slate-100 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium">
+          <button
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              mainViewMode === 'diagram'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setMainViewMode('diagram')}
+            title="Diagrama de Mollier log(p)-h"
+          >
+            <LineChart size={13} />
+            <span className="hidden sm:inline">Mollier</span>
+          </button>
+
+          <button
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              mainViewMode === '3d'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setMainViewMode('3d')}
+            title="Circuito Físico 3D Interactivo"
+          >
+            <Box size={13} />
+            <span className="hidden sm:inline">Ciclo 3D</span>
+          </button>
+
+          <button
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              mainViewMode === 'split'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setMainViewMode('split')}
+            title="Vista Dividida (Mollier + Ciclo 3D en simultáneo)"
+          >
+            <Columns2 size={13} />
+            <span className="hidden md:inline">Split</span>
+          </button>
+        </div>
+
+        <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
         {/* Refrigerant Selector */}
         <RefrigerantSelectorDropdown />
 

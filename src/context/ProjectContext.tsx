@@ -89,6 +89,8 @@ interface ProjectContextType {
   setDiagramTheme: React.Dispatch<React.SetStateAction<'danfoss' | 'dark'>>;
   engineMode: 'svg' | 'plotly';
   setEngineMode: React.Dispatch<React.SetStateAction<'svg' | 'plotly'>>;
+  mainViewMode: 'diagram' | '3d' | 'split';
+  setMainViewMode: React.Dispatch<React.SetStateAction<'diagram' | '3d' | 'split'>>;
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
@@ -263,6 +265,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const [engineMode, setEngineMode] = useState<'svg' | 'plotly'>('svg');
+  const [mainViewMode, setMainViewMode] = useState<'diagram' | '3d' | 'split'>('diagram');
   const diagramActionsRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void }>({
     zoomIn: () => {},
     zoomOut: () => {},
@@ -1041,6 +1044,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setDiagramTheme,
         engineMode,
         setEngineMode,
+        mainViewMode,
+        setMainViewMode,
         zoomIn,
         zoomOut,
         resetView,
