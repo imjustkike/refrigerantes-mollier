@@ -1,4 +1,4 @@
-use crate::thermo::{props1_si, FluidInfo};
+use crate::thermo::{get_fluid_constants, resolve_coolprop_fluid_id, FluidInfo};
 use coolprop_sys::COOLPROP;
 use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
@@ -34,39 +34,45 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
         ("R600 (Butano)", vec!["R600", "n-Butane", "Butane"], "Naturales", "Puro", Some(4.0), Some("A3".to_string())),
         ("R1270 (Propileno)", vec!["R1270", "Propylene"], "Naturales", "Puro", Some(2.0), Some("A3".to_string())),
 
-        // HFC y mezclas habituales
-        ("R134a", vec!["R134a"], "HFC y mezclas", "Puro", Some(1430.0), Some("A1".to_string())),
-        ("R32 (Difluorometano)", vec!["R32", "Difluoromethane"], "HFC y mezclas", "Puro", Some(675.0), Some("A2L".to_string())),
-        ("R125 (Pentafluoroetano)", vec!["R125", "Pentafluoroethane"], "HFC y mezclas", "Puro", Some(3500.0), Some("A1".to_string())),
-        ("R143a (Trifluoroetano)", vec!["R143a"], "HFC y mezclas", "Puro", Some(4470.0), Some("A2L".to_string())),
-        ("R152a (Difluoroetano)", vec!["R152a"], "HFC y mezclas", "Puro", Some(124.0), Some("A2".to_string())),
-        ("R404A", vec!["R404A", "R404A.mix"], "HFC y mezclas", "Mezcla casi azeotrópica", Some(3922.0), Some("A1".to_string())),
-        ("R407A", vec!["R407A.mix", "R407A"], "HFC y mezclas", "Mezcla zeotrópica", Some(2107.0), Some("A1".to_string())),
-        ("R407C", vec!["R407C", "R407C.mix"], "HFC y mezclas", "Mezcla zeotrópica", Some(1774.0), Some("A1".to_string())),
-        ("R407F", vec!["R407F", "R407F.mix"], "HFC y mezclas", "Mezcla zeotrópica", Some(1825.0), Some("A1".to_string())),
-        ("R410A", vec!["R410A", "R410A.mix"], "HFC y mezclas", "Mezcla casi azeotrópica", Some(2088.0), Some("A1".to_string())),
-        ("R507A", vec!["R507A", "R507A.mix"], "HFC y mezclas", "Mezcla azeotrópica", Some(3985.0), Some("A1".to_string())),
-
-        // HFO y mezclas de menor GWP
+        // HFO y mezclas de bajo GWP (Reemplazos modernos directos)
+        ("R513A (Opteon XP10)", vec!["R513A.mix", "R513A", "XP10", "Opteon XP10"], "HFO y bajo GWP", "Mezcla azeotrópica", Some(631.0), Some("A1".to_string())),
         ("R1234yf", vec!["R1234yf"], "HFO y bajo GWP", "Puro", Some(4.0), Some("A2L".to_string())),
         ("R1234ze(E)", vec!["R1234ze(E)", "R1234ze"], "HFO y bajo GWP", "Puro", Some(7.0), Some("A2L".to_string())),
         ("R1233zd(E)", vec!["R1233zd(E)", "R1233zd"], "HFO y bajo GWP", "Puro", Some(1.0), Some("A1".to_string())),
-        ("R448A", vec!["R448A", "R448A.mix"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(1387.0), Some("A1".to_string())),
-        ("R449A", vec!["R449A", "R449A.mix"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(1397.0), Some("A1".to_string())),
-        ("R450A", vec!["R450A.mix", "R450A"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(605.0), Some("A1".to_string())),
-        ("R452A", vec!["R452A", "R452A.mix"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(2140.0), Some("A1".to_string())),
-        ("R454B", vec!["R454B", "R454B.mix"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(466.0), Some("A2L".to_string())),
-        ("R454C", vec!["R454C.mix", "R454C"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(148.0), Some("A2L".to_string())),
-        ("R455A", vec!["R455A", "R455A.mix"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(148.0), Some("A2L".to_string())),
-        ("R513A", vec!["R513A", "R513A.mix"], "HFO y bajo GWP", "Mezcla azeotrópica", Some(631.0), Some("A1".to_string())),
+        ("R448A (Solstice N40)", vec!["R448A.mix", "R448A", "Solstice N40"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(1387.0), Some("A1".to_string())),
+        ("R449A (Opteon XP40)", vec!["R449A.mix", "R449A", "Opteon XP40"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(1397.0), Some("A1".to_string())),
+        ("R450A (Solstice N13)", vec!["R450A.mix", "R450A", "Solstice N13"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(605.0), Some("A1".to_string())),
+        ("R452A (Opteon XP44)", vec!["R452A.mix", "R452A", "Opteon XP44"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(2140.0), Some("A1".to_string())),
+        ("R454B (Opteon XL41 / Puron Advance)", vec!["R454B.mix", "R454B", "Opteon XL41"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(466.0), Some("A2L".to_string())),
+        ("R454C (Opteon XL20)", vec!["R454C.mix", "R454C", "Opteon XL20"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(148.0), Some("A2L".to_string())),
+        ("R455A (Solstice L40X)", vec!["R455A.mix", "R455A", "Solstice L40X"], "HFO y bajo GWP", "Mezcla zeotrópica", Some(148.0), Some("A2L".to_string())),
+
+        // HFC y mezclas habituales
+        ("R134a", vec!["R134a"], "HFC y mezclas", "Puro", Some(1430.0), Some("A1".to_string())),
+        ("R32 (Difluorometano)", vec!["R32", "Difluoromethane"], "HFC y mezclas", "Puro", Some(675.0), Some("A2L".to_string())),
+        ("R404A", vec!["R404A", "R404A.mix"], "HFC y mezclas", "Mezcla casi azeotrópica", Some(3922.0), Some("A1".to_string())),
+        ("R410A", vec!["R410A", "R410A.mix"], "HFC y mezclas", "Mezcla casi azeotrópica", Some(2088.0), Some("A1".to_string())),
+        ("R407C", vec!["R407C", "R407C.mix"], "HFC y mezclas", "Mezcla zeotrópica", Some(1774.0), Some("A1".to_string())),
+        ("R407A", vec!["R407A.mix", "R407A"], "HFC y mezclas", "Mezcla zeotrópica", Some(2107.0), Some("A1".to_string())),
+        ("R407F (Performax LT)", vec!["R407F.mix", "R407F"], "HFC y mezclas", "Mezcla zeotrópica", Some(1825.0), Some("A1".to_string())),
+        ("R507A", vec!["R507A", "R507A.mix"], "HFC y mezclas", "Mezcla azeotrópica", Some(3985.0), Some("A1".to_string())),
+        ("R125 (Pentafluoroetano)", vec!["R125", "Pentafluoroethane"], "HFC y mezclas", "Puro", Some(3500.0), Some("A1".to_string())),
+        ("R143a (Trifluoroetano)", vec!["R143a"], "HFC y mezclas", "Puro", Some(4470.0), Some("A2L".to_string())),
+        ("R152a (Difluoroetano)", vec!["R152a"], "HFC y mezclas", "Puro", Some(124.0), Some("A2".to_string())),
+        ("R422D (ISCEON MO29)", vec!["R422D.mix", "R422D"], "HFC y mezclas", "Mezcla zeotrópica", Some(2729.0), Some("A1".to_string())),
+        ("R438A (MO99)", vec!["R438A.mix", "R438A"], "HFC y mezclas", "Mezcla zeotrópica", Some(2264.0), Some("A1".to_string())),
+        ("R417A (ISCEON MO59)", vec!["R417A.mix", "R417A"], "HFC y mezclas", "Mezcla zeotrópica", Some(2346.0), Some("A1".to_string())),
 
         // Equipos existentes e históricos
         ("R22 (Clorodifluorometano)", vec!["R22", "Chlorodifluoromethane"], "Históricos y existentes", "Puro (HCFC)", Some(1810.0), Some("A1".to_string())),
-        ("R23 (Trifluorometano)", vec!["R23", "Trifluoromethane"], "Históricos y existentes", "Puro (HFC muy baja T)", Some(14800.0), Some("A1".to_string())),
+        ("R502", vec!["R502.mix", "R502"], "Históricos y existentes", "Mezcla azeotrópica (CFC/HCFC)", Some(4657.0), Some("A1".to_string())),
+        ("R12 (Diclorodifluorometano)", vec!["R12", "Dichlorodifluoromethane"], "Históricos y existentes", "Puro (CFC histórico)", Some(10900.0), Some("A1".to_string())),
+        ("R11 (Triclorofluorometano)", vec!["R11"], "Históricos y existentes", "Puro (CFC histórico)", Some(4750.0), Some("A1".to_string())),
         ("R123 (Diclorotrifluoroetano)", vec!["R123", "Dichlorotrifluoroethane"], "Históricos y existentes", "Puro (HCFC)", Some(77.0), Some("B1".to_string())),
         ("R124 (Clorotetrafluoroetano)", vec!["R124"], "Históricos y existentes", "Puro (HCFC)", Some(609.0), Some("A1".to_string())),
-        ("R12 (Diclorodifluorometano)", vec!["R12", "Dichlorodifluoromethane"], "Históricos y existentes", "Puro (CFC histórico)", Some(10900.0), Some("A1".to_string())),
-        ("R502", vec!["R502", "R502.mix"], "Históricos y existentes", "Mezcla azeotrópica (CFC/HCFC)", Some(4657.0), Some("A1".to_string())),
+        ("R23 (Trifluorometano)", vec!["R23", "Trifluoromethane"], "Históricos y existentes", "Puro (HFC muy baja T)", Some(14800.0), Some("A1".to_string())),
+        ("R508B (Suva 95)", vec!["R508B.mix", "R508B"], "Históricos y existentes", "Mezcla azeotrópica (PFC/HFC)", Some(13396.0), Some("A1".to_string())),
+        ("R500", vec!["R500.mix", "R500"], "Históricos y existentes", "Mezcla azeotrópica (CFC/HFC)", Some(8077.0), Some("A1".to_string())),
     ];
 
     let mut priority_items = Vec::new();
@@ -76,21 +82,20 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
         let mut resolved_info = None;
 
         for alias in &aliases {
-            if let Ok(tc) = props1_si(alias, "Tcrit") {
-                if tc.is_finite() && tc > 0.0 {
-                    resolved_id = Some(alias.to_string());
+            let actual_id = resolve_coolprop_fluid_id(alias);
+            if let Ok(consts) = get_fluid_constants(&actual_id) {
+                if consts.t_crit_k > 0.0 {
+                    resolved_id = Some(actual_id);
                     resolved_info = crate::thermo::get_fluid_info(alias).ok();
                     break;
                 }
             }
         }
 
-        let (is_available, notes) = match &resolved_id {
-            Some(id) => (true, Some(format!("Disponible en CoolProp con identificador '{}'", id))),
-            None => (
-                false,
-                Some("No incluido en la base de datos de Helmholtz estándar de CoolProp (requiere parámetros de interacción de mezcla o REFPROP)".to_string()),
-            ),
+        let is_avail = resolved_id.is_some();
+        let notes = match &resolved_id {
+            Some(id) => Some(format!("Disponible en CoolProp con identificador '{}'", id)),
+            None => Some("No incluido en la base de datos estándar de CoolProp".to_string()),
         };
 
         priority_items.push(CatalogItem {
@@ -101,7 +106,7 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
             fluid_type: fluid_type.to_string(),
             gwp,
             ashrae_safety: ashrae,
-            is_available,
+            is_available: is_avail,
             notes,
             info: resolved_info,
         });
@@ -137,3 +142,4 @@ pub fn get_all_coolprop_fluids() -> Vec<String> {
         list
     }
 }
+

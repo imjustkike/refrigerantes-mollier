@@ -324,31 +324,316 @@ const FLUID_MODELS: Record<string, FluidThermodynamicModel> = {
     safety: 'A1',
     wagner: [-7.02, 1.81, -1.75, -2.85],
   },
-  R1234yf: {
-    id: 'R1234yf',
-    name: 'R1234yf (2,3,3,3-Tetrafluoropropeno)',
-    molar_mass: 0.11404,
-    t_triple_c: -53.0,
-    t_crit_c: 94.7,
-    p_crit_bar: 33.82,
+  R513A: {
+    id: 'R513A.mix',
+    name: 'R513A (Opteon XP10)',
+    molar_mass: 0.1084,
+    t_triple_c: -80.0,
+    t_crit_c: 94.9,
+    p_crit_bar: 37.66,
     p_min_bar: 0.1,
-    p_max_bar: 60.0,
+    p_max_bar: 65.0,
+    h_crit_kj_kg: 380.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 3.23,
+    cp_ideal: 1.02,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 631,
+    safety: 'A1',
+    wagner: [-7.72, 2.32, -2.10, -3.55],
+  },
+  R448A: {
+    id: 'R448A.mix',
+    name: 'R448A (Solstice N40)',
+    molar_mass: 0.08628,
+    t_triple_c: -100.0,
+    t_crit_c: 83.7,
+    p_crit_bar: 46.6,
+    p_min_bar: 0.1,
+    p_max_bar: 75.0,
+    h_crit_kj_kg: 380.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 5.31,
+    cp_ideal: 1.15,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 1387,
+    safety: 'A1',
+    wagner: [-7.58, 2.22, -2.04, -3.38],
+  },
+  R449A: {
+    id: 'R449A.mix',
+    name: 'R449A (Opteon XP40)',
+    molar_mass: 0.08721,
+    t_triple_c: -100.0,
+    t_crit_c: 81.5,
+    p_crit_bar: 44.47,
+    p_min_bar: 0.1,
+    p_max_bar: 75.0,
+    h_crit_kj_kg: 380.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 5.23,
+    cp_ideal: 1.15,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 1397,
+    safety: 'A1',
+    wagner: [-7.57, 2.21, -2.03, -3.35],
+  },
+  R450A: {
+    id: 'R450A.mix',
+    name: 'R450A (Solstice N13)',
+    molar_mass: 0.10867,
+    t_triple_c: -80.0,
+    t_crit_c: 105.38,
+    p_crit_bar: 38.2,
+    p_min_bar: 0.1,
+    p_max_bar: 65.0,
+    h_crit_kj_kg: 390.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 2.52,
+    cp_ideal: 1.01,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 605,
+    safety: 'A1',
+    wagner: [-7.65, 2.28, -2.07, -3.5],
+  },
+  R452A: {
+    id: 'R452A.mix',
+    name: 'R452A (Opteon XP44)',
+    molar_mass: 0.10351,
+    t_triple_c: -100.0,
+    t_crit_c: 74.9,
+    p_crit_bar: 40.04,
+    p_min_bar: 0.1,
+    p_max_bar: 70.0,
     h_crit_kj_kg: 360.0,
     h_ref_0c_liq: 200.0,
-    p_sat_0c_bar: 3.15,
+    p_sat_0c_bar: 5.48,
+    cp_ideal: 1.12,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 2140,
+    safety: 'A1',
+    wagner: [-7.59, 2.23, -2.05, -3.39],
+  },
+  R454B: {
+    id: 'R454B.mix',
+    name: 'R454B (Opteon XL41 / Puron Advance)',
+    molar_mass: 0.06261,
+    t_triple_c: -120.0,
+    t_crit_c: 77.1,
+    p_crit_bar: 50.67,
+    p_min_bar: 0.15,
+    p_max_bar: 85.0,
+    h_crit_kj_kg: 420.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 7.72,
+    cp_ideal: 1.28,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 466,
+    safety: 'A2L',
+    wagner: [-7.52, 2.17, -2.01, -3.26],
+  },
+  R454C: {
+    id: 'R454C.mix',
+    name: 'R454C (Opteon XL20)',
+    molar_mass: 0.09078,
+    t_triple_c: -100.0,
+    t_crit_c: 87.64,
+    p_crit_bar: 43.7,
+    p_min_bar: 0.1,
+    p_max_bar: 75.0,
+    h_crit_kj_kg: 390.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 4.88,
+    cp_ideal: 1.12,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 148,
+    safety: 'A2L',
+    wagner: [-7.61, 2.24, -2.07, -3.42],
+  },
+  R455A: {
+    id: 'R455A.mix',
+    name: 'R455A (Solstice L40X)',
+    molar_mass: 0.08745,
+    t_triple_c: -100.0,
+    t_crit_c: 85.6,
+    p_crit_bar: 46.56,
+    p_min_bar: 0.1,
+    p_max_bar: 80.0,
+    h_crit_kj_kg: 400.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 5.92,
+    cp_ideal: 1.18,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 148,
+    safety: 'A2L',
+    wagner: [-7.55, 2.19, -2.03, -3.31],
+  },
+  R407F: {
+    id: 'R407F.mix',
+    name: 'R407F (Performax LT)',
+    molar_mass: 0.08206,
+    t_triple_c: -110.0,
+    t_crit_c: 82.6,
+    p_crit_bar: 47.54,
+    p_min_bar: 0.1,
+    p_max_bar: 80.0,
+    h_crit_kj_kg: 390.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 5.35,
+    cp_ideal: 1.15,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 1825,
+    safety: 'A1',
+    wagner: [-7.60, 2.23, -2.06, -3.41],
+  },
+  R502: {
+    id: 'R502.mix',
+    name: 'R502',
+    molar_mass: 0.11163,
+    t_triple_c: -130.0,
+    t_crit_c: 82.15,
+    p_crit_bar: 40.75,
+    p_min_bar: 0.1,
+    p_max_bar: 75.0,
+    h_crit_kj_kg: 325.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 5.51,
+    cp_ideal: 1.05,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 4657,
+    safety: 'A1',
+    wagner: [-7.48, 2.12, -1.98, -3.20],
+  },
+  R422D: {
+    id: 'R422D.mix',
+    name: 'R422D (ISCEON MO29)',
+    molar_mass: 0.1099,
+    t_triple_c: -120.0,
+    t_crit_c: 79.6,
+    p_crit_bar: 39.05,
+    p_min_bar: 0.1,
+    p_max_bar: 70.0,
+    h_crit_kj_kg: 350.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 4.85,
+    cp_ideal: 1.08,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 2729,
+    safety: 'A1',
+    wagner: [-7.56, 2.20, -2.04, -3.36],
+  },
+  R438A: {
+    id: 'R438A.mix',
+    name: 'R438A (MO99)',
+    molar_mass: 0.0991,
+    t_triple_c: -120.0,
+    t_crit_c: 85.3,
+    p_crit_bar: 42.9,
+    p_min_bar: 0.1,
+    p_max_bar: 75.0,
+    h_crit_kj_kg: 370.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 4.45,
+    cp_ideal: 1.10,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 2264,
+    safety: 'A1',
+    wagner: [-7.59, 2.22, -2.05, -3.39],
+  },
+  R508B: {
+    id: 'R508B.mix',
+    name: 'R508B (Suva 95)',
+    molar_mass: 0.0954,
+    t_triple_c: -130.0,
+    t_crit_c: 14.0,
+    p_crit_bar: 39.35,
+    p_min_bar: 0.2,
+    p_max_bar: 70.0,
+    h_crit_kj_kg: 330.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 26.5,
+    cp_ideal: 1.15,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 13396,
+    safety: 'A1',
+    wagner: [-7.35, 2.05, -1.90, -3.10],
+  },
+  R1234ze: {
+    id: 'R1234ze(E)',
+    name: 'R1234ze(E)',
+    molar_mass: 0.11404,
+    t_triple_c: -104.0,
+    t_crit_c: 109.36,
+    p_crit_bar: 36.35,
+    p_min_bar: 0.05,
+    p_max_bar: 65.0,
+    h_crit_kj_kg: 390.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 2.17,
     cp_ideal: 0.98,
     is_pure: true,
     is_mixture: false,
-    gwp: 4,
+    gwp: 7,
     safety: 'A2L',
-    wagner: [-7.78, 2.35, -2.15, -3.6],
+    wagner: [-7.82, 2.38, -2.18, -3.65],
+  },
+  R1233zd: {
+    id: 'R1233zd(E)',
+    name: 'R1233zd(E)',
+    molar_mass: 0.1305,
+    t_triple_c: -78.0,
+    t_crit_c: 165.6,
+    p_crit_bar: 35.71,
+    p_min_bar: 0.01,
+    p_max_bar: 55.0,
+    h_crit_kj_kg: 420.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 0.49,
+    cp_ideal: 0.92,
+    is_pure: true,
+    is_mixture: false,
+    gwp: 1,
+    safety: 'A1',
+    wagner: [-7.90, 2.45, -2.25, -3.8],
+  },
+  R507A: {
+    id: 'R507A',
+    name: 'R507A',
+    molar_mass: 0.09886,
+    t_triple_c: -100.0,
+    t_crit_c: 70.62,
+    p_crit_bar: 37.05,
+    p_min_bar: 0.1,
+    p_max_bar: 65.0,
+    h_crit_kj_kg: 335.0,
+    h_ref_0c_liq: 200.0,
+    p_sat_0c_bar: 6.22,
+    cp_ideal: 1.16,
+    is_pure: false,
+    is_mixture: true,
+    gwp: 3985,
+    safety: 'A1',
+    wagner: [-7.54, 2.18, -2.02, -3.32],
   },
 };
 
 function getFluidModel(fluidId: string): FluidThermodynamicModel {
-  const norm = fluidId.replace('.mix', '').trim();
+  const norm = fluidId.replace('.mix', '').replace('.MIX', '').replace(/\(.*\)/, '').trim();
   for (const key of Object.keys(FLUID_MODELS)) {
-    if (norm.toUpperCase().includes(key.toUpperCase())) {
+    if (norm.toUpperCase() === key.toUpperCase() || norm.toUpperCase().includes(key.toUpperCase())) {
       return FLUID_MODELS[key];
     }
   }
@@ -375,60 +660,41 @@ function calculatePsat(model: FluidThermodynamicModel, tC: number): number {
 }
 
 function calculateTsat(model: FluidThermodynamicModel, pBar: number): number {
-  if (pBar >= model.p_crit_bar) return model.t_crit_c;
-  if (pBar <= 0.01) return model.t_triple_c;
+  const Pc = model.p_crit_bar;
+  if (pBar >= Pc) return model.t_crit_c;
 
-  // Newton-Raphson inversion of Psat(T)
-  let T = 273.15;
-  for (let i = 0; i < 15; i++) {
-    const tC = T - 273.15;
-    const pEst = calculatePsat(model, tC);
-    const diff = Math.log(pEst / pBar);
-    if (Math.abs(diff) < 1e-5) break;
-    // dp/dT slope approx
-    const dT = 0.05;
-    const pPlus = calculatePsat(model, tC + dT);
-    const dlnP_dT = (Math.log(pPlus) - Math.log(pEst)) / dT;
-    T = T - diff / (dlnP_dT || 0.05);
-    T = Math.max(model.t_triple_c + 273.15, Math.min(model.t_crit_c + 273.15 - 0.01, T));
+  // Invert Wagner approximation using iterative bisection/Newton step
+  let tMin = model.t_triple_c;
+  let tMax = model.t_crit_c;
+  for (let iter = 0; iter < 12; iter++) {
+    const tMid = (tMin + tMax) / 2;
+    const pMid = calculatePsat(model, tMid);
+    if (pMid < pBar) {
+      tMin = tMid;
+    } else {
+      tMax = tMid;
+    }
   }
-  return T - 273.15;
+  return (tMin + tMax) / 2;
 }
 
 function calculateSatEnthalpies(
   model: FluidThermodynamicModel,
   tC: number
 ): { hL: number; hV: number; p: number } {
-  const Tc = model.t_crit_c;
-  const T = tC + 273.15;
-  const TcK = Tc + 273.15;
-  const Hcrit = model.h_crit_kj_kg;
   const p = calculatePsat(model, tC);
+  const Tc = model.t_crit_c;
+  const Tr = Math.min(0.999, Math.max(0.01, (tC + 273.15) / (Tc + 273.15)));
+  const tau = 1 - Tr;
 
-  if (tC >= Tc - 0.005) {
-    return { hL: Hcrit, hV: Hcrit, p: model.p_crit_bar };
-  }
+  // Liquid enthalpy (from reference state at 0°C)
+  const hL = model.h_ref_0c_liq + 1.45 * tC + 0.0018 * Math.pow(tC, 2);
 
-  const theta = Math.max(0.00001, 1 - T / TcK);
+  // Latent heat of vaporization: Watson-type correlation Delta_H_vap ~ tau^0.38
+  const deltaH0 = (model.h_crit_kj_kg - model.h_ref_0c_liq) * 1.8;
+  const deltaHvap = deltaH0 * Math.pow(tau, 0.38);
 
-  if (model.id === 'R134a') {
-    let hL: number;
-    if (tC <= 80.0) {
-      hL = 200.0 + 1.3412 * tC + 0.00223 * Math.pow(tC, 2) + 0.0000145 * Math.pow(tC, 3) + 0.00000045 * Math.pow(tC, 4);
-    } else {
-      hL = Hcrit - 105.0 * Math.pow(theta, 0.36) - 180.0 * theta;
-    }
-    const dhVap = 202.0 * Math.pow(theta, 0.38) + 72.0 * Math.pow(theta, 0.88) - 18.0 * Math.pow(theta, 2);
-    const hV = hL + dhVap;
-    return { hL, hV, p };
-  }
-
-  // General fluid model using Wagner-like scaling
-  const cL = (Hcrit - model.h_ref_0c_liq) / Math.pow(1 - 273.15 / TcK, 0.40);
-  const hL = Hcrit - cL * Math.pow(theta, 0.40) - 20 * theta;
-  const dh0 = (Hcrit - model.h_ref_0c_liq) * 1.1;
-  const dhVap = dh0 * Math.pow(theta, 0.38) + (dh0 * 0.3) * Math.pow(theta, 0.88);
-  const hV = hL + dhVap;
+  const hV = Math.min(model.h_crit_kj_kg + 35, hL + Math.max(5.0, deltaHvap));
 
   return { hL, hV, p };
 }
@@ -459,13 +725,27 @@ function calculateSuperheatedEnthalpy(
 }
 
 function getMockCatalog(): CatalogResponse {
+  const getGroup = (m: FluidThermodynamicModel) => {
+    const upper = m.id.toUpperCase();
+    if (['R717', 'R744', 'R290', 'R600A', 'R600', 'R1270'].some((k) => upper.includes(k))) {
+      return 'Naturales';
+    }
+    if (['R1234', 'R1233', 'R513A', 'R448A', 'R449A', 'R450A', 'R452A', 'R454', 'R455'].some((k) => upper.includes(k))) {
+      return 'HFO y bajo GWP';
+    }
+    if (['R22', 'R502', 'R12', 'R11', 'R123', 'R124', 'R23', 'R508B', 'R500'].some((k) => upper.includes(k))) {
+      return 'Históricos y existentes';
+    }
+    return 'HFC y mezclas';
+  };
+
   const priority_items: CatalogItem[] = Object.keys(FLUID_MODELS).map((id) => {
     const m = FLUID_MODELS[id];
     return {
       display_name: m.name,
       coolprop_id: m.id,
-      aliases: [m.id],
-      group: m.is_pure ? (m.gwp < 10 ? 'Naturales' : 'HFC y puros') : 'Mezclas',
+      aliases: [m.id, id],
+      group: getGroup(m),
       fluid_type: m.is_pure ? 'Puro' : 'Mezcla',
       gwp: m.gwp,
       ashrae_safety: m.safety,
@@ -478,7 +758,11 @@ function getMockCatalog(): CatalogResponse {
   return {
     engine_version: '8.0.0 (CoolProp / High-Precision Engine)',
     priority_items,
-    other_available_fluids: ['Water', 'Air', 'Nitrogen', 'Argon', 'Helium', 'R11', 'R12', 'R23', 'R507A'],
+    other_available_fluids: [
+      'Water', 'Air', 'Nitrogen', 'Argon', 'Helium', 'R11', 'R12', 'R23', 'R507A',
+      'R513A.mix', 'R448A.mix', 'R449A.mix', 'R450A.mix', 'R452A.mix', 'R454B.mix',
+      'R454C.mix', 'R455A.mix', 'R407F.mix', 'R502.mix', 'R422D.mix', 'R438A.mix', 'R508B.mix'
+    ],
   };
 }
 
@@ -642,18 +926,21 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     };
   });
 
-  // Isentropics (s = const) in vapor region
+  // Isentropics (s = const) in superheated vapor region
   const isentropics = [1.55, 1.65, 1.75, 1.85, 1.95, 2.05, 2.15, 2.25, 2.35, 2.45].map((s) => {
     const pts: CurvePoint[] = [];
     const nPtsIsen = 30;
-    const logPMin = Math.log(pMin);
-    const logPMax = Math.log(pMax * 0.85);
+    const pStart = pMin;
+    const pEnd = pMax * 0.85;
 
     for (let i = 0; i <= nPtsIsen; i++) {
       const frac = i / nPtsIsen;
-      const p = Math.exp(logPMin + (logPMax - logPMin) * frac);
-      const h = 330 + (s - 1.55) * 170 + Math.log(p / pMin) * 36;
-      pts.push({ h_kj_kg: h, p_bar: p, s_kj_kg_k: s });
+      const p = Math.exp(Math.log(pStart) + (Math.log(pEnd) - Math.log(pStart)) * frac);
+      const tEquiv = calculateTsat(model, p) + (s - 1.65) * 45;
+      if (tEquiv >= calculateTsat(model, p) - 0.5) {
+        const h = calculateSuperheatedEnthalpy(model, Math.max(tMin, tEquiv), p);
+        pts.push({ h_kj_kg: h, p_bar: p, s_kj_kg_k: s });
+      }
     }
     return {
       id: `s_${s.toFixed(2)}`,
@@ -665,35 +952,26 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     };
   });
 
-  // Isochores (v = const) in vapor region
-  const isochores = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0].map((v) => {
+  // Isochores (v = const) in superheated vapor region (v >= v_crit)
+  const isochores = [0.006, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05, 0.08, 0.1, 0.2, 0.5, 1.0, 2.0].map((v) => {
     const pts: CurvePoint[] = [];
-    const logPMin = Math.log(pMin);
-    const logPMax = Math.log(pMax);
+    const nPtsIso = 35;
+    // Isochore equation: P ~ R * T / v
+    const R = 8.314 / model.molar_mass; // J/(kg*K)
+    const tStart = Math.max(tMin, -50);
+    const tEnd = tCrit + 120;
 
-    for (let i = 0; i <= 40; i++) {
-      const frac = i / 40;
-      const p = Math.exp(logPMin + (logPMax - logPMin) * frac);
-      const h = 350 + Math.log(1 / v) * 24 + Math.log(p / pMin) * 48;
-      pts.push({ h_kj_kg: h, p_bar: p, v_m3_kg: v });
-      if (h > hMaxDomain + 15) break;
-    }
+    for (let i = 0; i <= nPtsIso; i++) {
+      const frac = i / nPtsIso;
+      const t = tStart + (tEnd - tStart) * frac;
+      const tk = t + 273.15;
+      const pIdealBar = (R * tk / v) / 1e5;
+      const pSat = calculatePsat(model, t);
 
-    if (pts.length >= 2) {
-      const last = pts[pts.length - 1];
-      const prev = pts[pts.length - 2];
-      const dp = last.p_bar - prev.p_bar;
-      const dh = last.h_kj_kg - prev.h_kj_kg;
-      if (dp > 1e-6 && dh > 1e-6 && last.h_kj_kg < hMaxDomain && last.p_bar < pMax) {
-        const slope = dh / dp;
-        const pToHmax = last.p_bar + (hMaxDomain - last.h_kj_kg) / slope;
-        const pTarget = Math.min(pToHmax, pMax);
-        for (let k = 1; k <= 8; k++) {
-          const f = k / 8;
-          const pk = last.p_bar + (pTarget - last.p_bar) * f;
-          const hk = last.h_kj_kg + slope * (pk - last.p_bar);
-          pts.push({ h_kj_kg: hk, p_bar: pk, v_m3_kg: v });
-        }
+      // Only plot in vapor region (P <= P_sat or T >= T_sat)
+      if (pIdealBar <= pSat * 1.02 && pIdealBar >= pMin * 0.5 && pIdealBar <= pMax * 1.1) {
+        const h = calculateSuperheatedEnthalpy(model, t, Math.min(pSat, pIdealBar));
+        pts.push({ h_kj_kg: h, p_bar: pIdealBar, v_m3_kg: v, t_c: t });
       }
     }
 
