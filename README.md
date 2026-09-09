@@ -1,110 +1,231 @@
-# Diagramas Termodinámicos de Refrigerantes (log(p)–h Mollier)
+# CoolMollier — Diagramas Termodinámicos de Refrigerantes (log(p)–h)
 
-Aplicación de escritorio profesional en español desarrollada con **React 19**, **TypeScript**, **Tauri 2** y motor termodinámico nativo en **Rust + CoolProp 8.0** para la consulta de diagramas Mollier, trazado de ciclos frigoríficos, cálculo riguroso de propiedades de estado y procesos termodinámicos.
+<div align="center">
+
+![CoolMollier Logo](public/icon.png)
+
+**Aplicación de escritorio profesional multiplataforma para el análisis, cálculo termodinámico, simulación 3D y trazado de ciclos frigoríficos en diagramas Mollier log(p)–h.**
+
+[![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg?logo=rust)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-24C8D5.svg?logo=tauri)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-v19-61DAFB.svg?logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-v5-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-3D-black.svg?logo=threedotjs)](https://threejs.org/)
+[![CoolProp](https://img.shields.io/badge/CoolProp-v8.0-blue.svg)](http://www.coolprop.org/)
+
+</div>
+
+---
+
+## 🌟 Descripción General
+
+**CoolMollier** es una herramienta de ingeniería termodinámica diseñada para técnicos, ingenieros, estudiantes e investigadores del sector de la climatización y la refrigeración (HVAC&R). Combina la potencia y exactitud de **CoolProp 8.0** compilado nativamente en **Rust** con una interfaz gráfica interactiva, reactiva y fluida desarrollada en **React 19**, **TypeScript** y **Tauri 2**, complementada con un gemelo digital interactivo en **3D (Three.js)** y un panel de **balance energético integral**.
 
 ---
 
 ## 🚀 Características Principales
 
-- **Diagrama log(p)–h Interactivo Vectorial**:
-  - Eje de presiones en escala logarítmica ($P\ [\text{bar(a)}]$) y entalpía lineal ($h\ [\text{kJ/kg}]$).
-  - Campana de saturación con líneas de líquido ($Q=0$) y vapor ($Q=1$).
-  - Familias activables de curvas: Isotermas ($T$), Isentrópicas ($s$), Isócoras ($v$) y Líneas de título de vapor ($x = 10\% \dots 90\%$).
-  - Zoom con rueda del ratón, paneo fluido y botón de ajuste automático al dominio del refrigerante.
-  - Inspector de cursor en tiempo real mostrando $(P, T, h, s, v, \text{fase})$ en cualquier posición.
+### 1. 📈 Diagrama log(p)–h Interactivo Vectorial
+- **Escala industrial precisa**: Eje vertical de presiones en escala logarítmica ($P\ [\text{bar(a)}]$) y eje horizontal de entalpía lineal ($h\ [\text{kJ/kg}]$).
+- **Campana de saturación termodinámica**: Curvas de líquido saturado ($Q=0$) y vapor saturado seco ($Q=1$), punto crítico e isotermas subenfriadas/sobrecalentadas.
+- **Familias de curvas configurables**:
+  - **Isotermas ($T\ [^\circ\text{C}]$)**: Desde subenfriamiento hasta sobrecalentamiento.
+  - **Isentrópicas ($s\ [\text{kJ/(kg}\cdot\text{K)}]$)**: Guías para compresiones teóricas.
+  - **Isócoras ($v\ [\text{m}^3/\text{kg}]$)**: Volumen específico $v = 1/\rho$.
+  - **Líneas de título de vapor ($x$)**: De $10\%$ a $90\%$ dentro de la campana bifásica.
+- **Navegación fluida**: Zoom con rueda de ratón, paneo con arrastre, ajuste automático al dominio termodinámico del fluido (*Fit to View*).
+- **Inspector dinámico en tiempo real**: Muestra $(P, T, h, s, v, \text{fase})$ bajo la posición exacta del cursor.
 
-- **Cálculo Termodinámico Riguroso (CoolProp 8.0 Nativo)**:
-  - Presión en **$\text{bar(a)}$**, Entalpía en **$\text{kJ/kg}$**, Volumen específico en **$\text{m}^3/\text{kg}$** ($v = 1/\rho$), Temperatura en **$^\circ\text{C}$**, Entropía en **$\text{kJ/(kg}\cdot\text{K)}$**, Densidad en **$\text{kg/m}^3$**.
-  - Soporte para fluidos puros, mezclas zeotrópicas con deslizamiento de temperatura (glide) y estados supercríticos ($\text{CO}_2$ / R744).
-  - Validación de indeterminaciones (p. ej. en saturación pura donde $P$ y $T$ están acopladas).
+---
 
-- **Gestión de Puntos y Ciclos Frigoríficos**:
-  - Creación por clic sobre el diagrama o por formulario numérico ($P\text{-}h, P\text{-}T, P\text{-}s, P\text{-}Q, T\text{-}Q, P\text{-}v$).
-  - Arrastre interactivo de puntos con actualización dinámica.
-  - Etiquetas visibles en el gráfico con $T$, $h$, $v$ y $P$ con desplazamiento manual independiente.
-  - Trazado de procesos y ciclos cerrados con cálculo de $\Delta h$ ($q$ o $w$), $\Delta T$, $\Delta P$ y $\Delta s$.
-  - 4 ciclos frigoríficos de ejemplo integrados (R134a estándar, R744 transcrítico, R717 amoníaco industrial y R407C con glide).
+### 2. ⚡ Esquema de Balance Energético y Rendimientos
+- **Cálculo integral del ciclo frigorífico**:
+  - **Efecto frigorífico útil ($q_e$)** y **Potencia frigorífica ($\dot{Q}_e$)** en $\text{kW}$, $\text{Frig/h}$ y $\text{TR}$ (toneladas de refrigeración).
+  - **Trabajo de compresión específico ($w_c$)** y **Potencia consumida ($\dot{W}_c$)** en $\text{kW}$, $\text{CV}$ y $\text{HP}$.
+  - **Calor disipado en condensación ($q_c$)** y **Potencia térmica ($\dot{Q}_c$)** en $\text{kW}$.
+  - **Verificación del Primer Principio**: Comprobación automática del balance energético $(\dot{Q}_e + \dot{W}_c \approx \dot{Q}_c)$ con cálculo del porcentaje de desviación.
+  - **Coeficientes de rendimiento**: $\text{COP}_{\text{frigorífico}}$, $\text{COP}_{\text{calorífico}}$ (bomba de calor), $\text{COP}_{\text{Carnot}}$ y **rendimiento exergético** ($\eta_{\text{Carnot}}$).
+  - **Caudales**: Caudal másico ($\dot{m}$) y caudal volumétrico de aspiración al compresor ($\dot{V}_{\text{asp}}$ en $\text{m}^3/\text{h}$ y $\text{L/s}$).
+  - **Parámetros de control**: Recalentamiento total/útil ($\Delta T_{\text{rec}}$) y Subenfriamiento ($\Delta T_{\text{sub}}$).
 
-- **Guardado y Exportación**:
-  - Guardar y abrir proyectos en JSON versionado (`.mollier.json`).
-  - Exportación de la tabla de puntos a CSV con unidades normalizadas.
-  - Exportación de la gráfica a PNG de alta resolución con título, ejes, curvas, puntos y etiquetas.
+---
+
+### 3. 🧊 Gemelo Digital 3D de la Instalación (Three.js)
+- **Maqueta 3D animada interactiva**: Visualización espacial del circuito frigorífico con sus 4 componentes clave:
+  - **Compresor** (Hermético / Semihermético / Scroll).
+  - **Condensador** con ventilación forzada.
+  - **Válvula de Expansión Termostática (VET)** / Tubo capilar.
+  - **Evaporador** de expansión directa.
+- **Flujo y transición de fases en tiempo real**: Simulación de partículas de refrigerante recorriendo las tuberías con gradiente de color según estado termodinámico:
+  - 🔴 *Rojo*: Vapor sobrecalentado a alta presión (descarga del compresor).
+  - 🟠 *Naranja*: Condensación bifásica a alta presión.
+  - 🟡 *Amarillo/Ámbar*: Líquido subenfriado (salida de condensador).
+  - 🔵 *Azul*: Expansión y mezcla líquido-vapor a baja presión (evaporador).
+  - 🟣 *Morado*: Vapor recalentado a baja presión (aspiración al compresor).
+- **Inspección de componentes**: Clic sobre cualquier equipo 3D para consultar sus variables de estado asociadas ($P_{\text{in}}, P_{\text{out}}, T_{\text{in}}, T_{\text{out}}, \Delta h$).
+- **Vistas intercambiables**: Modo **Diagrama 2D**, Modo **Circuito 3D** o **Vista Dividida (Split View)** simultánea.
+
+---
+
+### 4. 🎨 Tema Claro y Oscuro (Light / Dark Mode)
+- Soporte nativo para alternar entre **Modo Oscuro** y **Modo Claro**.
+- Adaptación automática del canvas de renderizado, rejilla de isolíneas, tipografías y paleta de alto contraste.
+
+---
+
+### 5. 🛠️ Gestión de Puntos, Procesos y Ciclos
+- **Definición de estados termodinámicos**:
+  - Inserción por clic en el diagrama o mediante pares de propiedades ($P\text{-}h, P\text{-}T, P\text{-}s, P\text{-}Q, T\text{-}Q, P\text{-}v$).
+  - Arrastre interactivo de puntos con recálculo dinámico.
+  - Etiquetas con desplazamiento independiente ($T, P, h, v$).
+- **Trazado de procesos**:
+  - Procesos isentrópicos, isobáricos, isoentálpicos, isotérmicos y politrópicos.
+  - Función de cierre automático del ciclo.
+- **Ciclos de ejemplo incluidos**:
+  - Ciclo estándar con R134a (refrigeración comercial).
+  - Ciclo transcrítico con R744 ($\text{CO}_2$).
+  - Ciclo industrial con R717 (Amoníaco).
+  - Ciclo con mezcla zeotrópica y glide con R407C.
+
+---
+
+### 6. 💾 Exportación y Persistencia
+- **Proyectos JSON (`.mollier.json`)**: Guardado y apertura completa de estados, conexiones y configuraciones.
+- **Exportación a CSV**: Tabla de puntos y propiedades de estado normalizadas.
+- **Exportación a PNG en Alta Resolución**: Captura vectorial del diagrama listo para informes técnicos.
 
 ---
 
 ## 🏛️ Decisiones de Arquitectura
 
-### Elección del Backend: Rust Nativo FFI (`coolprop-sys`) vs Python
-Se ha implementado una integración **nativa directa en Rust mediante FFI C (`coolprop-sys 8.0.0`)**:
-1. **Rendimiento extremo**: Los cálculos de estado se resuelven en microsegundos y la generación de mallas de curvas completas toma menos de 25 ms mediante paralelización con `Rayon`.
-2. **Distribución 100% autónoma y sin dependencias**: A diferencia de soluciones basadas en Python (que requieren empaquetar un runtime de ~100 MB mediante PyInstaller o venv, aumentando el riesgo de fallos de arranque en el cliente), el ejecutable Tauri es un binario nativo compilado de tamaño mínimo que funciona offline en cualquier equipo.
-3. **Seguridad y sincronización de memoria**: Se utiliza la frontera de sincronización de `CoolPropLib` para garantizar llamadas concurrentes seguras desde el pool de subprocesos.
+```mermaid
+graph TD
+    UI[Frontend: React 19 + TypeScript + TailwindCSS] --> Canvas[Canvas 2D: Diagrama Mollier]
+    UI --> ThreeJS[Three.js: Circuito Frigorífico 3D]
+    UI --> Tauri[Tauri 2 IPC Bridge]
+    Tauri --> Rust[Backend: Rust Nativo]
+    Rust --> Rayon[Rayon: Paralelización Multi-hilo]
+    Rust --> CoolProp[coolprop-sys 8.0.0 FFI C]
+```
+
+### Backend Rust Nativo (`coolprop-sys 8.0.0`) vs Python
+1. **Rendimiento instantáneo**: Malla de isolíneas y puntos de saturación calculados en menos de **25 ms** mediante paralelismo con `Rayon`.
+2. **Binario 100% autónomo**: Cero dependencias externas o runtimes embebidos de Python. Ejecutable ultra ligero y distribución limpia en Windows, macOS y Linux.
+3. **Seguridad de memoria**: Sincronización multi-hilo segura con la API de `CoolPropLib`.
 
 ---
 
-## 📊 Matriz de Cobertura de Refrigerantes (CoolProp 8.0)
+## 📊 Matriz de Refrigerantes Soportados
 
-| Grupo | Refrigerante | Identificador Motor | Estado | Tipo / Notas Termodinámicas |
-|---|---|---|---|---|
-| **Naturales** | R717 (Amoníaco) | `R717` | ✅ Disponible | Puro natural ($T_c = 132.41\ ^\circ\text{C}, P_c = 113.33\ \text{bar}$) |
-| | R744 ($\text{CO}_2$) | `R744` | ✅ Disponible | Puro natural ($T_c = 30.98\ ^\circ\text{C}, P_c = 73.77\ \text{bar}$) |
-| | R290 (Propano) | `R290` | ✅ Disponible | Hidrocarburo puro ($T_c = 96.74\ ^\circ\text{C}, P_c = 42.51\ \text{bar}$) |
-| | R600a (Isobutano) | `R600a` | ✅ Disponible | Hidrocarburo puro ($T_c = 134.66\ ^\circ\text{C}, P_c = 36.29\ \text{bar}$) |
-| | R600 (Butano) | `R600` | ✅ Disponible | Hidrocarburo puro ($T_c = 151.98\ ^\circ\text{C}, P_c = 37.96\ \text{bar}$) |
-| | R1270 (Propileno) | `R1270` | ✅ Disponible | Hidrocarburo puro ($T_c = 91.06\ ^\circ\text{C}, P_c = 45.55\ \text{bar}$) |
-| **HFC y mezclas** | R134a | `R134a` | ✅ Disponible | HFC puro ($T_c = 101.06\ ^\circ\text{C}, P_c = 40.59\ \text{bar}$) |
-| | R32 | `R32` | ✅ Disponible | HFC puro ($T_c = 78.11\ ^\circ\text{C}, P_c = 57.82\ \text{bar}$) |
-| | R125 | `R125` | ✅ Disponible | HFC puro ($T_c = 66.03\ ^\circ\text{C}, P_c = 36.18\ \text{bar}$) |
-| | R143a | `R143a` | ✅ Disponible | HFC puro ($T_c = 72.71\ ^\circ\text{C}, P_c = 37.61\ \text{bar}$) |
-| | R152a | `R152a` | ✅ Disponible | HFC puro ($T_c = 113.26\ ^\circ\text{C}, P_c = 45.20\ \text{bar}$) |
-| | R404A | `R404A` | ✅ Disponible | Mezcla casi azeotrópica ($T_c = 72.12\ ^\circ\text{C}, P_c = 37.32\ \text{bar}$) |
-| | R407A | `R407A.mix` | ✅ Disponible | Mezcla zeotrópica con glide ($T_c = 82.25\ ^\circ\text{C}$) |
-| | R407C | `R407C` | ✅ Disponible | Mezcla zeotrópica con glide ($T_c = 86.20\ ^\circ\text{C}, P_c = 46.32\ \text{bar}$) |
-| | R407F | - | ❌ No disponible | No parametrizado en CoolProp estándar sin REFPROP |
-| | R410A | `R410A` | ✅ Disponible | Mezcla casi azeotrópica ($T_c = 71.34\ ^\circ\text{C}, P_c = 49.01\ \text{bar}$) |
-| | R507A | `R507A` | ✅ Disponible | Mezcla azeotrópica ($T_c = 70.61\ ^\circ\text{C}, P_c = 37.05\ \text{bar}$) |
-| **HFO y bajo GWP** | R1234yf | `R1234yf` | ✅ Disponible | HFO puro ($T_c = 94.70\ ^\circ\text{C}, P_c = 33.82\ \text{bar}$) |
-| | R1234ze(E) | `R1234ze(E)` | ✅ Disponible | HFO puro ($T_c = 109.36\ ^\circ\text{C}, P_c = 36.35\ \text{bar}$) |
-| | R1233zd(E) | `R1233zd(E)` | ✅ Disponible | HFO puro ($T_c = 165.71\ ^\circ\text{C}, P_c = 35.71\ \text{bar}$) |
-| | R448A / R449A | - | ❌ No disponible | Requiere biblioteca REFPROP |
-| | R450A | `R450A.mix` | ✅ Disponible | Mezcla zeotrópica ($T_c = 105.38\ ^\circ\text{C}$) |
-| | R452A / R454B | - | ❌ No disponible | Requiere biblioteca REFPROP |
-| | R454C | `R454C.mix` | ✅ Disponible | Mezcla zeotrópica ($T_c = 87.64\ ^\circ\text{C}$) |
-| | R455A / R513A | - | ❌ No disponible | Requiere biblioteca REFPROP |
-| **Históricos** | R22 | `R22` | ✅ Disponible | HCFC puro ($T_c = 96.15\ ^\circ\text{C}, P_c = 49.90\ \text{bar}$) |
-| | R23 | `R23` | ✅ Disponible | HFC ultra baja T ($T_c = 26.14\ ^\circ\text{C}, P_c = 48.32\ \text{bar}$) |
-| | R123 | `R123` | ✅ Disponible | HCFC puro ($T_c = 183.68\ ^\circ\text{C}, P_c = 36.62\ \text{bar}$) |
-| | R124 | `R124` | ✅ Disponible | HCFC puro ($T_c = 122.28\ ^\circ\text{C}, P_c = 36.24\ \text{bar}$) |
-| | R12 | `R12` | ✅ Disponible | CFC histórico ($T_c = 111.97\ ^\circ\text{C}, P_c = 41.36\ \text{bar}$) |
-| | R502 | - | ❌ No disponible | Requiere biblioteca REFPROP |
+| Grupo | Refrigerante | Fórmula / Alias | GWP | Seguridad ASHRAE | Tipo Termodinámico |
+|---|---|---|---|---|---|
+| **Naturales** | **R717** | Amoníaco ($\text{NH}_3$) | 0 | B2L | Fluido puro natural ($T_c = 132.4\ ^\circ\text{C}, P_c = 113.3\ \text{bar}$) |
+| | **R744** | Dióxido de carbono ($\text{CO}_2$) | 1 | A1 | Fluido puro / Transcrítico ($T_c = 31.0\ ^\circ\text{C}, P_c = 73.8\ \text{bar}$) |
+| | **R290** | Propano ($\text{C}_3\text{H}_8$) | 3 | A3 | Hidrocarburo puro ($T_c = 96.7\ ^\circ\text{C}, P_c = 42.5\ \text{bar}$) |
+| | **R600a** | Isobutano | 3 | A3 | Hidrocarburo puro ($T_c = 134.7\ ^\circ\text{C}, P_c = 36.3\ \text{bar}$) |
+| | **R600** | Butano | 4 | A3 | Hidrocarburo puro ($T_c = 152.0\ ^\circ\text{C}, P_c = 38.0\ \text{bar}$) |
+| | **R1270** | Propileno | 2 | A3 | Hidrocarburo puro ($T_c = 91.1\ ^\circ\text{C}, P_c = 45.6\ \text{bar}$) |
+| **HFO y Bajo GWP** | **R513A** | Opteon XP10 | 631 | A1 | Mezcla azeotrópica (Reemplazo R134a) |
+| | **R1234yf** | Solstice yf | 4 | A2L | HFO puro de última generación |
+| | **R1234ze(E)** | Solstice ze | 7 | A2L | HFO puro |
+| | **R1233zd(E)** | Solstice zd | 1 | A1 | HFO puro para baja presión / chillers |
+| | **R448A** | Solstice N40 | 1387 | A1 | Mezcla zeotrópica con glide |
+| | **R449A** | Opteon XP40 | 1397 | A1 | Mezcla zeotrópica con glide |
+| | **R450A** | Solstice N13 | 605 | A1 | Mezcla zeotrópica |
+| | **R452A** | Opteon XP44 | 2140 | A1 | Mezcla zeotrópica para transporte frigorífico |
+| | **R454B** | Opteon XL41 / Puron Advance | 466 | A2L | Mezcla zeotrópica (Reemplazo R410A) |
+| | **R454C** | Opteon XL20 | 148 | A2L | Mezcla zeotrópica bajo GWP |
+| | **R455A** | Solstice L40X | 148 | A2L | Mezcla zeotrópica bajo GWP |
+| **HFC y Mezclas** | **R134a** | Tetrafluoroetano | 1430 | A1 | HFC puro estándar |
+| | **R32** | Difluorometano | 675 | A2L | HFC puro de alta eficiencia |
+| | **R404A** | HP62 | 3922 | A1 | Mezcla casi azeotrópica |
+| | **R410A** | Puron / AZ-20 | 2088 | A1 | Mezcla casi azeotrópica |
+| | **R407C** | Suva 407C | 1774 | A1 | Mezcla zeotrópica con glide |
+| | **R407A** | Klea 407A | 2107 | A1 | Mezcla zeotrópica con glide |
+| | **R407F** | Performax LT | 1825 | A1 | Mezcla zeotrópica con glide |
+| | **R507A** | AZ-50 | 3985 | A1 | Mezcla azeotrópica |
+| | **R125** | Pentafluoroetano | 3500 | A1 | HFC puro |
+| | **R143a** | Trifluoroetano | 4470 | A2L | HFC puro |
+| | **R152a** | Difluoroetano | 124 | A2 | HFC puro de bajo GWP |
+| | **R422D** | ISCEON MO29 | 2729 | A1 | Mezcla de sustitución directa |
+| | **R438A** | ISCEON MO99 | 2264 | A1 | Mezcla de sustitución directa |
+| | **R417A** | ISCEON MO59 | 2346 | A1 | Mezcla de sustitución directa |
+| **Históricos** | **R22** | Clorodifluorometano | 1810 | A1 | HCFC histórico ($T_c = 96.2\ ^\circ\text{C}$) |
+| | **R502** | - | 4657 | A1 | Mezcla azeotrópica histórica |
+| | **R12** | Diclorodifluorometano | 10900 | A1 | CFC histórico |
+| | **R11** | Triclorofluorometano | 4750 | A1 | CFC histórico |
+| | **R123** | Diclorotrifluoroetano | 77 | B1 | HCFC para centrífugas |
+| | **R124** | Clorotetrafluoroetano | 609 | A1 | HCFC puro |
+| | **R23** | Trifluorometano | 14800 | A1 | HFC para ultra-baja temperatura |
+| | **R508B** | Suva 95 | 13396 | A1 | Mezcla para ultra-baja temperatura |
+| | **R500** | Carrene 7 | 8077 | A1 | Mezcla azeotrópica histórica |
 
 ---
 
-## 🛠️ Instrucciones de Instalación y Ejecución
+## 🛠️ Instalación y Entorno de Desarrollo
 
 ### Requisitos Previos
-- **Node.js**: v18 o superior (`npm`)
-- **Rust toolchain**: `cargo` y `rustc` instalados (`rustup`)
+- **Node.js**: v18 o superior (`npm` o `pnpm`)
+- **Rust Toolchain**: `cargo` y `rustc` instalados vía [rustup.rs](https://rustup.rs/)
+- **C/C++ Build Tools**: Requerido para compilar la biblioteca de CoolProp (en macOS: Xcode Command Line Tools; en Windows: MSVC C++; en Linux: `build-essential`).
 
-### Desarrollo Local
-1. Instalar dependencias del frontend:
-   ```bash
-   npm install
-   ```
-2. Ejecutar la aplicación en modo desarrollo (Tauri + Vite hot-reload):
-   ```bash
-   npm run tauri dev
-   ```
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/tu-usuario/refrigerantes-mollier.git
+cd refrigerantes-mollier
+```
 
-### Pruebas Unitarias de Termodinámica (Rust)
-Para ejecutar la suite de pruebas unitarias que verifican propiedades termodinámicas reales, fluidos puros, mezclas, $\text{CO}_2$ supercrítico y $v = 1/\rho$:
+### 2. Instalar Dependencias del Frontend
+```bash
+npm install
+```
+
+### 3. Ejecutar en Modo Desarrollo (Vite + Tauri Hot Reload)
+```bash
+npm run tauri dev
+```
+
+### 4. Pruebas Unitarias del Motor Termodinámico (Rust)
+Para validar el cálculo de estados termodinámicos, mezclas zeotrópicas, fluidos puros y estados supercríticos:
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-### Empaquetado y Generación del Instalador de Producción
-Para generar el ejecutable e instalador de escritorio nativo:
+### 5. Compilar el Instalador de Producción
+Para generar el binario optimizado y el instalador nativo de tu sistema operativo (`.dmg` en macOS, `.msi` / `.exe` en Windows, `.deb` / `.AppImage` en Linux):
 ```bash
 npm run tauri build
 ```
-Los instaladores generados se ubicarán en `src-tauri/target/release/bundle/`.
+Los ejecutables empaquetados se generarán en la carpeta `src-tauri/target/release/bundle/`.
+
+---
+
+## 📐 Fórmulas y Metodología Termodinámica
+
+<details>
+<summary><b>Ver Fórmulas de Balance y Coeficientes de Rendimiento</b></summary>
+
+### Balance Energético
+$$\dot{Q}_e = \dot{m} \cdot (h_{\text{evap,out}} - h_{\text{evap,in}})$$
+$$\dot{W}_c = \dot{m} \cdot (h_{\text{comp,out}} - h_{\text{comp,in}})$$
+$$\dot{Q}_c = \dot{m} \cdot (h_{\text{cond,in}} - h_{\text{cond,out}})$$
+
+### Verificación del Primer Principio
+$$\Delta \dot{E} = |\dot{Q}_c - (\dot{Q}_e + \dot{W}_c)|$$
+
+### Coeficientes de Rendimiento (COP)
+$$\text{COP}_{\text{frío}} = \frac{\dot{Q}_e}{\dot{W}_c} = \frac{q_e}{w_c}$$
+$$\text{COP}_{\text{calor}} = \frac{\dot{Q}_c}{\dot{W}_c} = 1 + \text{COP}_{\text{frío}}$$
+$$\text{COP}_{\text{Carnot}} = \frac{T_{\text{evap}} [\text{K}]}{T_{\text{cond}} [\text{K}] - T_{\text{evap}} [\text{K}]}$$
+$$\eta_{\text{Carnot}} = \frac{\text{COP}_{\text{frío}}}{\text{COP}_{\text{Carnot}}}$$
+
+### Caudal Volumétrico Aspirado
+$$\dot{V}_{\text{asp}} = \dot{m} \cdot v_{\text{aspiración}}$$
+
+</details>
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Consulta el archivo `LICENSE` para más información.
