@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { formatSpecificVolume } from '../../utils/formatters';
 import { DiagramRenderer } from '../../engine/renderer/DiagramRenderer';
@@ -8,6 +8,7 @@ import { DiagramInteraction, DraggingState } from '../../engine/interaction/Diag
 import { DiagramPoint } from '../../types/thermo';
 import { ThermoProvider } from '../../engine/provider/ThermoProvider';
 import { Units } from '../../engine/types/thermoContract';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 const PlotlyMollierDiagram = React.lazy(() =>
   import('./PlotlyMollierDiagram').then((m) => ({ default: m.PlotlyMollierDiagram }))
@@ -42,6 +43,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     showToast,
     diagramTheme,
     engineMode,
+    setEngineMode,
     registerDiagramActions,
   } = useProject();
 
@@ -671,16 +673,49 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
         {/* Diagram Rendering: Plotly or Native SVG */}
         {engineMode === 'plotly' ? (
-          <React.Suspense
-            fallback={
-              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                <Loader2 className="animate-spin text-emerald-400 mr-2" size={28} />
-                <span>Cargando motor Plotly.js...</span>
+          <ErrorBoundary
+            fallback={(error, reset) => (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-950/90 backdrop-blur-md">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <AlertTriangle size={24} />
+                </div>
+                <div className="text-sm font-bold text-white tracking-tight">
+                  No se pudo cargar el motor gráfico Plotly.js
+                </div>
+                <div className="text-xs text-slate-400 max-w-md font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                  {error.message || 'Error inesperado al inicializar Plotly'}
+                </div>
+                <div className="flex items-center gap-2.5 mt-2">
+                  <button
+                    onClick={() => {
+                      reset();
+                      setEngineMode('svg');
+                    }}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-cyan-600/30 transition-all cursor-pointer"
+                  >
+                    Volver a Motor SVG Nativo
+                  </button>
+                  <button
+                    onClick={reset}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition-all cursor-pointer"
+                  >
+                    Reintentar
+                  </button>
+                </div>
               </div>
-            }
+            )}
           >
-            <PlotlyMollierDiagram theme={diagramTheme} />
-          </React.Suspense>
+            <React.Suspense
+              fallback={
+                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                  <Loader2 className="animate-spin text-emerald-400 mr-2" size={28} />
+                  <span>Cargando motor Plotly.js...</span>
+                </div>
+              }
+            >
+              <PlotlyMollierDiagram theme={diagramTheme} />
+            </React.Suspense>
+          </ErrorBoundary>
         ) : (
           <DiagramRenderer
             transform={transform}

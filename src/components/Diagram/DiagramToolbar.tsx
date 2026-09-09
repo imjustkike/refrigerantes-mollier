@@ -166,19 +166,34 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
           <div className={`w-[1px] h-5 mx-1 ${
             diagramTheme === 'danfoss' ? 'bg-slate-300' : 'bg-slate-700/60'
           }`} />
-          <button
-            className={`px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-mono font-bold ${
-              engineMode === 'plotly'
-                ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
-                : diagramTheme === 'danfoss'
-                ? 'text-slate-700 hover:bg-slate-100'
-                : 'text-slate-300 hover:bg-slate-800'
-            }`}
-            onClick={onToggleEngine}
-            title={engineMode === 'plotly' ? 'Motor actual: Plotly.js (Haga clic para cambiar a SVG)' : 'Motor actual: SVG Nativo (Haga clic para cambiar a Plotly.js)'}
-          >
-            <span>{engineMode === 'plotly' ? '📊 Plotly' : '📐 SVG'}</span>
-          </button>
+          <div className="flex items-center rounded-lg p-0.5 text-xs font-mono font-bold">
+            <button
+              className={`px-2 py-0.5 rounded transition-colors ${
+                engineMode === 'svg'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : diagramTheme === 'danfoss'
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-slate-400 hover:bg-slate-800'
+              }`}
+              onClick={() => engineMode !== 'svg' && onToggleEngine()}
+              title="Motor SVG Nativo"
+            >
+              📐 SVG
+            </button>
+            <button
+              className={`px-2 py-0.5 rounded transition-colors ${
+                engineMode === 'plotly'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : diagramTheme === 'danfoss'
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-slate-400 hover:bg-slate-800'
+              }`}
+              onClick={() => engineMode !== 'plotly' && onToggleEngine()}
+              title="Motor Plotly.js"
+            >
+              📊 Plotly
+            </button>
+          </div>
         </>
       )}
     </div>

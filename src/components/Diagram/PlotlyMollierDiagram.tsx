@@ -7,6 +7,9 @@ interface PlotlyMollierDiagramProps {
   theme?: 'danfoss' | 'dark';
 }
 
+// Ensure proper interop for CJS/ESM Plotly bundle
+const PlotlyLib = (Plotly as any)?.default || Plotly;
+
 export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ theme = 'danfoss' }) => {
   const {
     dataset,
@@ -22,7 +25,7 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
   const plotContainerRef = useRef<HTMLDivElement>(null);
   const isDanfoss = theme === 'danfoss';
 
-  // Build Plotly Traces from thermodynamic dataset
+  // Build Plotly Traces from thermodynamic dataset safely
   const plotData = useMemo<Plotly.Data[]>(() => {
     if (!dataset) return [];
 
@@ -31,136 +34,173 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
     // 1. Saturation Curves
     if (curveVisibility.saturation) {
       // Liquid branch
-      const liqPts = dataset.saturationLiquid.segments.flat();
-      traces.push({
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Líquido saturado (Q=0)',
-        x: liqPts.map((p) => Units.jkgToKjkg(p.hJkg)),
-        y: liqPts.map((p) => Units.paToBar(p.pPa)),
-        line: { color: isDanfoss ? '#0284c7' : '#38bdf8', width: 2.5 },
-        connectgaps: false,
-        hoverinfo: 'x+y+name',
-      });
+      const liqPts = (dataset.saturationLiquid?.segments || [])
+        .flat()
+        .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
 
-      // Vapor branch
-      const vapPts = dataset.saturationVapor.segments.flat();
-      traces.push({
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Vapor saturado seco (Q=1)',
-        x: vapPts.map((p) => Units.jkgToKjkg(p.hJkg)),
-        y: vapPts.map((p) => Units.paToBar(p.pPa)),
-        line: { color: isDanfoss ? '#0284c7' : '#38bdf8', width: 2.5 },
-        connectgaps: false,
-        hoverinfo: 'x+y+name',
-      });
-
-      // Critical Point Apex
-      traces.push({
-        type: 'scatter',
-        mode: 'markers+text',
-        name: 'Punto Crítico',
-        x: [Units.jkgToKjkg(dataset.criticalPoint.hJkg)],
-        y: [Units.paToBar(dataset.criticalPoint.pPa)],
-        marker: { color: '#f43f5e', size: 9, symbol: 'cross' },
-        text: [
-          `Crítico (${Units.kToC(dataset.criticalPoint.tK || 300).toFixed(1)}°C, ${Units.paToBar(
-            dataset.criticalPoint.pPa
-          ).toFixed(1)} bar)`,
-        ],
-        textposition: 'top right',
-        textfont: { size: 10, color: '#f43f5e', family: 'monospace' },
-        hoverinfo: 'text',
-      });
-    }
-
-    // 2. Quality Lines (x = 0.1 .. 0.9)
-    if (curveVisibility.qualityLines) {
-      dataset.qualityLines.forEach((q) => {
-        const pts = q.segments.flat();
+      if (liqPts.length > 0) {
         traces.push({
           type: 'scatter',
           mode: 'lines',
-          name: q.parameterValue !== undefined ? `x = ${q.parameterValue.toFixed(1)}` : 'Título x',
-          x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
-          y: pts.map((p) => Units.paToBar(p.pPa)),
-          line: {
-            color: isDanfoss ? 'rgba(5, 150, 105, 0.7)' : 'rgba(52, 211, 153, 0.75)',
-            width: 1.0,
-            dash: 'dash',
-          },
+          name: 'Líquido saturado (Q=0)',
+          x: liqPts.map((p) => Units.jkgToKjkg(p.hJkg)),
+          y: liqPts.map((p) => Units.paToBar(p.pPa)),
+          line: { color: isDanfoss ? '#0284c7' : '#38bdf8', width: 2.5 },
           connectgaps: false,
-          showlegend: false,
-          hoverinfo: 'name+x+y',
+          hoverinfo: 'x+y+name',
         });
+      }
+
+      // Vapor branch
+      const vapPts = (dataset.saturationVapor?.segments || [])
+        .flat()
+        .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
+
+      if (vapPts.length > 0) {
+        traces.push({
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Vapor saturado seco (Q=1)',
+          x: vapPts.map((p) => Units.jkgToKjkg(p.hJkg)),
+          y: vapPts.map((p) => Units.paToBar(p.pPa)),
+          line: { color: isDanfoss ? '#0284c7' : '#38bdf8', width: 2.5 },
+          connectgaps: false,
+          hoverinfo: 'x+y+name',
+        });
+      }
+
+      // Critical Point Apex
+      if (
+        dataset.criticalPoint &&
+        Number.isFinite(dataset.criticalPoint.hJkg) &&
+        Number.isFinite(dataset.criticalPoint.pPa) &&
+        dataset.criticalPoint.pPa > 0
+      ) {
+        traces.push({
+          type: 'scatter',
+          mode: 'markers+text',
+          name: 'Punto Crítico',
+          x: [Units.jkgToKjkg(dataset.criticalPoint.hJkg)],
+          y: [Units.paToBar(dataset.criticalPoint.pPa)],
+          marker: { color: '#f43f5e', size: 9, symbol: 'cross' },
+          text: [
+            `Crítico (${Units.kToC(dataset.criticalPoint.tK || 300).toFixed(1)}°C, ${Units.paToBar(
+              dataset.criticalPoint.pPa
+            ).toFixed(1)} bar)`,
+          ],
+          textposition: 'top right',
+          textfont: { size: 10, color: '#f43f5e', family: 'monospace' },
+          hoverinfo: 'text',
+        });
+      }
+    }
+
+    // 2. Quality Lines (x = 0.1 .. 0.9)
+    if (curveVisibility.qualityLines && dataset.qualityLines) {
+      dataset.qualityLines.forEach((q) => {
+        const pts = (q.segments || [])
+          .flat()
+          .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
+
+        if (pts.length > 0) {
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: q.parameterValue !== undefined ? `x = ${q.parameterValue.toFixed(1)}` : 'Título x',
+            x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
+            y: pts.map((p) => Units.paToBar(p.pPa)),
+            line: {
+              color: isDanfoss ? 'rgba(5, 150, 105, 0.7)' : 'rgba(52, 211, 153, 0.75)',
+              width: 1.0,
+              dash: 'dash',
+            },
+            connectgaps: false,
+            showlegend: false,
+            hoverinfo: 'name+x+y',
+          });
+        }
       });
     }
 
     // 3. Isochores (v = const)
-    if (curveVisibility.isochores) {
+    if (curveVisibility.isochores && dataset.isochores) {
       dataset.isochores.forEach((iso) => {
-        const pts = iso.segments.flat();
-        traces.push({
-          type: 'scatter',
-          mode: 'lines',
-          name: iso.parameterValue ? `v = ${iso.parameterValue} m³/kg` : 'Isócora',
-          x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
-          y: pts.map((p) => Units.paToBar(p.pPa)),
-          line: {
-            color: isDanfoss ? 'rgba(147, 51, 234, 0.65)' : 'rgba(192, 132, 252, 0.7)',
-            width: 1.0,
-            dash: 'dot',
-          },
-          connectgaps: false,
-          showlegend: false,
-          hoverinfo: 'name+x+y',
-        });
+        const pts = (iso.segments || [])
+          .flat()
+          .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
+
+        if (pts.length > 0) {
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: iso.parameterValue ? `v = ${iso.parameterValue} m³/kg` : 'Isócora',
+            x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
+            y: pts.map((p) => Units.paToBar(p.pPa)),
+            line: {
+              color: isDanfoss ? 'rgba(147, 51, 234, 0.65)' : 'rgba(192, 132, 252, 0.7)',
+              width: 1.0,
+              dash: 'dot',
+            },
+            connectgaps: false,
+            showlegend: false,
+            hoverinfo: 'name+x+y',
+          });
+        }
       });
     }
 
     // 4. Isentropes (s = const)
-    if (curveVisibility.isentropics) {
+    if (curveVisibility.isentropics && dataset.isentropes) {
       dataset.isentropes.forEach((isen) => {
-        const pts = isen.segments.flat();
-        traces.push({
-          type: 'scatter',
-          mode: 'lines',
-          name: isen.parameterValue ? `s = ${isen.parameterValue.toFixed(2)} kJ/(kg·K)` : 'Isentrópica',
-          x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
-          y: pts.map((p) => Units.paToBar(p.pPa)),
-          line: {
-            color: isDanfoss ? 'rgba(8, 145, 178, 0.75)' : 'rgba(34, 211, 238, 0.8)',
-            width: 1.1,
-            dash: 'dashdot',
-          },
-          connectgaps: false,
-          showlegend: false,
-          hoverinfo: 'name+x+y',
-        });
+        const pts = (isen.segments || [])
+          .flat()
+          .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
+
+        if (pts.length > 0) {
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: isen.parameterValue ? `s = ${isen.parameterValue.toFixed(2)} kJ/(kg·K)` : 'Isentrópica',
+            x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
+            y: pts.map((p) => Units.paToBar(p.pPa)),
+            line: {
+              color: isDanfoss ? 'rgba(8, 145, 178, 0.75)' : 'rgba(34, 211, 238, 0.8)',
+              width: 1.1,
+              dash: 'dashdot',
+            },
+            connectgaps: false,
+            showlegend: false,
+            hoverinfo: 'name+x+y',
+          });
+        }
       });
     }
 
     // 5. Isotherms (T = const)
-    if (curveVisibility.isotherms) {
+    if (curveVisibility.isotherms && dataset.isotherms) {
       dataset.isotherms.forEach((t) => {
-        const pts = t.segments.flat();
-        const val = t.parameterValue ?? 20;
-        const tC = t.parameterUnit === 'K' ? Units.kToC(val) : val;
-        traces.push({
-          type: 'scatter',
-          mode: 'lines',
-          name: `T = ${tC.toFixed(0)} °C`,
-          x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
-          y: pts.map((p) => Units.paToBar(p.pPa)),
-          line: {
-            color: isDanfoss ? 'rgba(220, 38, 38, 0.85)' : 'rgba(248, 113, 113, 0.85)',
-            width: 1.2,
-          },
-          connectgaps: false,
-          showlegend: false,
-          hoverinfo: 'name+x+y',
-        });
+        const pts = (t.segments || [])
+          .flat()
+          .filter((p) => Number.isFinite(p.hJkg) && Number.isFinite(p.pPa) && p.pPa > 0);
+
+        if (pts.length > 0) {
+          const val = t.parameterValue ?? 20;
+          const tC = t.parameterUnit === 'K' ? Units.kToC(val) : val;
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: `T = ${tC.toFixed(0)} °C`,
+            x: pts.map((p) => Units.jkgToKjkg(p.hJkg)),
+            y: pts.map((p) => Units.paToBar(p.pPa)),
+            line: {
+              color: isDanfoss ? 'rgba(220, 38, 38, 0.85)' : 'rgba(248, 113, 113, 0.85)',
+              width: 1.2,
+            },
+            connectgaps: false,
+            showlegend: false,
+            hoverinfo: 'name+x+y',
+          });
+        }
       });
     }
 
@@ -173,47 +213,59 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
         let ys: number[] = [];
 
         if (conn.pathPoints && conn.pathPoints.length >= 2) {
-          xs = conn.pathPoints.map((pt) => pt.h_kj_kg);
-          ys = conn.pathPoints.map((pt) => pt.p_bar);
+          const valid = conn.pathPoints.filter(
+            (pt) => Number.isFinite(pt.h_kj_kg) && Number.isFinite(pt.p_bar) && pt.p_bar > 0
+          );
+          xs = valid.map((pt) => pt.h_kj_kg);
+          ys = valid.map((pt) => pt.p_bar);
         } else {
           xs = [p1.state.enthalpy_kj_kg, p2.state.enthalpy_kj_kg];
           ys = [p1.state.pressure_bar, p2.state.pressure_bar];
         }
 
-        traces.push({
-          type: 'scatter',
-          mode: 'lines',
-          name: conn.name || 'Proceso',
-          x: xs,
-          y: ys,
-          line: { color: conn.color || '#38bdf8', width: 3.5 },
-          connectgaps: false,
-          hoverinfo: 'name+x+y',
-        });
+        if (xs.length >= 2) {
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            name: conn.name || 'Proceso',
+            x: xs,
+            y: ys,
+            line: { color: conn.color || '#38bdf8', width: 3.5 },
+            connectgaps: false,
+            hoverinfo: 'name+x+y',
+          });
+        }
       }
     }
 
     // 7. User State Points
-    if (points.length > 0) {
+    const validPoints = points.filter(
+      (p) =>
+        Number.isFinite(p.state.enthalpy_kj_kg) &&
+        Number.isFinite(p.state.pressure_bar) &&
+        p.state.pressure_bar > 0
+    );
+
+    if (validPoints.length > 0) {
       traces.push({
         type: 'scatter',
         mode: 'markers+text',
         name: 'Estados del Ciclo',
-        x: points.map((p) => p.state.enthalpy_kj_kg),
-        y: points.map((p) => p.state.pressure_bar),
+        x: validPoints.map((p) => p.state.enthalpy_kj_kg),
+        y: validPoints.map((p) => p.state.pressure_bar),
         marker: {
-          color: points.map((p) => p.color || '#38bdf8'),
+          color: validPoints.map((p) => p.color || '#38bdf8'),
           size: 11,
           line: { color: '#ffffff', width: 2 },
         },
-        text: points.map((p) => p.name),
+        text: validPoints.map((p) => p.name),
         textposition: 'top right',
         textfont: {
           family: 'monospace',
           size: 11,
           color: isDanfoss ? '#0f172a' : '#f8fafc',
         },
-        hovertext: points.map(
+        hovertext: validPoints.map(
           (p) =>
             `<b>${p.name}</b><br>` +
             `P: ${p.state.pressure_bar.toFixed(2)} bar(a)<br>` +
@@ -231,6 +283,15 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
   // Render & Update Plotly
   useEffect(() => {
     if (!plotContainerRef.current || !dataset) return;
+    if (!PlotlyLib || typeof PlotlyLib.react !== 'function') {
+      console.warn('PlotlyLib.react is not available');
+      return;
+    }
+
+    const pMinBar = Math.max(0.01, Units.paToBar(dataset.domain.pMinPa || 10000));
+    const pMaxBar = Math.max(pMinBar * 1.5, Units.paToBar(dataset.domain.pMaxPa || 5000000));
+    const hMinKj = Units.jkgToKjkg(dataset.domain.hMinJkg || 0);
+    const hMaxKj = Units.jkgToKjkg(dataset.domain.hMaxJkg || 600000);
 
     const layout: Partial<Plotly.Layout> = {
       title: {
@@ -252,7 +313,7 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
         gridcolor: isDanfoss ? '#e2e8f0' : '#1e293b',
         zerolinecolor: isDanfoss ? '#cbd5e1' : '#334155',
         tickfont: { family: 'monospace', size: 10, color: isDanfoss ? '#334155' : '#94a3b8' },
-        range: [Units.jkgToKjkg(dataset.domain.hMinJkg), Units.jkgToKjkg(dataset.domain.hMaxJkg)],
+        range: [hMinKj, hMaxKj],
       },
       yaxis: {
         title: {
@@ -263,10 +324,7 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
         gridcolor: isDanfoss ? '#e2e8f0' : '#1e293b',
         zerolinecolor: isDanfoss ? '#cbd5e1' : '#334155',
         tickfont: { family: 'monospace', size: 10, color: isDanfoss ? '#334155' : '#94a3b8' },
-        range: [
-          Math.log10(Units.paToBar(dataset.domain.pMinPa)),
-          Math.log10(Units.paToBar(dataset.domain.pMaxPa)),
-        ],
+        range: [Math.log10(pMinBar), Math.log10(pMaxBar)],
       },
       showlegend: true,
       legend: {
@@ -296,30 +354,49 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
       },
     };
 
-    Plotly.react(plotContainerRef.current, plotData, layout, config);
-
-    // Handle Click to add points when in 'add_point' mode
-    const elem = plotContainerRef.current as any;
-    if (elem && elem.on) {
-      elem.removeAllListeners?.('plotly_click');
-      elem.on('plotly_click', (data: any) => {
-        if (toolMode === 'add_point' && data?.points?.[0]) {
-          const pt = data.points[0];
-          const h = pt.x;
-          const p = pt.y;
-          if (p > 0.01 && h > -500 && h < 2500) {
-            addPointFromCoordinates(h, p);
+    let isSubscribed = true;
+    PlotlyLib.react(plotContainerRef.current, plotData, layout, config)
+      .then((elem: any) => {
+        if (!isSubscribed || !elem || !elem.on) return;
+        elem.removeAllListeners?.('plotly_click');
+        elem.on('plotly_click', (data: any) => {
+          if (toolMode === 'add_point' && data?.points?.[0]) {
+            const pt = data.points[0];
+            const h = pt.x;
+            const p = pt.y;
+            if (p > 0.01 && h > -500 && h < 2500) {
+              addPointFromCoordinates(h, p);
+            }
           }
-        }
+        });
+      })
+      .catch((err: any) => {
+        console.error('Error rendering Plotly diagram:', err);
       });
-    }
-  }, [dataset, plotData, isDanfoss, selectedFluidId, selectedFluidItem, toolMode, addPointFromCoordinates]);
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [
+    dataset,
+    plotData,
+    isDanfoss,
+    selectedFluidId,
+    selectedFluidItem,
+    toolMode,
+    addPointFromCoordinates,
+  ]);
 
   // Clean up on unmount
   useEffect(() => {
+    const container = plotContainerRef.current;
     return () => {
-      if (plotContainerRef.current) {
-        Plotly.purge(plotContainerRef.current);
+      if (container && PlotlyLib && typeof PlotlyLib.purge === 'function') {
+        try {
+          PlotlyLib.purge(container);
+        } catch {
+          // ignore cleanup errors
+        }
       }
     };
   }, []);

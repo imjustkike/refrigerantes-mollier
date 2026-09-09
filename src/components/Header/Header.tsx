@@ -173,17 +173,34 @@ export const Header: React.FC<HeaderProps> = () => {
             </span>
           </button>
 
-          <button
-            className={`px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border transition-all ${
-              engineMode === 'plotly'
-                ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300 shadow-sm'
-                : 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:bg-slate-750'
-            }`}
-            onClick={() => setEngineMode((m) => (m === 'svg' ? 'plotly' : 'svg'))}
-            title={engineMode === 'plotly' ? 'Motor actual: Plotly.js (Clic para cambiar a SVG)' : 'Motor actual: SVG Nativo (Clic para cambiar a Plotly.js)'}
+          {/* Motor Gráfico: Selector Segmentado SVG / Plotly */}
+          <div
+            className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800/80 text-xs font-mono font-bold"
+            title="Seleccionar motor de renderizado del diagrama"
           >
-            <span>{engineMode === 'plotly' ? '📊 Plotly' : '📐 SVG'}</span>
-          </button>
+            <button
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                engineMode === 'svg'
+                  ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              onClick={() => setEngineMode('svg')}
+              title="Motor SVG Nativo: Máximo rendimiento, arrastre fluido de etiquetas y estados termodinámicos"
+            >
+              📐 SVG
+            </button>
+            <button
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                engineMode === 'plotly'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              onClick={() => setEngineMode('plotly')}
+              title="Motor Plotly.js: Herramientas científicas interactivas, selección en caja y exportación"
+            >
+              📊 Plotly
+            </button>
+          </div>
         </div>
       </div>
     </header>
