@@ -19,8 +19,16 @@ export interface CycleThermodynamics {
   t_subcooling?: number; // K
   t_superheat?: number; // K
   cop?: number;
+  cop_heat?: number;
   q_evap_kj?: number;
   w_comp_kj?: number;
+  q_cond_kj?: number;
+  compression_ratio?: number;
+  v_suction_m3_kg?: number;
+  v_discharge_m3_kg?: number;
+  delta_v_m3_kg?: number;
+  v_ratio?: number;
+  energy_balance_err?: number;
 }
 
 /**
@@ -1037,15 +1045,18 @@ export class RefrigerationSceneManager {
           name: 'Compresor Frigorífico',
           category: 'compression',
           description:
-            'Aspira vapor sobrecalentado a baja presión y baja temperatura desde el evaporador, comprimiéndolo mecánicamente hasta la alta presión de descarga del condensador.',
-          thermoProcess: 'Compresión Isoentrópica / Politrópica (1 → 2)',
+            'Aspira vapor sobrecalentado a baja presión y baja temperatura (Punto 3) desde el evaporador, comprimiéndolo mecánicamente hasta la alta presión de descarga (Punto 4) hacia el condensador.',
+          thermoProcess: 'Compresión Isoentrópica / Real (3 → 4)',
           parameters: [
-            { label: 'Presión Aspiración (P₁)', value: t.p_evap.toFixed(2), unit: 'bar' },
-            { label: 'Temp. Aspiración (T₁)', value: (t.t_evap + (t.t_superheat || 5)).toFixed(1), unit: '°C' },
-            { label: 'Presión Descarga (P₂)', value: t.p_cond.toFixed(2), unit: 'bar' },
-            { label: 'Temp. Descarga (T₂)', value: (t.t_discharge || t.t_cond + 30).toFixed(1), unit: '°C' },
-            { label: 'Relación Compresión', value: (t.p_cond / Math.max(0.1, t.p_evap)).toFixed(2) },
-            { label: 'Trabajo Específico (w)', value: (t.w_comp_kj || 35.4).toFixed(1), unit: 'kJ/kg' },
+            { label: 'Presión Aspiración (P₃)', value: t.p_evap.toFixed(2), unit: 'bar' },
+            { label: 'Temp. Aspiración (T₃)', value: (t.t_evap + (t.t_superheat || 5)).toFixed(1), unit: '°C' },
+            { label: 'Vol. Específico Aspiración (v₃)', value: t.v_suction_m3_kg ? t.v_suction_m3_kg.toFixed(4) : '0.0994', unit: 'm³/kg' },
+            { label: 'Presión Descarga (P₄)', value: t.p_cond.toFixed(2), unit: 'bar' },
+            { label: 'Temp. Descarga (T₄)', value: (t.t_discharge || t.t_cond + 25).toFixed(1), unit: '°C' },
+            { label: 'Vol. Específico Descarga (v₄)', value: t.v_discharge_m3_kg ? t.v_discharge_m3_kg.toFixed(4) : '0.0211', unit: 'm³/kg' },
+            { label: 'Relación Compresión (P₄/P₃)', value: (t.compression_ratio || t.p_cond / Math.max(0.1, t.p_evap)).toFixed(2), unit: ': 1' },
+            { label: 'Variación Volumen (|v₃-v₄|)', value: (t.delta_v_m3_kg || 0.078).toFixed(4), unit: 'm³/kg' },
+            { label: 'Trabajo Específico (w_comp = h₄ - h₃)', value: (t.w_comp_kj || 38.4).toFixed(1), unit: 'kJ/kg' },
           ],
         };
       case 'condenser':
@@ -1054,13 +1065,14 @@ export class RefrigerationSceneManager {
           name: 'Condensador de Aire',
           category: 'condensation',
           description:
-            'Disipa el calor de desecho hacia el ambiente exterior (Q_out), desrecalentando el gas caliente, condensándolo a líquido saturado y subenfriándolo.',
-          thermoProcess: 'Desrecalentamiento y Condensación Isobárica (2 → 3)',
+            'Disipa el calor de desecho hacia el ambiente exterior (q_cond = h₄ - h₆), desrecalentando el gas caliente de descarga (Punto 4), condensándolo a líquido saturado y subenfriándolo (Punto 6).',
+          thermoProcess: 'Condensación y Subenfriamiento Isobárico (4 → 6)',
           parameters: [
-            { label: 'Presión Condensación (P_k)', value: t.p_cond.toFixed(2), unit: 'bar' },
+            { label: 'Presión Condensación (P₄ = P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
             { label: 'Temp. Condensación (T_k)', value: t.t_cond.toFixed(1), unit: '°C' },
             { label: 'Subenfriamiento (ΔT_sub)', value: (t.t_subcooling || 3.0).toFixed(1), unit: 'K' },
-            { label: 'Calor Disipado (q_k)', value: ((t.q_evap_kj || 140) + (t.w_comp_kj || 35)).toFixed(1), unit: 'kJ/kg' },
+            { label: 'Calor Disipado (q_cond = h₄ - h₆)', value: (t.q_cond_kj || (t.q_evap_kj || 153.2) + (t.w_comp_kj || 38.4)).toFixed(1), unit: 'kJ/kg' },
+            { label: 'Balance Energético', value: 'q_evap + w_comp = q_cond' },
           ],
         };
       case 'receiver':
@@ -1069,10 +1081,10 @@ export class RefrigerationSceneManager {
           name: 'Recipiente de Líquido (Calderín)',
           category: 'storage',
           description:
-            'Almacena el refrigerante líquido condensado a alta presión, garantizando alimentación continua a la válvula de expansión incluso ante variaciones de carga térmica.',
+            'Almacena el refrigerante líquido condensado a alta presión (Punto 6), garantizando alimentación continua a la válvula de expansión.',
           thermoProcess: 'Almacenamiento Isobárico Líquido',
           parameters: [
-            { label: 'Presión Almacenamiento', value: t.p_cond.toFixed(2), unit: 'bar' },
+            { label: 'Presión Almacenamiento (P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
             { label: 'Estado', value: '100% Líquido Subenfriado' },
             { label: 'Nivel Visor', value: '65 %' },
           ],
@@ -1083,13 +1095,13 @@ export class RefrigerationSceneManager {
           name: 'Válvula de Expansión Termostática (TXV)',
           category: 'expansion',
           description:
-            'Regula el caudal de refrigerante hacia el evaporador provocando una caída brusca de presión (flash gas), manteniendo constante el sobrecalentamiento.',
-          thermoProcess: 'Expansión Isoentálpica / Laminación (3 → 4)',
+            'Regula el caudal de refrigerante hacia el evaporador provocando una caída brusca de presión (flash gas) manteniendo entalpía constante (h₆ = h₁).',
+          thermoProcess: 'Expansión Isoentálpica (6 → 1)',
           parameters: [
-            { label: 'Presión Entrada', value: t.p_cond.toFixed(2), unit: 'bar' },
-            { label: 'Presión Salida', value: t.p_evap.toFixed(2), unit: 'bar' },
-            { label: 'Pérdida Carga (ΔP)', value: (t.p_cond - t.p_evap).toFixed(2), unit: 'bar' },
-            { label: 'Entalpía', value: 'Constante (h₃ = h₄)' },
+            { label: 'Presión Entrada (P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
+            { label: 'Presión Salida (P₁)', value: t.p_evap.toFixed(2), unit: 'bar' },
+            { label: 'Pérdida Carga (ΔP = P₆ - P₁)', value: (t.p_cond - t.p_evap).toFixed(2), unit: 'bar' },
+            { label: 'Entalpía Isoentálpica', value: 'Constante (h₆ = h₁)' },
           ],
         };
       case 'evaporator':
@@ -1099,14 +1111,14 @@ export class RefrigerationSceneManager {
           name: 'Evaporador de Tiro Forzado',
           category: 'evaporation',
           description:
-            'Absorbe calor del recinto refrigerado (Q_in), evaporando la mezcla líquida a baja presión y generando el efecto frigorífico útil.',
-          thermoProcess: 'Evaporación y Sobrecalentamiento Isobárico (4 → 1)',
+            'Absorbe calor del recinto refrigerado (q_evap = h₃ - h₁), evaporando la mezcla líquida a baja presión (Punto 1) y sobrecalentando el vapor hacia la aspiración (Punto 3).',
+          thermoProcess: 'Evaporación y Sobrecalentamiento Isobárico (1 → 3)',
           parameters: [
-            { label: 'Presión Evaporación (P_o)', value: t.p_evap.toFixed(2), unit: 'bar' },
+            { label: 'Presión Evaporación (P₁ = P₃)', value: t.p_evap.toFixed(2), unit: 'bar' },
             { label: 'Temp. Evaporación (T_o)', value: t.t_evap.toFixed(1), unit: '°C' },
             { label: 'Sobrecalentamiento Útil', value: (t.t_superheat || 5.0).toFixed(1), unit: 'K' },
-            { label: 'Efecto Frigorífico (q_o)', value: (t.q_evap_kj || 142.5).toFixed(1), unit: 'kJ/kg' },
-            { label: 'COP Teórico', value: (t.cop || 4.1).toFixed(2) },
+            { label: 'Efecto Frigorífico (q_evap = h₃ - h₁)', value: (t.q_evap_kj || 153.2).toFixed(1), unit: 'kJ/kg' },
+            { label: 'Coef. Operación (COP = q_evap / w_comp)', value: (t.cop || 3.99).toFixed(2) },
           ],
         };
     }

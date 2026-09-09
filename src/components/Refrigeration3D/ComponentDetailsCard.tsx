@@ -56,7 +56,7 @@ export const ComponentDetailsCard: React.FC<ComponentDetailsCardProps> = ({
   };
 
   return (
-    <div className="absolute top-4 right-4 z-40 w-84 bg-white/95 dark:bg-[#14171f]/95 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl p-4 text-slate-800 dark:text-slate-100 transition-all animate-in fade-in slide-in-from-right-4 duration-200">
+    <div className="absolute top-16 left-3 z-40 w-84 bg-white/95 dark:bg-[#14171f]/95 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl p-4 text-slate-800 dark:text-slate-100 transition-all animate-in fade-in slide-in-from-left-4 duration-200">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center gap-2.5">

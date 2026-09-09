@@ -7,6 +7,7 @@ import {
   Layers,
   Thermometer,
   Compass,
+  Scale,
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import {
@@ -15,6 +16,8 @@ import {
   CycleThermodynamics,
 } from './RefrigerationScene';
 import { ComponentDetailsCard, ComponentInfo } from './ComponentDetailsCard';
+import { CycleEnergyBalanceCard } from './CycleEnergyBalanceCard';
+import { calculateCycleThermodynamics } from '../../utils/cycleCalculations';
 
 export const Refrigeration3DView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,6 +28,7 @@ export const Refrigeration3DView: React.FC = () => {
     selectedFluidId,
     selectedFluidItem,
     points,
+    connections,
   } = useProject();
 
   // 3D Scene Controls State
@@ -32,43 +36,38 @@ export const Refrigeration3DView: React.FC = () => {
   const [flowSpeed, setFlowSpeed] = useState(1);
   const [viewMode, setViewMode] = useState<'standard' | 'thermal' | 'xray'>('standard');
   const [selectedComponent, setSelectedComponent] = useState<ComponentInfo | null>(null);
+  const [showEnergyBalance, setShowEnergyBalance] = useState(true);
 
-  // Compute thermodynamic values from project points or defaults
+  // Compute precise thermodynamic metrics and cycle parameters
+  const cycleMetrics = useMemo(() => {
+    const fluid = selectedFluidItem?.display_name || selectedFluidId || 'R134a';
+    return calculateCycleThermodynamics(points, connections, fluid);
+  }, [points, connections, selectedFluidId, selectedFluidItem]);
+
+  // Thermo data for 3D scene representation
   const thermoData: CycleThermodynamics = useMemo(() => {
-    // Find min and max pressure points if available
-    let p_min = 2.0;
-    let p_max = 12.0;
-    let t_min = -10.0;
-    let t_max = 45.0;
-
-    if (points.length >= 2) {
-      const pressures = points.map((p) => p.state?.pressure_bar).filter((v) => typeof v === 'number' && !isNaN(v));
-      const temperatures = points.map((p) => p.state?.temperature_c).filter((v) => typeof v === 'number' && !isNaN(v));
-
-      if (pressures.length >= 2) {
-        p_min = Math.min(...pressures);
-        p_max = Math.max(...pressures);
-      }
-      if (temperatures.length >= 2) {
-        t_min = Math.min(...temperatures);
-        t_max = Math.max(...temperatures);
-      }
-    }
-
     return {
-      fluid: selectedFluidItem?.display_name || selectedFluidId || 'R134a',
-      p_evap: p_min,
-      t_evap: t_min,
-      p_cond: p_max,
-      t_cond: t_max,
-      t_discharge: t_max + 28,
-      t_subcooling: 3.5,
-      t_superheat: 5.0,
-      cop: 3.8,
-      q_evap_kj: 155.0,
-      w_comp_kj: 40.8,
+      fluid: cycleMetrics.fluid,
+      p_evap: cycleMetrics.p_evap_bar,
+      t_evap: cycleMetrics.t_evap_c,
+      p_cond: cycleMetrics.p_cond_bar,
+      t_cond: cycleMetrics.t_cond_c,
+      t_discharge: cycleMetrics.t_discharge_c,
+      t_subcooling: cycleMetrics.t_subcooling_k,
+      t_superheat: cycleMetrics.t_superheat_k,
+      cop: cycleMetrics.cop,
+      cop_heat: cycleMetrics.cop_heat,
+      q_evap_kj: cycleMetrics.q_evap_kj_kg,
+      w_comp_kj: cycleMetrics.w_comp_kj_kg,
+      q_cond_kj: cycleMetrics.q_cond_kj_kg,
+      compression_ratio: cycleMetrics.compression_ratio,
+      v_suction_m3_kg: cycleMetrics.v3_suction_m3_kg,
+      v_discharge_m3_kg: cycleMetrics.v4_discharge_m3_kg,
+      delta_v_m3_kg: cycleMetrics.delta_v_m3_kg,
+      v_ratio: cycleMetrics.v_ratio,
+      energy_balance_err: cycleMetrics.energy_balance_err_kj_kg,
     };
-  }, [points, selectedFluidId, selectedFluidItem]);
+  }, [cycleMetrics]);
 
   // Initialize and mount Three.js Scene
   useEffect(() => {
@@ -185,7 +184,31 @@ export const Refrigeration3DView: React.FC = () => {
             Planta
           </button>
         </div>
+
+        {/* Energy Balance & Cycle KPIs Toggle */}
+        <div className="flex items-center bg-white/90 dark:bg-[#14171f]/90 backdrop-blur-md p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md">
+          <button
+            onClick={() => setShowEnergyBalance(!showEnergyBalance)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+              showEnergyBalance
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            title="Mostrar / Ocultar Balance Energético Global y Parámetros del Ciclo"
+          >
+            <Scale size={13} />
+            <span className="hidden sm:inline">Balance Energético</span>
+          </button>
+        </div>
       </div>
+
+      {/* Global Energy Balance & Thermodynamic Cycle KPIs HUD */}
+      {showEnergyBalance && (
+        <CycleEnergyBalanceCard
+          metrics={cycleMetrics}
+          fluidName={thermoData.fluid}
+        />
+      )}
 
       {/* Bottom Floating Control Bar: Flow Playback & Speed */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-white/90 dark:bg-[#14171f]/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl">
