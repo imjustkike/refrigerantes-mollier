@@ -305,17 +305,17 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
 
   // Color Tokens
   const colors = {
-    bg: isDanfoss ? '#ffffff' : '#030712',
-    border: isDanfoss ? '#94a3b8' : '#1e293b',
-    grid: isDanfoss ? 'rgba(148, 163, 184, 0.35)' : 'rgba(30, 41, 59, 0.65)',
-    gridMajor: isDanfoss ? 'rgba(100, 116, 139, 0.5)' : 'rgba(51, 65, 85, 0.8)',
-    domeFill: isDanfoss ? 'rgba(2, 132, 199, 0.05)' : 'rgba(14, 165, 233, 0.06)',
+    bg: isDanfoss ? '#ffffff' : '#0f1116',
+    border: isDanfoss ? '#cbd5e1' : '#242833',
+    grid: isDanfoss ? 'rgba(203, 213, 225, 0.5)' : 'rgba(36, 40, 51, 0.7)',
+    gridMajor: isDanfoss ? 'rgba(148, 163, 184, 0.65)' : 'rgba(51, 60, 77, 0.85)',
+    domeFill: isDanfoss ? 'rgba(2, 132, 199, 0.04)' : 'rgba(56, 189, 248, 0.05)',
     satCurve: isDanfoss ? '#0284c7' : '#38bdf8',
-    isotherm: isDanfoss ? '#dc2626' : '#f87171',
-    isentrope: isDanfoss ? '#0891b2' : '#22d3ee',
-    isochore: isDanfoss ? '#9333ea' : '#c084fc',
-    quality: isDanfoss ? '#059669' : '#34d399',
-    axisText: isDanfoss ? '#334155' : '#94a3b8',
+    isotherm: isDanfoss ? '#dc2626' : '#ef4444',
+    isentrope: isDanfoss ? '#0284c7' : '#06b6d4',
+    isochore: isDanfoss ? '#7c3aed' : '#a855f7',
+    quality: isDanfoss ? '#059669' : '#10b981',
+    axisText: isDanfoss ? '#1e293b' : '#8c96a7',
   };
 
   return (
@@ -611,11 +611,11 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
                     y={0}
                     width={152}
                     height={90}
-                    rx={6}
-                    fill={isDanfoss ? 'rgba(255,255,255,0.96)' : 'rgba(11,17,32,0.94)'}
+                    rx={5}
+                    fill={isDanfoss ? '#ffffff' : '#141720'}
                     stroke={pt.color || '#38bdf8'}
-                    strokeWidth={2}
-                    filter="drop-shadow(0 6px 14px rgba(0,0,0,0.45))"
+                    strokeWidth={1.5}
+                    filter="drop-shadow(0 4px 10px rgba(0,0,0,0.3))"
                   />
 
                   {/* Close / Hide Button */}

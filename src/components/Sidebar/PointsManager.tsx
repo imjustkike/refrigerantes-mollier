@@ -310,26 +310,26 @@ export const PointsManager: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Componente Superior: Agregar Punto con sus opciones */}
-      <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 shadow-md">
+      {/* Componente Superior: Agregar Punto */}
+      <div className="bg-white dark:bg-[#181a20] border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-xs">
         <div
           className="flex items-center justify-between cursor-pointer select-none"
           onClick={() => setIsAddFormOpen(!isAddFormOpen)}
         >
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#22d3ee]" />
-            <span className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-sky-600 dark:bg-sky-400 shrink-0" />
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
               Agregar Punto
             </span>
           </div>
-          <div className="flex items-center gap-1 text-slate-400 hover:text-cyan-400 transition-colors">
-            <span className="text-[10px] font-semibold">{isAddFormOpen ? 'Ocultar' : 'Mostrar'}</span>
-            {isAddFormOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <div className="flex items-center gap-1 text-slate-500 hover:text-sky-600 dark:hover:text-sky-400 transition-colors">
+            <span className="text-[10px] font-medium">{isAddFormOpen ? 'Ocultar' : 'Mostrar'}</span>
+            {isAddFormOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </div>
         </div>
 
         {isAddFormOpen && (
-          <div className="flex flex-col gap-2.5 mt-3 pt-2.5 border-t border-slate-800/80 animate-in fade-in duration-150">
+          <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-800/80 animate-in fade-in duration-100">
             {/* Name & Layer Color Info */}
             <div className="flex flex-col gap-1.5">
               <input
@@ -337,14 +337,14 @@ export const PointsManager: React.FC = () => {
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 placeholder="Nombre del punto"
-                className="w-full bg-slate-900 border border-slate-750 focus:border-cyan-500 rounded-lg px-2.5 py-1 text-xs text-white outline-none font-medium placeholder:text-slate-500 transition-colors"
+                className="w-full bg-white dark:bg-[#121419] border border-slate-300 dark:border-slate-750 focus:border-sky-500 rounded-md px-2.5 py-1 text-xs text-slate-900 dark:text-white outline-none font-medium placeholder:text-slate-400 transition-colors"
               />
 
-              <div className="flex items-center justify-between text-[11px] bg-slate-900/60 border border-slate-800/80 rounded-lg px-2.5 py-1">
-                <span className="text-slate-400">Color (asignado por capa activa):</span>
-                <span className="flex items-center gap-1.5 font-semibold text-slate-200">
+              <div className="flex items-center justify-between text-[11px] bg-slate-100/70 dark:bg-[#14161b] border border-slate-200 dark:border-slate-800 rounded-md px-2 py-1">
+                <span className="text-slate-500 dark:text-slate-400">Color (capa activa):</span>
+                <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
                   <span
-                    className="w-2.5 h-2.5 rounded-full shadow-sm ring-1 ring-white/30"
+                    className="w-2.5 h-2.5 rounded-full shadow-xs ring-1 ring-black/10 dark:ring-white/20"
                     style={{ background: activeLayer.color }}
                   />
                   <span>{activeLayer.name}</span>
@@ -354,7 +354,7 @@ export const PointsManager: React.FC = () => {
 
             {/* Pair Type Selection */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold text-slate-400">Variables de Entrada</label>
+              <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Variables de Entrada</label>
               <select
                 value={addPairType}
                 onChange={(e) => {
@@ -364,7 +364,7 @@ export const PointsManager: React.FC = () => {
                   setAddVal1(cfg.placeholder1);
                   if (cfg.placeholder2) setAddVal2(cfg.placeholder2);
                 }}
-                className="w-full bg-slate-900 border border-slate-750 focus:border-cyan-500 rounded-lg px-2 py-1 text-xs text-slate-200 outline-none font-sans"
+                className="w-full bg-white dark:bg-[#121419] border border-slate-300 dark:border-slate-750 focus:border-sky-500 rounded-md px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none font-sans"
               >
                 <option value="P-T">Presión (P) y Temperatura (T)</option>
                 <option value="P-h">Presión (P) y Entalpía (h)</option>
@@ -384,37 +384,37 @@ export const PointsManager: React.FC = () => {
             {/* Inputs Values */}
             <div className={`grid ${addConfig.isSingle ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium text-slate-400 truncate">{addConfig.l1}</label>
+                <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{addConfig.l1}</label>
                 <input
                   type="text"
                   value={addVal1}
                   onChange={(e) => setAddVal1(e.target.value.replace(/[^0-9.,-]/g, ''))}
                   placeholder={addConfig.placeholder1}
-                  className="bg-slate-900 border border-slate-750 focus:border-cyan-500 rounded-lg px-2 py-1 text-xs text-white font-mono outline-none"
+                  className="bg-white dark:bg-[#121419] border border-slate-300 dark:border-slate-750 focus:border-sky-500 rounded-md px-2 py-1 text-xs text-slate-900 dark:text-white font-mono outline-none"
                 />
               </div>
 
               {!addConfig.isSingle ? (
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-slate-400 truncate">{addConfig.l2}</label>
+                  <label className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{addConfig.l2}</label>
                   <input
                     type="text"
                     value={addVal2}
                     onChange={(e) => setAddVal2(e.target.value.replace(/[^0-9.,-]/g, ''))}
                     placeholder={addConfig.placeholder2}
-                    className="bg-slate-900 border border-slate-750 focus:border-cyan-500 rounded-lg px-2 py-1 text-xs text-white font-mono outline-none"
+                    className="bg-white dark:bg-[#121419] border border-slate-300 dark:border-slate-750 focus:border-sky-500 rounded-md px-2 py-1 text-xs text-slate-900 dark:text-white font-mono outline-none"
                   />
                 </div>
               ) : (
-                <div className="text-[10px] text-cyan-400 font-semibold bg-cyan-950/40 border border-cyan-800/40 rounded-lg px-2 py-1 flex items-center">
+                <div className="text-[10px] text-sky-700 dark:text-sky-300 font-mono font-semibold bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800/40 rounded-md px-2 py-1 flex items-center">
                   {addConfig.fixedLabel}
                 </div>
               )}
             </div>
 
             {addError && (
-              <div className="p-2 bg-rose-950/80 border border-rose-800/80 rounded-lg text-[11px] text-rose-300 flex items-center gap-1.5">
-                <AlertCircle size={13} className="shrink-0 text-rose-400" />
+              <div className="p-2 bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800/80 rounded-md text-[11px] text-rose-700 dark:text-rose-300 flex items-center gap-1.5 font-mono">
+                <AlertCircle size={13} className="shrink-0 text-rose-500" />
                 <span className="truncate">{addError}</span>
               </div>
             )}
@@ -422,7 +422,7 @@ export const PointsManager: React.FC = () => {
             <button
               onClick={handleCreatePoint}
               disabled={addLoading}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-white font-semibold text-xs shadow-md shadow-cyan-500/20 transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white font-medium text-xs shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
             >
               {addLoading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               <span>Añadir Punto</span>
@@ -431,33 +431,33 @@ export const PointsManager: React.FC = () => {
         )}
       </div>
 
-      {/* Header de la Lista de Puntos (Plegable / Desplegable) */}
+      {/* Header de la Lista de Puntos */}
       <div
         onClick={() => setIsListOpen(!isListOpen)}
-        className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-950/40 hover:bg-slate-900/70 border border-slate-800/80 cursor-pointer select-none transition-colors mt-1"
+        className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-white dark:bg-[#181b22] hover:bg-slate-100/80 dark:hover:bg-[#1e222a] border border-slate-200 dark:border-slate-800 cursor-pointer select-none transition-colors mt-0.5 shadow-2xs"
       >
         <div className="flex items-center gap-1.5">
-          <MapPin size={13} className="text-cyan-400 shrink-0" />
-          <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+          <MapPin size={13} className="text-sky-600 dark:text-sky-400 shrink-0" />
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
             Lista de Puntos
           </span>
-          <span className="px-1.5 py-0.2 rounded-full bg-slate-800 text-[10px] font-mono text-slate-400 font-semibold">
+          <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-700">
             {points.length}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-slate-400 hover:text-cyan-400">
-          <span className="text-[10px] font-semibold">{isListOpen ? 'Ocultar' : 'Mostrar'}</span>
+        <div className="flex items-center gap-1 text-slate-500 hover:text-sky-600 dark:hover:text-sky-400">
+          <span className="text-[10px] font-medium">{isListOpen ? 'Ocultar' : 'Mostrar'}</span>
           {isListOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </div>
       </div>
 
-      {/* Lista de Puntos con Max Height y Scroll Interno */}
+      {/* Lista de Puntos */}
       {isListOpen && (
-        <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto pr-1 custom-scrollbar animate-in fade-in duration-150">
+        <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto pr-1 animate-in fade-in duration-100">
         {points.length === 0 ? (
-          <div className="p-4 bg-slate-950/40 border border-slate-800/80 rounded-xl flex flex-col items-center justify-center text-center gap-1.5 text-slate-500">
+          <div className="p-4 bg-white dark:bg-[#14161b] border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col items-center justify-center text-center gap-1 text-slate-400 dark:text-slate-500 font-mono shadow-2xs">
             <span className="text-xs">No hay puntos en el ciclo aún</span>
-            <span className="text-[10px] text-slate-600">
+            <span className="text-[10px]">
               Use el formulario superior para añadir estados
             </span>
           </div>
@@ -474,13 +474,13 @@ export const PointsManager: React.FC = () => {
               return (
                 <div
                   key={pt.id}
-                  className="p-3 bg-slate-900 border border-cyan-500/70 rounded-xl flex flex-col gap-2.5 shadow-lg ring-1 ring-cyan-500/20"
+                  className="p-3 bg-white dark:bg-[#181a20] border border-sky-500/80 rounded-lg flex flex-col gap-2 shadow-xs ring-1 ring-sky-500/20"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-cyan-300">Editar {pt.name}</span>
+                    <span className="text-xs font-bold text-sky-700 dark:text-sky-300">Editar {pt.name}</span>
                     <button
                       onClick={() => setEditingPointId(null)}
-                      className="text-slate-400 hover:text-white p-0.5 rounded"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-0.5 rounded cursor-pointer"
                     >
                       <X size={13} />
                     </button>
@@ -492,14 +492,14 @@ export const PointsManager: React.FC = () => {
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-500"
+                      className="w-full bg-slate-50 dark:bg-[#121419] border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 font-medium"
                     />
 
-                    <div className="flex items-center justify-between text-[10px] bg-slate-950/60 border border-slate-800/80 rounded px-2 py-1">
-                      <span className="text-slate-400">Color (definido por capa):</span>
-                      <span className="flex items-center gap-1.5 font-semibold text-slate-200">
+                    <div className="flex items-center justify-between text-[10px] bg-slate-100/70 dark:bg-[#14161b] border border-slate-200 dark:border-slate-800 rounded px-2 py-1">
+                      <span className="text-slate-500 dark:text-slate-400">Color (capa):</span>
+                      <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shadow-sm ring-1 ring-white/30"
+                          className="w-2.5 h-2.5 rounded-full shadow-xs ring-1 ring-black/10 dark:ring-white/20"
                           style={{ background: ptLayer?.color }}
                         />
                         <span>{ptLayer?.name}</span>
@@ -511,7 +511,7 @@ export const PointsManager: React.FC = () => {
                   <select
                     value={editPairType}
                     onChange={(e) => setEditPairType(e.target.value as InputPairType)}
-                    className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none font-sans"
+                    className="bg-slate-50 dark:bg-[#121419] border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none font-sans"
                   >
                     <option value="P-T">Presión (P) y Temperatura (T)</option>
                     <option value="P-h">Presión (P) y Entalpía (h)</option>
@@ -530,33 +530,33 @@ export const PointsManager: React.FC = () => {
                   {/* Edit Inputs */}
                   <div className={`grid ${editConfig.isSingle ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                     <div className="flex flex-col gap-0.5">
-                      <label className="text-[9px] text-slate-400">{editConfig.l1}</label>
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400">{editConfig.l1}</label>
                       <input
                         type="text"
                         value={editVal1}
                         onChange={(e) => setEditVal1(e.target.value.replace(/[^0-9.,-]/g, ''))}
-                        className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 text-xs text-white font-mono outline-none"
+                        className="bg-slate-50 dark:bg-[#121419] border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-xs text-slate-900 dark:text-white font-mono outline-none"
                       />
                     </div>
                     {!editConfig.isSingle ? (
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[9px] text-slate-400">{editConfig.l2}</label>
+                        <label className="text-[9px] text-slate-500 dark:text-slate-400">{editConfig.l2}</label>
                         <input
                           type="text"
                           value={editVal2}
                           onChange={(e) => setEditVal2(e.target.value.replace(/[^0-9.,-]/g, ''))}
-                          className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 text-xs text-white font-mono outline-none"
+                          className="bg-slate-50 dark:bg-[#121419] border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 text-xs text-slate-900 dark:text-white font-mono outline-none"
                         />
                       </div>
                     ) : (
-                      <div className="text-[10px] text-cyan-400 font-semibold bg-cyan-950/40 rounded px-2 py-1 flex items-center">
+                      <div className="text-[10px] text-sky-700 dark:text-sky-300 font-mono font-semibold bg-sky-50 dark:bg-sky-950/40 rounded px-2 py-1 flex items-center border border-sky-300 dark:border-sky-800/40">
                         {editConfig.fixedLabel}
                       </div>
                     )}
                   </div>
 
                   {editError && (
-                    <div className="text-[10px] text-rose-400 truncate">{editError}</div>
+                    <div className="text-[10px] text-rose-600 dark:text-rose-400 truncate font-mono">{editError}</div>
                   )}
 
                   {/* Save / Cancel buttons */}
@@ -564,7 +564,7 @@ export const PointsManager: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setEditingPointId(null)}
-                      className="px-2 py-1 text-[11px] rounded bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      className="px-2 py-1 text-[11px] rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
                     >
                       Cancelar
                     </button>
@@ -572,7 +572,7 @@ export const PointsManager: React.FC = () => {
                       type="button"
                       onClick={() => handleSaveEdit(pt.id)}
                       disabled={editLoading}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold shadow-sm disabled:opacity-50"
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded bg-sky-600 hover:bg-sky-500 text-white font-medium shadow-xs disabled:opacity-50 cursor-pointer"
                     >
                       {editLoading ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                       <span>Guardar</span>
@@ -586,38 +586,38 @@ export const PointsManager: React.FC = () => {
               <div
                 key={pt.id}
                 onClick={() => setSelectedPointId(isSelected ? null : pt.id)}
-                className={`p-2.5 rounded-xl border transition-all duration-150 flex flex-col gap-1.5 cursor-pointer ${
+                className={`p-2.5 rounded-lg border transition-all duration-100 flex flex-col gap-1.5 cursor-pointer shadow-xs ${
                   isSelected
-                    ? 'bg-slate-850 border-cyan-500/80 shadow-md shadow-cyan-500/10 ring-1 ring-cyan-500/30'
-                    : 'bg-slate-950/60 hover:bg-slate-900/80 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-sky-50/80 dark:bg-sky-950/30 border-sky-400 dark:border-sky-600/70 ring-1 ring-sky-400/20'
+                    : 'bg-white dark:bg-[#181a20] hover:bg-slate-50/90 dark:hover:bg-[#1e222a] border-slate-200 dark:border-slate-800'
                 }`}
               >
                 {/* Header Row */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs ring-1 ring-black/10 dark:ring-white/20"
                       style={{ background: pt.color }}
                     />
-                    <span className="text-xs font-bold text-white tracking-tight truncate">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white tracking-tight truncate">
                       {pt.name}
                     </span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-900 text-cyan-400 border border-slate-800 font-sans shrink-0">
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-[#13151a] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750 font-mono shrink-0">
                       {pt.state.phase}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartEdit(pt.id);
                       }}
-                      className="p-1 text-slate-400 hover:text-cyan-400 rounded hover:bg-cyan-500/10 transition-colors"
-                      title="Editar propiedades de este punto en su componente"
+                      className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="Editar propiedades de este punto"
                     >
-                      <Edit2 size={12} />
+                      <Edit2 size={11} />
                     </button>
 
                     <button
@@ -626,51 +626,51 @@ export const PointsManager: React.FC = () => {
                         e.stopPropagation();
                         removePoint(pt.id);
                       }}
-                      className="p-1 text-slate-500 hover:text-rose-400 rounded hover:bg-rose-500/10 transition-colors"
+                      className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                       title="Eliminar punto"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
                 </div>
 
                 {/* Thermodynamic Properties Grid: Enthalpy, Volume, Temp, Pressure */}
                 <div className="grid grid-cols-2 gap-1 font-mono text-[10px]">
-                  <div className="p-1.5 bg-slate-900/90 rounded-lg border border-slate-800/70 flex items-center justify-between">
-                    <span className="text-slate-400">P:</span>
-                    <span className="text-cyan-400 font-bold">
+                  <div className="p-1 bg-slate-50 dark:bg-[#121419] rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">P:</span>
+                    <span className="text-sky-700 dark:text-sky-400 font-bold">
                       {pt.state.pressure_bar.toFixed(2)} bar
                     </span>
                   </div>
 
-                  <div className="p-1.5 bg-slate-900/90 rounded-lg border border-slate-800/70 flex items-center justify-between">
-                    <span className="text-slate-400">T:</span>
-                    <span className="text-emerald-400 font-bold">
+                  <div className="p-1 bg-slate-50 dark:bg-[#121419] rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">T:</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">
                       {pt.state.temperature_c.toFixed(1)} °C
                     </span>
                   </div>
 
-                  <div className="p-1.5 bg-slate-900/90 rounded-lg border border-slate-800/70 flex items-center justify-between">
-                    <span className="text-slate-400">h:</span>
-                    <span className="text-slate-100 font-bold">
+                  <div className="p-1 bg-slate-50 dark:bg-[#121419] rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">h:</span>
+                    <span className="text-slate-800 dark:text-slate-100 font-bold">
                       {pt.state.enthalpy_kj_kg.toFixed(1)} kJ/kg
                     </span>
                   </div>
 
                   <div
                     title={volInfo.tooltip}
-                    className="p-1.5 bg-slate-900/90 rounded-lg border border-slate-800/70 flex items-center justify-between cursor-help"
+                    className="p-1 bg-white dark:bg-[#121419] rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-help"
                   >
-                    <span className="text-slate-400">v:</span>
-                    <span className={`font-bold ${volInfo.isSci ? 'text-purple-300' : 'text-purple-400'}`}>
+                    <span className="text-slate-500 dark:text-slate-400">v:</span>
+                    <span className={`font-bold ${volInfo.isSci ? 'text-purple-600 dark:text-purple-300' : 'text-purple-700 dark:text-purple-400'}`}>
                       {volInfo.display}
                     </span>
                   </div>
 
                   {/* Isentropic entropy */}
-                  <div className="col-span-2 p-1.5 bg-slate-900/90 rounded-lg border border-slate-800/70 flex items-center justify-between">
-                    <span className="text-amber-400 font-semibold">s:</span>
-                    <span className="text-amber-300 font-bold">
+                  <div className="col-span-2 p-1 bg-slate-50 dark:bg-[#121419] rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-amber-700 dark:text-amber-400 font-semibold">s:</span>
+                    <span className="text-amber-800 dark:text-amber-300 font-bold">
                       {pt.state.entropy_kj_kg_k.toFixed(4)} kJ/(kg·K)
                     </span>
                   </div>
@@ -683,7 +683,7 @@ export const PointsManager: React.FC = () => {
                     <strong style={{ color: ptLayer?.color }}>{ptLayer?.name}</strong>
                   </span>
                   {isSelected && (
-                    <span className="text-cyan-400 font-semibold font-sans">
+                    <span className="text-sky-700 dark:text-sky-400 font-semibold font-sans">
                       Seleccionado
                     </span>
                   )}

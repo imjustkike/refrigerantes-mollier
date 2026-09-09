@@ -302,8 +302,8 @@ export const PlotlyMollierDiagram: React.FC<PlotlyMollierDiagramProps> = ({ them
           color: isDanfoss ? '#0f172a' : '#f8fafc',
         },
       },
-      paper_bgcolor: isDanfoss ? '#f8fafc' : '#030712',
-      plot_bgcolor: isDanfoss ? '#ffffff' : '#030712',
+      paper_bgcolor: isDanfoss ? '#ffffff' : '#0f1116',
+      plot_bgcolor: isDanfoss ? '#ffffff' : '#0f1116',
       margin: { l: 70, r: 40, t: 45, b: 50 },
       xaxis: {
         title: {

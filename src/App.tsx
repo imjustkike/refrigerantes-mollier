@@ -11,6 +11,7 @@ const MainAppContent: React.FC = () => {
     toastMessage,
     projectName,
     selectedFluidId,
+    themeMode,
   } = useProject();
 
   const canvasExportRef = useRef<(() => Promise<string | null>) | null>(null);
@@ -28,17 +29,17 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-white font-sans">
+    <div className={`flex flex-col w-screen h-screen overflow-hidden ${themeMode === 'dark' ? 'dark' : ''} bg-[#f4f5f8] dark:bg-[#0f1115] text-slate-800 dark:text-slate-100 antialiased selection:bg-sky-600 selection:text-white font-sans transition-colors duration-200`}>
       {/* Top Header */}
       <Header onExportPng={handleExportPng} />
 
       {/* Main Workspace */}
       <div className="flex flex-1 h-[calc(100vh-56px)] overflow-hidden relative">
-        {/* Left Sidebar (Layers, Points, Connections, Editor) */}
+        {/* Left Sidebar (Layers, Points, Connections) */}
         <Sidebar />
 
-        {/* Center Diagram (Expanded to full width) */}
-        <div className="flex-1 h-full relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+        {/* Center Diagram */}
+        <div className="flex-1 h-full relative overflow-hidden bg-slate-200/70 dark:bg-[#12141a]">
           <MollierDiagram canvasExportRef={canvasExportRef} />
         </div>
       </div>
@@ -47,10 +48,10 @@ const MainAppContent: React.FC = () => {
       <SampleCyclesModal />
       <AvailabilityMatrixModal />
 
-      {/* Toast Notification */}
+      {/* Technical Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 flex items-center gap-3 px-4 py-3 bg-slate-900/95 border border-cyan-500/50 shadow-2xl shadow-cyan-500/20 rounded-xl text-xs font-medium text-slate-100 z-50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" />
+        <div className="fixed bottom-5 right-5 flex items-center gap-2.5 px-3.5 py-2.5 bg-white dark:bg-[#1a1d24] border border-slate-300 dark:border-slate-700/80 shadow-lg rounded-lg text-xs font-mono font-medium text-slate-800 dark:text-slate-200 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}

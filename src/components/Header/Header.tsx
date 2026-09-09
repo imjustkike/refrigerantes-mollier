@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Download,
   Maximize2,
   Moon,
   MousePointer,
@@ -17,7 +18,7 @@ interface HeaderProps {
   onExportPng?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = () => {
+export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
   const {
     projectName,
     setProjectName,
@@ -29,8 +30,8 @@ export const Header: React.FC<HeaderProps> = () => {
     zoomIn,
     zoomOut,
     resetView,
-    diagramTheme,
-    setDiagramTheme,
+    themeMode,
+    toggleThemeMode,
     engineMode,
     setEngineMode,
   } = useProject();
@@ -38,18 +39,18 @@ export const Header: React.FC<HeaderProps> = () => {
   const [isEditingName, setIsEditingName] = useState(false);
 
   return (
-    <header className="h-14 px-4 bg-slate-900/95 border-b border-slate-800/80 flex items-center justify-between gap-4 z-30 backdrop-blur-xl shadow-lg shadow-black/20">
+    <header className="h-13 px-4 bg-white/95 dark:bg-[#14161c]/95 border-b border-slate-200 dark:border-slate-800/90 flex items-center justify-between gap-3 z-30 transition-colors duration-150 shadow-xs">
       {/* Brand & Project Name */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 via-cyan-500 to-teal-400 p-[1px] shadow-lg shadow-cyan-500/20 flex items-center justify-center overflow-hidden">
-          <img src="/icon.png" alt="CoolMollier" className="w-full h-full object-cover rounded-[11px]" />
+        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+          <img src="/icon.png" alt="CoolMollier" className="w-full h-full object-cover" />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black tracking-wider uppercase bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-300 bg-clip-text text-transparent select-none">
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-900 dark:text-slate-100 select-none">
               CoolMollier
             </span>
-            <span className="text-slate-600 text-xs">•</span>
+            <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
             {isEditingName ? (
               <input
                 type="text"
@@ -58,28 +59,28 @@ export const Header: React.FC<HeaderProps> = () => {
                 onBlur={() => setIsEditingName(false)}
                 onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
                 autoFocus
-                className="bg-slate-950 border border-cyan-500 text-white rounded px-1.5 py-0.5 text-xs font-semibold outline-none focus:ring-1 focus:ring-cyan-400"
+                className="bg-white dark:bg-slate-950 border border-sky-500 text-slate-900 dark:text-white rounded px-1.5 py-0.5 text-xs font-mono font-medium outline-none"
               />
             ) : (
               <span
-                className="text-xs font-semibold text-slate-200 tracking-tight cursor-pointer hover:text-cyan-400 transition-colors"
+                className="text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight cursor-pointer hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
                 onClick={() => setIsEditingName(true)}
                 title="Haga clic para editar el nombre del proyecto"
               >
                 {projectName}
               </span>
             )}
-            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-cyan-950/80 text-cyan-400 border border-cyan-700/40">
+            <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded bg-slate-100 dark:bg-[#1a1d24] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               log(p)–h
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
             CoolProp v{catalog?.engine_version || '8.0'} • bar(a), °C, kJ/kg, m³/kg
           </span>
         </div>
       </div>
 
-      {/* Right Controls: Refrigerant, Curves & Diagram Controls */}
+      {/* Right Controls: Refrigerant, Curves, Tools & Engine */}
       <div className="flex items-center gap-2">
         {/* Refrigerant Selector */}
         <RefrigerantSelectorDropdown />
@@ -87,121 +88,128 @@ export const Header: React.FC<HeaderProps> = () => {
         {/* Curves Toggles */}
         <CurvesDropdown />
 
-        <div className="w-[1px] h-6 bg-slate-800 mx-1" />
+        <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
         {/* Diagram Interactive Tools */}
-        <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+        <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
           <button
-            className={`p-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`p-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
               toolMode === 'select'
-                ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/25 ring-1 ring-cyan-400'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800/60'
             }`}
             onClick={() => setToolMode('select')}
             title="Modo Selección: Seleccionar y arrastrar puntos o etiquetas"
           >
-            <MousePointer size={14} />
+            <MousePointer size={13} />
           </button>
 
           <button
-            className={`p-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`p-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
               toolMode === 'connect'
-                ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/25 ring-1 ring-cyan-400'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800/60'
             }`}
             onClick={() => setToolMode('connect')}
             title="Modo Conectar: Haga clic sucesivamente en dos puntos para unirlos"
           >
-            <Share2 size={14} />
+            <Share2 size={13} />
           </button>
 
           {points.length >= 3 && (
             <button
-              className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/15 border border-amber-500/30 transition-colors"
+              className="p-1.5 rounded-md text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/15 border border-amber-300 dark:border-amber-500/30 transition-colors cursor-pointer"
               onClick={closeCycle}
               title="Cerrar Ciclo Termodinámico (conectar último punto con el primero)"
             >
-              <Repeat size={14} />
+              <Repeat size={13} />
             </button>
           )}
         </div>
 
-        <div className="w-[1px] h-6 bg-slate-800 mx-1" />
-
         {/* Zoom & View Controls */}
-        <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+        <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
           <button
-            className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg transition-colors"
+            className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 rounded-md transition-colors cursor-pointer"
             onClick={zoomIn}
             title="Acercar (Zoom +)"
           >
-            <ZoomIn size={14} />
+            <ZoomIn size={13} />
           </button>
 
           <button
-            className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg transition-colors"
+            className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 rounded-md transition-colors cursor-pointer"
             onClick={zoomOut}
             title="Alejar (Zoom -)"
           >
-            <ZoomOut size={14} />
+            <ZoomOut size={13} />
           </button>
 
           <button
-            className="p-1.5 text-slate-300 hover:text-cyan-400 hover:bg-slate-800/60 rounded-lg transition-colors"
+            className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 rounded-md transition-colors cursor-pointer"
             onClick={resetView}
             title="Restablecer Vista (Ajustar a límites del refrigerante)"
           >
-            <Maximize2 size={14} />
+            <Maximize2 size={13} />
           </button>
         </div>
 
-        <div className="w-[1px] h-6 bg-slate-800 mx-1" />
-
-        {/* Theme & Engine Toggles */}
-        <div className="flex items-center gap-1.5">
+        {/* Export PNG if provided */}
+        {onExportPng && (
           <button
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-              diagramTheme === 'danfoss'
-                ? 'bg-blue-900/30 border-blue-500/40 text-blue-300 hover:bg-blue-900/50'
-                : 'bg-slate-800/80 border-slate-700/60 text-amber-300 hover:bg-slate-750'
-            }`}
-            onClick={() => setDiagramTheme((t) => (t === 'danfoss' ? 'dark' : 'danfoss'))}
-            title={diagramTheme === 'danfoss' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Carta Técnica Danfoss'}
+            onClick={onExportPng}
+            className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-slate-100 dark:bg-[#0f1115] border border-slate-200 dark:border-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
+            title="Exportar imagen PNG del diagrama"
           >
-            {diagramTheme === 'danfoss' ? <Moon size={13} /> : <Sun size={13} />}
-            <span className="text-[11px] font-medium hidden sm:inline">
-              {diagramTheme === 'danfoss' ? 'Oscuro' : 'Carta Técnica'}
-            </span>
+            <Download size={13} />
           </button>
+        )}
 
-          {/* Motor Gráfico: Selector Segmentado SVG / Plotly */}
-          <div
-            className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800/80 text-xs font-mono font-bold"
-            title="Seleccionar motor de renderizado del diagrama"
+        <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+        {/* Dark / Light Mode Toggle */}
+        <button
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-[#181b22] text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+          onClick={toggleThemeMode}
+          title={themeMode === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+        >
+          {themeMode === 'dark' ? (
+            <Sun size={13} className="text-amber-400" />
+          ) : (
+            <Moon size={13} className="text-slate-600" />
+          )}
+          <span className="text-[11px] font-sans hidden sm:inline">
+            {themeMode === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+          </span>
+        </button>
+
+        {/* Motor Gráfico: Selector Segmentado SVG / Plotly */}
+        <div
+          className="flex items-center bg-slate-100 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-mono font-medium"
+          title="Seleccionar motor de renderizado del diagrama"
+        >
+          <button
+            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+              engineMode === 'svg'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setEngineMode('svg')}
+            title="Motor SVG Nativo"
           >
-            <button
-              className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
-                engineMode === 'svg'
-                  ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-              onClick={() => setEngineMode('svg')}
-              title="Motor SVG Nativo: Máximo rendimiento, arrastre fluido de etiquetas y estados termodinámicos"
-            >
-              📐 SVG
-            </button>
-            <button
-              className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
-                engineMode === 'plotly'
-                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-              onClick={() => setEngineMode('plotly')}
-              title="Motor Plotly.js: Herramientas científicas interactivas, selección en caja y exportación"
-            >
-              📊 Plotly
-            </button>
-          </div>
+            SVG
+          </button>
+          <button
+            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+              engineMode === 'plotly'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setEngineMode('plotly')}
+            title="Motor Plotly.js"
+          >
+            Plotly
+          </button>
         </div>
       </div>
     </header>

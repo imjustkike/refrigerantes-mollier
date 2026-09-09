@@ -81,7 +81,10 @@ interface ProjectContextType {
   sidebarTab: 'layers_points' | 'connections' | 'editor';
   setSidebarTab: (tab: 'layers_points' | 'connections' | 'editor') => void;
 
-  // Diagram View & Engine controls
+  // App Theme (Dark / Light Mode) & Diagram View
+  themeMode: 'dark' | 'light';
+  setThemeMode: React.Dispatch<React.SetStateAction<'dark' | 'light'>>;
+  toggleThemeMode: () => void;
   diagramTheme: 'danfoss' | 'dark';
   setDiagramTheme: React.Dispatch<React.SetStateAction<'danfoss' | 'dark'>>;
   engineMode: 'svg' | 'plotly';
@@ -226,8 +229,39 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [connectSourcePointId, setConnectSourcePointId] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'layers_points' | 'connections' | 'editor'>('layers_points');
 
-  // Diagram View & Engine States
-  const [diagramTheme, setDiagramTheme] = useState<'danfoss' | 'dark'>('danfoss');
+  // App Theme (Dark / Light Mode) & Diagram View
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('coolmollier_theme_mode');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return 'dark'; // Default industrial dark
+  });
+
+  const [diagramTheme, setDiagramTheme] = useState<'danfoss' | 'dark'>(() => {
+    const saved = localStorage.getItem('coolmollier_theme_mode');
+    return saved === 'light' ? 'danfoss' : 'dark';
+  });
+
+  // Keep DOM class and localStorage in sync
+  useEffect(() => {
+    localStorage.setItem('coolmollier_theme_mode', themeMode);
+    const root = document.documentElement;
+    if (themeMode === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+  }, [themeMode]);
+
+  const toggleThemeMode = useCallback(() => {
+    setThemeMode((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      setDiagramTheme(next === 'dark' ? 'dark' : 'danfoss');
+      return next;
+    });
+  }, []);
+
   const [engineMode, setEngineMode] = useState<'svg' | 'plotly'>('svg');
   const diagramActionsRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void }>({
     zoomIn: () => {},
@@ -1000,6 +1034,9 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnectSourcePointId,
         sidebarTab,
         setSidebarTab,
+        themeMode,
+        setThemeMode,
+        toggleThemeMode,
         diagramTheme,
         setDiagramTheme,
         engineMode,

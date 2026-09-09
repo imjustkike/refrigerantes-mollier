@@ -34,164 +34,125 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const { toolMode, setToolMode, closeCycle, points } = useProject();
 
   return (
-    <div className={`absolute top-3 left-4 flex items-center gap-1 p-1.5 rounded-xl border shadow-xl z-15 backdrop-blur-xl ${
-      diagramTheme === 'danfoss'
-        ? 'bg-white/95 border-slate-300/80 shadow-slate-400/20'
-        : 'bg-slate-900/90 border-slate-700/60 shadow-black/40'
-    }`}>
+    <div className="absolute top-3 left-4 flex items-center gap-0.5 p-1 rounded-lg border shadow-md z-15 bg-white/95 dark:bg-[#16181f]/95 border-slate-200 dark:border-slate-800/90 transition-colors duration-150">
       <button
-        className={`p-2 rounded-lg transition-all ${
+        className={`p-1.5 rounded-md transition-all cursor-pointer ${
           toolMode === 'select'
-            ? 'bg-cyan-600 text-white shadow-md shadow-cyan-500/30 ring-1 ring-cyan-400'
-            : diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            ? 'bg-sky-600 text-white shadow-2xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
         }`}
         onClick={() => setToolMode('select')}
         title="Modo Selección y Arrastre de Puntos / Etiquetas"
       >
-        <MousePointer size={15} />
+        <MousePointer size={14} />
       </button>
 
       <button
-        className={`p-2 rounded-lg transition-all ${
+        className={`p-1.5 rounded-md transition-all cursor-pointer ${
           toolMode === 'add_point'
-            ? 'bg-cyan-600 text-white shadow-md shadow-cyan-500/30 ring-1 ring-cyan-400'
-            : diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            ? 'bg-sky-600 text-white shadow-2xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
         }`}
         onClick={() => setToolMode('add_point')}
         title="Modo Añadir Punto: Haga clic en la gráfica para crear un estado"
       >
-        <PlusCircle size={15} />
+        <PlusCircle size={14} />
       </button>
 
       <button
-        className={`p-2 rounded-lg transition-all ${
+        className={`p-1.5 rounded-md transition-all cursor-pointer ${
           toolMode === 'connect'
-            ? 'bg-cyan-600 text-white shadow-md shadow-cyan-500/30 ring-1 ring-cyan-400'
-            : diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            ? 'bg-sky-600 text-white shadow-2xs'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
         }`}
         onClick={() => setToolMode('connect')}
         title="Modo Conectar: Haga clic sucesivamente en dos puntos para unirlos"
       >
-        <Share2 size={15} />
+        <Share2 size={14} />
       </button>
 
       {points.length >= 3 && (
         <button
-          className={`p-2 rounded-lg transition-colors ${
-            diagramTheme === 'danfoss'
-              ? 'text-amber-600 hover:bg-amber-50'
-              : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800'
-          }`}
+          className="p-1.5 rounded-md text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/15 transition-colors cursor-pointer"
           onClick={closeCycle}
           title="Cerrar Ciclo Termodinámico (conectar último punto con el primero)"
         >
-          <Repeat size={15} />
+          <Repeat size={14} />
         </button>
       )}
 
-      <div className={`w-[1px] h-5 mx-1 ${
-        diagramTheme === 'danfoss' ? 'bg-slate-300' : 'bg-slate-700/60'
-      }`} />
+      <div className="w-[1px] h-4 mx-1 bg-slate-200 dark:bg-slate-800" />
 
       <button
-        className={`p-2 rounded-lg transition-colors ${
-          diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-        }`}
+        className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         onClick={onZoomIn}
         title="Acercar (Zoom +)"
       >
-        <ZoomIn size={15} />
+        <ZoomIn size={14} />
       </button>
 
       <button
-        className={`p-2 rounded-lg transition-colors ${
-          diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-        }`}
+        className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         onClick={onZoomOut}
         title="Alejar (Zoom -)"
       >
-        <ZoomOut size={15} />
+        <ZoomOut size={14} />
       </button>
 
       <button
-        className={`p-2 rounded-lg transition-colors ${
-          diagramTheme === 'danfoss'
-            ? 'text-slate-600 hover:text-cyan-600 hover:bg-slate-100'
-            : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800'
-        }`}
+        className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         onClick={onResetView}
         title="Restablecer Vista (Ajustar a límites del refrigerante)"
       >
-        <Maximize2 size={15} />
+        <Maximize2 size={14} />
       </button>
 
-      <div className={`w-[1px] h-5 mx-1 ${
-        diagramTheme === 'danfoss' ? 'bg-slate-300' : 'bg-slate-700/60'
-      }`} />
+      <div className="w-[1px] h-4 mx-1 bg-slate-200 dark:bg-slate-800" />
 
+      {/* Diagram Background Theme Toggle */}
       <button
-        className={`p-2 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold ${
-          diagramTheme === 'danfoss'
-            ? 'text-blue-700 hover:bg-blue-50'
-            : 'text-amber-300 hover:bg-slate-800'
-        }`}
+        className="p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
         onClick={onToggleTheme}
-        title={diagramTheme === 'danfoss' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Modo Carta Técnica (Fondo Blanco Danfoss)'}
+        title={diagramTheme === 'danfoss' ? 'Cambiar a Fondo Oscuro' : 'Cambiar a Fondo Carta Técnica (Danfoss)'}
       >
         {diagramTheme === 'danfoss' ? (
           <>
-            <Moon size={15} />
-            <span className="hidden sm:inline">Modo Oscuro</span>
+            <Moon size={13} className="text-slate-500 dark:text-slate-400" />
+            <span className="hidden md:inline text-[11px]">Diagrama Oscuro</span>
           </>
         ) : (
           <>
-            <Sun size={15} />
-            <span className="hidden sm:inline">Carta Técnica</span>
+            <Sun size={13} className="text-amber-500" />
+            <span className="hidden md:inline text-[11px]">Diagrama Claro</span>
           </>
         )}
       </button>
 
       {onToggleEngine && (
         <>
-          <div className={`w-[1px] h-5 mx-1 ${
-            diagramTheme === 'danfoss' ? 'bg-slate-300' : 'bg-slate-700/60'
-          }`} />
-          <div className="flex items-center rounded-lg p-0.5 text-xs font-mono font-bold">
+          <div className="w-[1px] h-4 mx-1 bg-slate-200 dark:bg-slate-800" />
+          <div className="flex items-center rounded-md p-0.5 text-xs font-mono font-medium bg-slate-100 dark:bg-[#101217]">
             <button
-              className={`px-2 py-0.5 rounded transition-colors ${
+              className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
                 engineMode === 'svg'
-                  ? 'bg-cyan-600 text-white shadow-sm'
-                  : diagramTheme === 'danfoss'
-                  ? 'text-slate-600 hover:bg-slate-100'
-                  : 'text-slate-400 hover:bg-slate-800'
+                  ? 'bg-sky-600 text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
               onClick={() => engineMode !== 'svg' && onToggleEngine()}
               title="Motor SVG Nativo"
             >
-              📐 SVG
+              SVG
             </button>
             <button
-              className={`px-2 py-0.5 rounded transition-colors ${
+              className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
                 engineMode === 'plotly'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : diagramTheme === 'danfoss'
-                  ? 'text-slate-600 hover:bg-slate-100'
-                  : 'text-slate-400 hover:bg-slate-800'
+                  ? 'bg-sky-600 text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
               onClick={() => engineMode !== 'plotly' && onToggleEngine()}
               title="Motor Plotly.js"
             >
-              📊 Plotly
+              Plotly
             </button>
           </div>
         </>
@@ -199,4 +160,3 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     </div>
   );
 };
-

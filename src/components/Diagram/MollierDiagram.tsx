@@ -538,23 +538,23 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     >
       {/* Top Inspector Status Bar - Fixed at top-left, never overlaps the diagram */}
       <div
-        className={`h-10 px-3 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-20 transition-colors ${
+        className={`h-9 px-3 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-20 transition-colors ${
           diagramTheme === 'danfoss'
-            ? 'bg-slate-200/90 border-slate-300 text-slate-800'
-            : 'bg-slate-900/90 border-slate-800/80 text-slate-200'
+            ? 'bg-slate-50 border-slate-200 text-slate-800'
+            : 'bg-[#15171d] border-slate-800/80 text-slate-200'
         }`}
       >
         {/* Pinned to top-left: compact square tiles */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Tile P */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
               diagramTheme === 'danfoss'
-                ? 'bg-white border-slate-300 text-slate-800'
-                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-[#121419] border-slate-800 text-slate-100'
             }`}
           >
-            <span className="font-bold text-cyan-400 text-[10px]">P</span>
+            <span className="font-bold text-sky-600 dark:text-sky-400 text-[10px]">P</span>
             <span className="font-semibold text-[11px]">
               {cursorState ? `${Units.paToBar(cursorState.pPa).toFixed(2)} bar` : '— bar'}
             </span>
@@ -562,13 +562,13 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile T */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
               diagramTheme === 'danfoss'
-                ? 'bg-white border-slate-300 text-slate-800'
-                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-[#121419] border-slate-800 text-slate-100'
             }`}
           >
-            <span className="font-bold text-emerald-400 text-[10px]">T</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10px]">T</span>
             <span className="font-semibold text-[11px]">
               {cursorState?.tC !== undefined ? `${cursorState.tC.toFixed(1)} °C` : '— °C'}
             </span>
@@ -576,13 +576,13 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile h */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
               diagramTheme === 'danfoss'
-                ? 'bg-white border-slate-300 text-slate-800'
-                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-[#121419] border-slate-800 text-slate-100'
             }`}
           >
-            <span className="font-bold text-sky-400 text-[10px]">h</span>
+            <span className="font-bold text-slate-700 dark:text-slate-300 text-[10px]">h</span>
             <span className="font-semibold text-[11px]">
               {cursorState ? `${Units.jkgToKjkg(cursorState.hJkg).toFixed(1)} kJ/kg` : '— kJ/kg'}
             </span>
@@ -590,32 +590,32 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile s */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
               diagramTheme === 'danfoss'
-                ? 'bg-white border-slate-300 text-slate-800'
-                : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-[#121419] border-slate-800 text-slate-100'
             }`}
           >
-            <span className="font-bold text-amber-400 text-[10px]">s</span>
+            <span className="font-bold text-amber-600 dark:text-amber-400 text-[10px]">s</span>
             <span className="font-semibold text-[11px]">
               {cursorState?.sKjkgk !== undefined ? `${cursorState.sKjkgk.toFixed(4)} kJ/(kg·K)` : '— kJ/(kg·K)'}
             </span>
           </div>
 
-          {/* Tile v with logarithmic format when small */}
+          {/* Tile v */}
           {(() => {
             const vFmt = formatSpecificVolume(cursorState?.vM3kg);
             return (
               <div
                 title={vFmt.tooltip}
-                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono text-xs shadow-sm cursor-help ${
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs cursor-help ${
                   diagramTheme === 'danfoss'
-                    ? 'bg-white border-slate-300 text-slate-800'
-                    : 'bg-slate-950/80 border-slate-800/90 text-slate-100'
+                    ? 'bg-white border-slate-200 text-slate-800'
+                    : 'bg-[#121419] border-slate-800 text-slate-100'
                 }`}
               >
-                <span className="font-bold text-purple-400 text-[10px]">v</span>
-                <span className={`font-semibold text-[11px] ${vFmt.isSci ? 'text-purple-300 font-bold' : ''}`}>
+                <span className="font-bold text-purple-600 dark:text-purple-400 text-[10px]">v</span>
+                <span className={`font-semibold text-[11px] ${vFmt.isSci ? 'text-purple-700 dark:text-purple-300 font-bold' : ''}`}>
                   {cursorState?.vM3kg !== undefined ? vFmt.display : '— m³/kg'}
                 </span>
               </div>
@@ -624,7 +624,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile Fase */}
           {cursorState?.phase && (
-            <span className="px-2 py-0.5 rounded-lg bg-cyan-950/80 text-cyan-300 border border-cyan-800/50 text-[10px] font-bold shadow-sm">
+            <span className="px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-[#1c2029] text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 text-[10px] font-mono font-bold shadow-2xs">
               {cursorState.phase}
             </span>
           )}
