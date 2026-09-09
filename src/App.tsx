@@ -5,6 +5,7 @@ import { SchematicCanvas } from './components/Schematic/SchematicCanvas';
 import { Header } from './components/Header/Header';
 import { AvailabilityMatrixModal } from './components/Modals/AvailabilityMatrixModal';
 import { SampleCyclesModal } from './components/Modals/SampleCyclesModal';
+import { ExportDiagramModal } from './components/Modals/ExportDiagramModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 
@@ -76,6 +77,7 @@ const MainAppContent: React.FC = () => {
       {/* Modals */}
       <SampleCyclesModal />
       <AvailabilityMatrixModal />
+      <ExportDiagramModal />
 
       {/* Technical Toast Notification */}
       {toastMessage && (

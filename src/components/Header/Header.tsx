@@ -22,7 +22,7 @@ interface HeaderProps {
   onExportPng?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
+export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => {
   const {
     projectName,
     setProjectName,
@@ -40,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
     setEngineMode,
     mainViewMode,
     setMainViewMode,
+    setIsExportModalOpen,
   } = useProject();
 
   const [isEditingName, setIsEditingName] = useState(false);
@@ -217,16 +218,14 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng }) => {
           </button>
         </div>
 
-        {/* Export PNG if provided */}
-        {onExportPng && (
-          <button
-            onClick={onExportPng}
-            className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 bg-slate-100 dark:bg-[#0f1115] border border-slate-200 dark:border-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
-            title="Exportar imagen PNG del diagrama"
-          >
-            <Download size={13} />
-          </button>
-        )}
+        {/* Export / Download Diagram */}
+        <button
+          onClick={() => setIsExportModalOpen(true)}
+          className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 bg-slate-100 dark:bg-[#0f1115] border border-slate-200 dark:border-slate-800 rounded-lg transition-colors cursor-pointer shadow-2xs"
+          title="Descargar diagrama (Guardar como PDF o PNG)"
+        >
+          <Download size={13} />
+        </button>
 
         <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
 

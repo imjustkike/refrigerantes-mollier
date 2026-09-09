@@ -103,6 +103,8 @@ interface ProjectContextType {
   setIsAvailabilityModalOpen: (open: boolean) => void;
   isSampleCyclesModalOpen: boolean;
   setIsSampleCyclesModalOpen: (open: boolean) => void;
+  isExportModalOpen: boolean;
+  setIsExportModalOpen: (open: boolean) => void;
 
   // Export / Import
   newProject: () => void;
@@ -154,6 +156,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [isSampleCyclesModalOpen, setIsSampleCyclesModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -1056,6 +1059,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsAvailabilityModalOpen,
         isSampleCyclesModalOpen,
         setIsSampleCyclesModalOpen,
+        isExportModalOpen,
+        setIsExportModalOpen,
         newProject,
         saveProjectJson,
         loadProjectJson,

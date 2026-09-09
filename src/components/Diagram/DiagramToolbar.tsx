@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Download,
   Maximize2,
   MousePointer,
   PlusCircle,
@@ -31,7 +32,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   engineMode = 'svg',
   onToggleEngine,
 }) => {
-  const { toolMode, setToolMode, closeCycle, points } = useProject();
+  const { toolMode, setToolMode, closeCycle, points, setIsExportModalOpen } = useProject();
 
   return (
     <div className="absolute top-3 left-4 flex items-center gap-0.5 p-1 rounded-lg border shadow-md z-15 bg-white/95 dark:bg-[#16181f]/95 border-slate-200 dark:border-slate-800/90 transition-colors duration-150">
@@ -126,6 +127,17 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
             <span className="hidden md:inline text-[11px]">Diagrama Claro</span>
           </>
         )}
+      </button>
+
+      <div className="w-[1px] h-4 mx-1 bg-slate-200 dark:bg-slate-800" />
+
+      {/* Export / Download Modal Trigger */}
+      <button
+        className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        onClick={() => setIsExportModalOpen(true)}
+        title="Descargar Diagrama (PDF / PNG - Guardar como...)"
+      >
+        <Download size={13} />
       </button>
 
       {onToggleEngine && (
