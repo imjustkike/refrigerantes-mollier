@@ -40,6 +40,7 @@ export type SchematicComponentType =
   | 'oil_separator'
   | 'oil_reservoir'
   | 'flash_tank_economizer'
+  | 'co2_flash_tank'
   | 'filter_drier'
   | 'sight_glass'
   // Válvulas

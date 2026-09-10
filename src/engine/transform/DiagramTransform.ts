@@ -142,28 +142,41 @@ export class DiagramTransform {
     const newHSpan = this._hSpan / factor;
     const newLnPSpan = this._lnPRatio / factor;
 
-    // Clamp zoom levels: max 50x zoom in, 1.0x zoom out (minimum zoom is full diagram, preventing diagram from shrinking)
+    // Allow zooming in up to 50x and zooming out (shrinking the diagram) up to 3.5x
     const baseHSpan = this.baseBounds.hMaxJkg - this.baseBounds.hMinJkg;
     const baseLnPSpan = Math.log(this.baseBounds.pMaxPa / this.baseBounds.pMinPa);
 
     const minHSpan = baseHSpan / 50;
-    const maxHSpan = baseHSpan;
+    const maxHSpan = baseHSpan * 3.5;
     const clampedHSpan = Math.max(minHSpan, Math.min(maxHSpan, newHSpan));
 
     const minLnPSpan = baseLnPSpan / 50;
-    const maxLnPSpan = baseLnPSpan;
+    const maxLnPSpan = baseLnPSpan * 3.0;
     const clampedLnPSpan = Math.max(minLnPSpan, Math.min(maxLnPSpan, newLnPSpan));
 
     // 4. Calculate new view bounds maintaining the pivot at (fracX, fracY)
     let newHMin = pivotH - fracX * clampedHSpan;
     let newHMax = newHMin + clampedHSpan;
 
-    if (newHMin < this.baseBounds.hMinJkg) {
-      newHMin = this.baseBounds.hMinJkg;
-      newHMax = newHMin + clampedHSpan;
-    } else if (newHMax > this.baseBounds.hMaxJkg) {
-      newHMax = this.baseBounds.hMaxJkg;
-      newHMin = newHMax - clampedHSpan;
+    if (clampedHSpan <= baseHSpan) {
+      if (newHMin < this.baseBounds.hMinJkg) {
+        newHMin = this.baseBounds.hMinJkg;
+        newHMax = newHMin + clampedHSpan;
+      } else if (newHMax > this.baseBounds.hMaxJkg) {
+        newHMax = this.baseBounds.hMaxJkg;
+        newHMin = newHMax - clampedHSpan;
+      }
+    } else {
+      // When zoomed out past base bounds, keep base domain framed
+      const maxAllowedHMin = this.baseBounds.hMinJkg;
+      const minAllowedHMax = this.baseBounds.hMaxJkg;
+      if (newHMin > maxAllowedHMin) {
+        newHMin = maxAllowedHMin;
+        newHMax = newHMin + clampedHSpan;
+      } else if (newHMax < minAllowedHMax) {
+        newHMax = minAllowedHMax;
+        newHMin = newHMax - clampedHSpan;
+      }
     }
 
     const lnPivotP = Math.log(pivotP);
@@ -171,15 +184,12 @@ export class DiagramTransform {
     let newLnPMax = newLnPMin + clampedLnPSpan;
 
     const baseLnPMin = Math.log(this.baseBounds.pMinPa);
-    const baseLnPMax = Math.log(this.baseBounds.pMaxPa);
 
-    // Clamp pressure so minimum zoom/view pressure never drops below base minimum (~0.1 bar / ~0 bar)
+    // Pin base to bottom: minimum pressure never drops below base minimum (~0.1 bar),
+    // causing zoom out to expand upwards and reveal higher pressures above the dome.
     if (newLnPMin < baseLnPMin) {
       newLnPMin = baseLnPMin;
       newLnPMax = newLnPMin + clampedLnPSpan;
-    } else if (newLnPMax > baseLnPMax) {
-      newLnPMax = baseLnPMax;
-      newLnPMin = newLnPMax - clampedLnPSpan;
     }
 
     const newViewBounds: PhysicalBounds = {
@@ -214,6 +224,16 @@ export class DiagramTransform {
         newHMax = this.baseBounds.hMaxJkg;
         newHMin = newHMax - this._hSpan;
       }
+    } else {
+      const limitHMin = this.baseBounds.hMinJkg - (this._hSpan - baseHSpan);
+      const limitHMax = this.baseBounds.hMaxJkg + (this._hSpan - baseHSpan);
+      if (newHMin < limitHMin) {
+        newHMin = limitHMin;
+        newHMax = newHMin + this._hSpan;
+      } else if (newHMax > limitHMax) {
+        newHMax = limitHMax;
+        newHMin = newHMax - this._hSpan;
+      }
     }
 
     let lnPMin = Math.log(this.viewBounds.pMinPa) + deltaLnP;
@@ -223,14 +243,26 @@ export class DiagramTransform {
     const baseLnPMax = Math.log(this.baseBounds.pMaxPa);
     const baseLnPSpan = baseLnPMax - baseLnPMin;
 
-    // Prevent dragging below base bounds (pMin) or above top bounds (pMax)
     if (this._lnPRatio <= baseLnPSpan) {
+      // At base zoom or zoomed in: clamp within [baseLnPMin, baseLnPMax]
       if (lnPMin < baseLnPMin) {
         lnPMin = baseLnPMin;
         lnPMax = lnPMin + this._lnPRatio;
       } else if (lnPMax > baseLnPMax) {
         lnPMax = baseLnPMax;
         lnPMin = lnPMax - this._lnPRatio;
+      }
+    } else {
+      // When zoomed out to reveal higher pressures:
+      // Keep base pinned to baseLnPMin and cap maximum upward panning
+      if (lnPMin < baseLnPMin) {
+        lnPMin = baseLnPMin;
+        lnPMax = lnPMin + this._lnPRatio;
+      }
+      const maxAllowedLnP = baseLnPMin + baseLnPSpan * 3.0;
+      if (lnPMax > maxAllowedLnP) {
+        lnPMax = maxAllowedLnP;
+        lnPMin = Math.max(baseLnPMin, lnPMax - this._lnPRatio);
       }
     }
 

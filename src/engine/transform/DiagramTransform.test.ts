@@ -127,23 +127,28 @@ describe('DiagramTransform Mathematical Verifications', () => {
     expect(resized.viewBounds.pMaxPa).toBe(transform.viewBounds.pMaxPa);
   });
 
-  it('prevents diagram from shrinking past base bounds when zooming out', () => {
-    // Attempt to zoom out by 0.5x from base bounds
+  it('allows shrinking diagram when zooming out while keeping base pinned at the bottom and showing higher pressure', () => {
+    // Zoom out by 0.5x from base bounds
     const zoomedOut = transform.zoomAt(rect.left + 400, rect.top + 250, 0.5);
 
-    // Should be clamped to base bounds
-    expect(zoomedOut.viewBounds.hMinJkg).toBeCloseTo(bounds.hMinJkg, 5);
-    expect(zoomedOut.viewBounds.hMaxJkg).toBeCloseTo(bounds.hMaxJkg, 5);
+    // Minimum pressure must remain anchored to the base
     expect(zoomedOut.viewBounds.pMinPa).toBeCloseTo(bounds.pMinPa, 5);
-    expect(zoomedOut.viewBounds.pMaxPa).toBeCloseTo(bounds.pMaxPa, 5);
+
+    // Maximum pressure must expand upwards (revealing more high pressure)
+    expect(zoomedOut.viewBounds.pMaxPa).toBeGreaterThan(bounds.pMaxPa);
+
+    // Enthalpy span expands
+    expect(zoomedOut.viewBounds.hMaxJkg - zoomedOut.viewBounds.hMinJkg).toBeGreaterThan(
+      bounds.hMaxJkg - bounds.hMinJkg
+    );
   });
 
-  it('clamps minimum pressure to base bounds (preventing deep vacuum / excessive zoom-out)', () => {
-    // Zoom in first, then zoom out while near the bottom
+  it('clamps minimum pressure strictly to base bounds (preventing sub-base vacuum and pinning base)', () => {
+    // Zoom in first, then zoom out aggressively
     const zoomedIn = transform.zoomAt(rect.left + 400, rect.top + 450, 3.0);
-    const zoomedOutNearBottom = zoomedIn.zoomAt(rect.left + 400, rect.top + 450, 0.1);
+    const zoomedOutAggressive = zoomedIn.zoomAt(rect.left + 400, rect.top + 450, 0.1);
 
-    expect(zoomedOutNearBottom.viewBounds.pMinPa).toBeGreaterThanOrEqual(bounds.pMinPa - 1e-6);
-    expect(zoomedOutNearBottom.viewBounds.pMaxPa).toBeLessThanOrEqual(bounds.pMaxPa + 1e-6);
+    expect(zoomedOutAggressive.viewBounds.pMinPa).toBeGreaterThanOrEqual(bounds.pMinPa - 1e-6);
+    expect(zoomedOutAggressive.viewBounds.pMaxPa).toBeGreaterThan(bounds.pMaxPa);
   });
 });

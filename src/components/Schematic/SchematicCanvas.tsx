@@ -17,6 +17,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { toPng, toSvg } from 'html-to-image';
 
 import { SchematicEdgeData, SchematicNodeData, SchematicComponentType, PipeStateCategory } from '../../types/schematic';
 import { COMPONENT_DEFINITIONS } from './symbols/componentDefinitions';
@@ -28,6 +29,7 @@ import { SchematicToolbar } from './SchematicToolbar';
 import { NewSchematicModal } from './NewSchematicModal';
 import { SCHEMATIC_PRESETS } from './templates/schematicTemplates';
 import { useProject } from '../../context/ProjectContext';
+import { saveFileWithPicker } from '../../utils/exportDiagram';
 
 type SchematicNode = Node<SchematicNodeData>;
 type SchematicEdge = Edge<SchematicEdgeData>;
@@ -78,9 +80,20 @@ const getInitialEdges = (): SchematicEdge[] => {
 };
 
 const SchematicCanvasContent: React.FC = () => {
-  const { themeMode, showToast } = useProject();
+  const { themeMode, showToast, selectedFluidId, registerDiagramActions, mainViewMode } = useProject();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, zoomIn, zoomOut } = useReactFlow();
+
+  // Register Header zoom actions (+, -, reset) for schematic view
+  useEffect(() => {
+    if (mainViewMode === 'schematic') {
+      registerDiagramActions({
+        zoomIn: () => zoomIn({ duration: 250 }),
+        zoomOut: () => zoomOut({ duration: 250 }),
+        resetView: () => fitView({ padding: 0.2, duration: 350 }),
+      });
+    }
+  }, [registerDiagramActions, mainViewMode, zoomIn, zoomOut, fitView]);
 
   // Load initial nodes & edges from localStorage or default preset
   const [nodes, setNodes, onNodesChange] = useNodesState<SchematicNode>(getInitialNodes());
@@ -405,55 +418,125 @@ const SchematicCanvasContent: React.FC = () => {
     showToast(nextState ? 'Circulación de refrigerante iniciada' : 'Circulación de refrigerante detenida');
   }, [isAnimationRunning, setEdges, setNodes, showToast]);
 
-  // Export PNG
-  const handleExportPng = useCallback(() => {
-    const flowEl = reactFlowWrapper.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
-    if (!flowEl) return;
+  // Helper to get export parameters for the current visible canvas & zoom
+  const getExportElement = useCallback(() => {
+    const flowEl = reactFlowWrapper.current?.querySelector('.react-flow') as HTMLElement | null;
+    if (!flowEl) {
+      showToast('Error: No se encontró el lienzo del esquema.');
+      return null;
+    }
 
-    const svgEl = reactFlowWrapper.current?.querySelector('.react-flow__edges') as SVGSVGElement | null;
-    if (!svgEl) return;
+    if (nodes.length === 0) {
+      showToast('El esquema está vacío. Añade componentes antes de exportar.');
+      return null;
+    }
 
-    showToast('Generando captura en alta resolución...');
-
-    const canvas = document.createElement('canvas');
     const bbox = flowEl.getBoundingClientRect();
-    canvas.width = bbox.width * 2;
-    canvas.height = bbox.height * 2;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const backgroundColor = themeMode === 'dark' ? '#0c0e12' : '#f8fafc';
 
-    ctx.scale(2, 2);
-    ctx.fillStyle = themeMode === 'dark' ? '#0f1115' : '#f8fafc';
-    ctx.fillRect(0, 0, bbox.width, bbox.height);
-
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const img = new Image();
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0);
-      const a = document.createElement('a');
-      a.download = 'esquema_circuito_refrigeracion.png';
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-      showToast('Esquema exportado como PNG.');
+    return {
+      flowEl,
+      width: Math.round(bbox.width),
+      height: Math.round(bbox.height),
+      backgroundColor,
     };
-  }, [themeMode, showToast]);
+  }, [nodes.length, themeMode, showToast]);
 
-  // Export SVG
-  const handleExportSvg = useCallback(() => {
-    const svgEl = reactFlowWrapper.current?.querySelector('.react-flow__edges') as SVGSVGElement | null;
-    if (!svgEl) return;
+  // Export PNG in high resolution at current zoom
+  const handleExportPng = useCallback(async () => {
+    const params = getExportElement();
+    if (!params) return;
 
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'esquema_circuito_refrigeracion.svg';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Esquema vectorial SVG descargado.');
-  }, [showToast]);
+    try {
+      showToast('Generando imagen PNG en alta resolución (zoom actual)...');
+
+      const dataUrl = await toPng(params.flowEl, {
+        backgroundColor: params.backgroundColor,
+        width: params.width,
+        height: params.height,
+        pixelRatio: 3, // 3x Ultra-HD crisp resolution at current zoom
+        filter: (node: HTMLElement) => {
+          const classList = node?.classList;
+          if (!classList) return true;
+          return !(
+            classList.contains('react-flow__minimap') ||
+            classList.contains('react-flow__controls') ||
+            classList.contains('react-flow__panel')
+          );
+        },
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+
+      const baseName = `esquema_${selectedFluidId?.toLowerCase() || 'circuito'}_p_and_id`;
+      const saveRes = await saveFileWithPicker(blob, baseName, 'png');
+
+      if (saveRes.success) {
+        showToast(`✅ Esquema guardado como PNG: ${saveRes.filename}`);
+      } else if (saveRes.error) {
+        showToast(`❌ Error al guardar PNG: ${saveRes.error}`);
+      }
+    } catch (err: unknown) {
+      console.error('Error al exportar PNG:', err);
+      showToast(`❌ Error al exportar PNG: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [getExportElement, selectedFluidId, showToast]);
+
+  // Export SVG vector file at current zoom
+  const handleExportSvg = useCallback(async () => {
+    const params = getExportElement();
+    if (!params) return;
+
+    try {
+      showToast('Generando gráfico vectorial SVG (zoom actual)...');
+
+      const dataUrl = await toSvg(params.flowEl, {
+        backgroundColor: params.backgroundColor,
+        width: params.width,
+        height: params.height,
+        filter: (node: HTMLElement) => {
+          const classList = node?.classList;
+          if (!classList) return true;
+          return !(
+            classList.contains('react-flow__minimap') ||
+            classList.contains('react-flow__controls') ||
+            classList.contains('react-flow__panel')
+          );
+        },
+      });
+
+      let svgText: string;
+      if (dataUrl.startsWith('data:image/svg+xml;charset=utf-8,')) {
+        svgText = decodeURIComponent(dataUrl.replace('data:image/svg+xml;charset=utf-8,', ''));
+      } else if (dataUrl.startsWith('data:image/svg+xml;base64,')) {
+        svgText = atob(dataUrl.replace('data:image/svg+xml;base64,', ''));
+      } else {
+        const res = await fetch(dataUrl);
+        svgText = await res.text();
+      }
+
+      if (!svgText.includes('xmlns="http://www.w3.org/2000/svg"')) {
+        svgText = svgText.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+      }
+      if (!svgText.startsWith('<?xml')) {
+        svgText = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' + svgText;
+      }
+
+      const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+      const baseName = `esquema_${selectedFluidId?.toLowerCase() || 'circuito'}_p_and_id`;
+      const saveRes = await saveFileWithPicker(blob, baseName, 'svg');
+
+      if (saveRes.success) {
+        showToast(`✅ Esquema vectorial SVG guardado: ${saveRes.filename}`);
+      } else if (saveRes.error) {
+        showToast(`❌ Error al guardar SVG: ${saveRes.error}`);
+      }
+    } catch (err: unknown) {
+      console.error('Error al exportar SVG:', err);
+      showToast(`❌ Error al exportar SVG: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [getExportElement, selectedFluidId, showToast]);
 
   // Keyboard Shortcuts (Delete, Backspace, Ctrl+D)
   useEffect(() => {

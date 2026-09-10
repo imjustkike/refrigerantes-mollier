@@ -515,6 +515,28 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
       { id: 'liquid_out', name: 'Líquido Subenfriado a TXV', shortCode: 'LIQ-SUB', kind: 'subcooled', position: 'bottom', hint: 'Líquido frío subenfriado hacia la válvula de evaporación' },
     ],
   },
+  co2_flash_tank: {
+    type: 'co2_flash_tank',
+    category: 'vessels',
+    name: 'Depósito Flash CO₂ (Separador Líquido / Gas)',
+    description: 'Recipiente de media presión (35-45 bar) para sistemas CO₂ transcríticos/subcríticos. Separa por gravedad la mezcla bifásica en vapor flash superior y líquido saturado inferior puro.',
+    defaultLabel: 'Depósito Flash CO₂',
+    defaultTagPrefix: 'REC-CO2',
+    defaultModel: 'Bitzer / Danfoss CO₂ Flash Vessel (PS 52 bar)',
+    dimensions: { width: 125, height: 145 },
+    defaultSpecs: {
+      volumeL: 50.0,
+      pressureOutBar: 38.0,
+      tempOutC: 3.5,
+      fluidName: 'R744 (CO₂)',
+    },
+    ports: [
+      { id: 'biphasic_in', name: 'Entrada Mezcla HPV (Bifásica)', shortCode: 'HPV-IN', kind: 'expansion_out', position: 'left', hint: 'Entrada lateral de mezcla bifásica proveniente de la válvula de alta presión HPV' },
+      { id: 'flash_gas', name: 'Salida Flash Gas (Vapor MP)', shortCode: 'GAS-MP', kind: 'intermediate', position: 'top', hint: 'Salida superior de vapor saturado hacia la válvula FGV o compresor en paralelo' },
+      { id: 'liquid_out', name: 'Salida Líquido Saturado MP', shortCode: 'LIQ-MP', kind: 'subcooled', position: 'bottom', hint: 'Salida inferior de columna continua de líquido puro hacia evaporadores MT/LT' },
+      { id: 'safety_aux', name: 'Válvula de Seguridad / Purga', shortCode: 'SEG', kind: 'discharge', position: 'right', hint: 'Toma para doble válvula de seguridad de media presión (52 bar), ecualización o retorno' },
+    ],
+  },
   filter_drier: {
     type: 'filter_drier',
     category: 'accessories',

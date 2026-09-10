@@ -75,7 +75,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
     };
 
     return (
-      <div className="w-84 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
+      <div className="w-88 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
         {/* Header */}
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#101217]">
           <div className="flex items-center gap-2">
@@ -518,7 +518,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
     const edgeData = (selectedEdge.data || {}) as SchematicEdgeData;
 
     return (
-      <div className="w-84 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
+      <div className="w-88 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#101217]">
           <div className="flex items-center gap-2">
             <Sliders size={14} className="text-sky-500" />

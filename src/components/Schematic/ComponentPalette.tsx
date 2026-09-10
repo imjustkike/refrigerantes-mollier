@@ -91,7 +91,7 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   return (
     <div
       className={`h-full bg-white/95 dark:bg-[#13151b]/95 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-200 z-20 shadow-md ${
-        isOpen ? 'w-80' : 'w-10'
+        isOpen ? 'w-96' : 'w-10'
       }`}
     >
       {/* Palette Header */}

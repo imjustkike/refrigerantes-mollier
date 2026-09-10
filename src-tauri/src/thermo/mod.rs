@@ -48,7 +48,7 @@ pub struct PointInput {
 }
 
 pub fn get_coolprop_version() -> String {
-    let cp = COOLPROP.shared_access();
+    let cp = COOLPROP.exclusive_access();
     let name = CString::new("version").unwrap();
     let mut buffer = [0u8; 256];
     unsafe {
@@ -79,12 +79,12 @@ pub fn get_last_error() -> String {
     }
 }
 
-/// Helper to call Props1SI with error recovery
+/// Helper to call Props1SI with error recovery (thread-safe via exclusive access)
 pub fn props1_si(fluid: &str, prop: &str) -> Result<f64, String> {
     let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
     let prop_c = CString::new(prop).map_err(|e| e.to_string())?;
 
-    let cp = COOLPROP.shared_access();
+    let cp = COOLPROP.exclusive_access();
     let val = unsafe { cp.Props1SI(fluid_c.as_ptr(), prop_c.as_ptr()) };
     drop(cp);
 
@@ -100,7 +100,7 @@ pub fn props1_si(fluid: &str, prop: &str) -> Result<f64, String> {
     }
 }
 
-/// Helper to call PropsSI with error recovery
+/// Helper to call PropsSI with error recovery (thread-safe via exclusive access)
 pub fn props_si(
     out_prop: &str,
     in1_name: &str,
@@ -114,7 +114,7 @@ pub fn props_si(
     let in2_c = CString::new(in2_name).map_err(|e| e.to_string())?;
     let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
 
-    let cp = COOLPROP.shared_access();
+    let cp = COOLPROP.exclusive_access();
     let val = unsafe {
         cp.PropsSI(
             out_c.as_ptr(),

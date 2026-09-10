@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Columns2,
   Download,
   LineChart,
   Maximize2,
@@ -89,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => 
 
       {/* Right Controls: View Switcher, Refrigerant, Curves, Tools & Engine */}
       <div className="flex items-center gap-2">
-        {/* Main View Mode Selector (Diagram, 3D, Split) */}
+        {/* Main View Mode Selector (Diagram, Schematic, 3D) */}
         <div className="flex items-center bg-slate-100 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium">
           <button
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
@@ -128,19 +127,6 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => 
           >
             <Box size={13} />
             <span className="hidden sm:inline">Ciclo 3D</span>
-          </button>
-
-          <button
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-              mainViewMode === 'split'
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-            onClick={() => setMainViewMode('split')}
-            title="Vista Dividida (Mollier + Esquema P&ID)"
-          >
-            <Columns2 size={13} />
-            <span className="hidden md:inline">Split</span>
           </button>
         </div>
 

@@ -385,6 +385,63 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
         </svg>
       );
 
+    case 'co2_flash_tank':
+      return (
+        <svg width={width} height={height} viewBox="0 0 110 130" fill="none">
+          {/* Base mounting legs */}
+          <line x1="28" y1="108" x2="24" y2="122" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" />
+          <line x1="82" y1="108" x2="86" y2="122" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" />
+          <line x1="19" y1="122" x2="29" y2="122" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="81" y1="122" x2="91" y2="122" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+
+          {/* Vertical Heavy-Duty Vessel Tank */}
+          <rect x="18" y="14" width="74" height="96" rx="22" fill={fillColor} stroke={strokeColor} strokeWidth="2.5" />
+
+          {/* High-Pressure Weld Seams / Reinforcement Bands */}
+          <line x1="19" y1="36" x2="91" y2="36" stroke={strokeColor} strokeWidth="1" strokeDasharray="3,2" opacity="0.6" />
+          <line x1="19" y1="88" x2="91" y2="88" stroke={strokeColor} strokeWidth="1" strokeDasharray="3,2" opacity="0.6" />
+
+          {/* Lower Liquid Phase (CO2 Líquido) */}
+          <rect x="20" y="58" width="70" height="50" rx="12" fill="#06b6d4" fillOpacity="0.38" />
+          {/* Phase Separation Meniscus / Wave Line */}
+          <path d="M 20 58 Q 36 55 55 58 T 90 58" fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" />
+          
+          {/* Liquid Phase Droplets */}
+          <circle cx="34" cy="74" r="1.5" fill="#38bdf8" opacity="0.75" />
+          <circle cx="68" cy="82" r="2" fill="#38bdf8" opacity="0.75" />
+          <circle cx="50" cy="94" r="1.5" fill="#38bdf8" opacity="0.75" />
+
+          {/* Upper Gas Phase (Flash Gas CO2 - Vapor) */}
+          <path d="M 38 46 Q 44 38 48 46 T 58 46" fill="none" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" opacity="0.9" />
+          <path d="M 50 32 Q 55 24 60 32 T 70 32" fill="none" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" opacity="0.9" />
+
+          {/* Inlet Deflector Plate (Separation Mechanism) */}
+          <line x1="6" y1="48" x2="20" y2="48" stroke="#06b6d4" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 26 40 L 32 48 L 30 56" fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" />
+          <circle cx="31" cy="62" r="1.5" fill="#06b6d4" />
+
+          {/* Top Gas Outlet Nozzle */}
+          <line x1="55" y1="4" x2="55" y2="15" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round" />
+
+          {/* Bottom Liquid Outlet Sump */}
+          <line x1="55" y1="109" x2="55" y2="124" stroke="#eab308" strokeWidth="3.5" strokeLinecap="round" />
+
+          {/* Safety / Relief Valve Connection on Right */}
+          <line x1="91" y1="28" x2="103" y2="28" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+          <polygon points="98,24 104,28 98,32" fill="#ef4444" />
+
+          {/* Side Liquid Level Sight Column */}
+          <rect x="79" y="48" width="4.5" height="44" rx="2" fill="#0f172a" fillOpacity="0.6" stroke="#94a3b8" strokeWidth="1" />
+          <rect x="80.25" y="58" width="2" height="32" rx="1" fill="#06b6d4" />
+
+          {/* CO2 Flash Badge */}
+          <rect x="30" y="67" width="50" height="15" rx="4" fill="#0f172a" fillOpacity="0.85" stroke="#38bdf8" strokeWidth="1" />
+          <text x="55" y="78" fontSize="7.5" fontWeight="bold" fill="#38bdf8" textAnchor="middle" fontFamily="monospace" letterSpacing="0.5">
+            CO₂ FLASH
+          </text>
+        </svg>
+      );
+
     case 'filter_drier':
       return (
         <svg width={width} height={height} viewBox="0 0 85 50" fill="none">

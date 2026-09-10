@@ -123,7 +123,7 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
 }
 
 pub fn get_all_coolprop_fluids() -> Vec<String> {
-    let cp = COOLPROP.shared_access();
+    let cp = COOLPROP.exclusive_access();
     let fluids_param = CString::new("fluids_list").unwrap();
     let mut fluids_buf = vec![0u8; 65536];
     unsafe {

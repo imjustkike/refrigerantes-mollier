@@ -52,7 +52,7 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-white/95 dark:bg-[#15181f]/95 border border-slate-200 dark:border-slate-800 shadow-xl backdrop-blur-md select-none">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-1.5 px-2.5 rounded-xl bg-white/95 dark:bg-[#15181f]/95 border border-slate-200 dark:border-slate-800 shadow-xl backdrop-blur-md select-none flex-nowrap whitespace-nowrap max-w-[calc(100%-2rem)] overflow-x-auto">
       {/* New Schematic Button */}
       <button
         onClick={onNewSchematic}

@@ -435,15 +435,25 @@ export function generateMollierPdf(
 export async function saveFileWithPicker(
   blob: Blob,
   suggestedFilename: string,
-  format: 'png' | 'pdf'
+  format: 'png' | 'pdf' | 'svg'
 ): Promise<{ success: boolean; filename: string; cancelled?: boolean; error?: string }> {
+  const extension = format === 'pdf' ? '.pdf' : format === 'svg' ? '.svg' : '.png';
+  const mimeType =
+    format === 'pdf'
+      ? 'application/pdf'
+      : format === 'svg'
+      ? 'image/svg+xml'
+      : 'image/png';
+  const description =
+    format === 'pdf'
+      ? 'Documento PDF (*.pdf)'
+      : format === 'svg'
+      ? 'Gráfico Vectorial SVG (*.svg)'
+      : 'Imagen PNG (*.png)';
+
   // 1. Modern File System Access API (Desktop browsers / Chrome / Edge)
   if ('showSaveFilePicker' in window) {
     try {
-      const extension = format === 'pdf' ? '.pdf' : '.png';
-      const mimeType = format === 'pdf' ? 'application/pdf' : 'image/png';
-      const description = format === 'pdf' ? 'Documento PDF (*.pdf)' : 'Imagen PNG (*.png)';
-
       // Ensure filename has proper extension
       const defaultName = suggestedFilename.endsWith(extension)
         ? suggestedFilename
@@ -490,7 +500,6 @@ export async function saveFileWithPicker(
 
   // 2. Fallback: Programmatic <a> download
   try {
-    const extension = format === 'pdf' ? '.pdf' : '.png';
     const finalFilename = suggestedFilename.endsWith(extension)
       ? suggestedFilename
       : `${suggestedFilename}${extension}`;
