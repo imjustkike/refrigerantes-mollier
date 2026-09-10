@@ -3,7 +3,15 @@ import { ChevronDown, Check, Search, AlertCircle, Database } from 'lucide-react'
 import { useProject } from '../../context/ProjectContext';
 import { RefrigerantGroup } from '../../types/thermo';
 
-export const RefrigerantSelectorDropdown: React.FC = () => {
+interface RefrigerantSelectorDropdownProps {
+  className?: string;
+  size?: 'sm' | 'md';
+}
+
+export const RefrigerantSelectorDropdown: React.FC<RefrigerantSelectorDropdownProps> = ({
+  className = '',
+  size = 'md',
+}) => {
   const {
     catalog,
     selectedFluidId,
@@ -62,21 +70,38 @@ export const RefrigerantSelectorDropdown: React.FC = () => {
     setIsOpen(false);
   };
 
+  const isSm = size === 'sm';
+
+  const shortDisplayName = useMemo(() => {
+    const full = selectedFluidItem?.display_name || selectedFluidId;
+    if (isSm) {
+      // In compact mode, show short refrigerant code e.g. "R744", "R134a", "R290"
+      return selectedFluidItem?.coolprop_id || full.split(' (')[0] || full;
+    }
+    return full;
+  }, [selectedFluidItem, selectedFluidId, isSm]);
+
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative shrink-0 ${className}`} ref={dropdownRef}>
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-[#181b22] hover:bg-slate-200/80 dark:hover:bg-[#20242e] border border-slate-300 dark:border-slate-700/80 rounded-lg transition-colors shadow-2xs group cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
+        className={`flex items-center gap-1.5 border rounded-lg transition-colors shadow-2xs group cursor-pointer font-medium whitespace-nowrap ${
+          isSm
+            ? 'px-2 py-0.5 text-[11px] bg-white dark:bg-[#121419] hover:bg-slate-50 dark:hover:bg-[#1a1d24] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+            : 'px-2.5 py-1.5 text-xs bg-slate-100 dark:bg-[#181b22] hover:bg-slate-200/80 dark:hover:bg-[#20242e] border-slate-300 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white'
+        }`}
         title={`Refrigerante: ${selectedFluidItem?.display_name || selectedFluidId}${selectedFluidItem?.fluid_type ? ` (${selectedFluidItem.fluid_type})` : ''}`}
       >
-        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-        <span className="font-semibold text-slate-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors max-w-[150px] sm:max-w-[180px] truncate">
-          {selectedFluidItem?.display_name || selectedFluidId}
+        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+        <span className={`font-bold text-slate-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate ${
+          isSm ? 'max-w-[90px] sm:max-w-[130px]' : 'max-w-[140px] sm:max-w-[180px]'
+        }`}>
+          {shortDisplayName}
         </span>
         <ChevronDown
-          size={13}
-          className={`text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-150 ${
+          size={12}
+          className={`text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-150 shrink-0 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />

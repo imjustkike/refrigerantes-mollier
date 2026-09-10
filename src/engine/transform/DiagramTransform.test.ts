@@ -127,28 +127,35 @@ describe('DiagramTransform Mathematical Verifications', () => {
     expect(resized.viewBounds.pMaxPa).toBe(transform.viewBounds.pMaxPa);
   });
 
-  it('allows shrinking diagram when zooming out while keeping base pinned at the bottom and showing higher pressure', () => {
+  it('allows expanding diagram when zooming out while keeping base pinned at the bottom and left (only expands up and right)', () => {
     // Zoom out by 0.5x from base bounds
     const zoomedOut = transform.zoomAt(rect.left + 400, rect.top + 250, 0.5);
 
-    // Minimum pressure must remain anchored to the base
+    // Minimum pressure must remain anchored to the base bottom
     expect(zoomedOut.viewBounds.pMinPa).toBeCloseTo(bounds.pMinPa, 5);
+
+    // Minimum enthalpy must remain anchored to the base left
+    expect(zoomedOut.viewBounds.hMinJkg).toBeCloseTo(bounds.hMinJkg, 5);
 
     // Maximum pressure must expand upwards (revealing more high pressure)
     expect(zoomedOut.viewBounds.pMaxPa).toBeGreaterThan(bounds.pMaxPa);
 
-    // Enthalpy span expands
-    expect(zoomedOut.viewBounds.hMaxJkg - zoomedOut.viewBounds.hMinJkg).toBeGreaterThan(
-      bounds.hMaxJkg - bounds.hMinJkg
-    );
+    // Maximum enthalpy must expand to the right
+    expect(zoomedOut.viewBounds.hMaxJkg).toBeGreaterThan(bounds.hMaxJkg);
+
+    // Constrained zoom-out limit: hMaxJkg cannot exceed 1.4x base span
+    const maxAllowedHMax = bounds.hMinJkg + (bounds.hMaxJkg - bounds.hMinJkg) * 1.4;
+    expect(zoomedOut.viewBounds.hMaxJkg).toBeLessThanOrEqual(maxAllowedHMax + 1e-6);
   });
 
-  it('clamps minimum pressure strictly to base bounds (preventing sub-base vacuum and pinning base)', () => {
+  it('clamps minimum pressure and enthalpy strictly to base bounds (never expands left or below base)', () => {
     // Zoom in first, then zoom out aggressively
     const zoomedIn = transform.zoomAt(rect.left + 400, rect.top + 450, 3.0);
     const zoomedOutAggressive = zoomedIn.zoomAt(rect.left + 400, rect.top + 450, 0.1);
 
     expect(zoomedOutAggressive.viewBounds.pMinPa).toBeGreaterThanOrEqual(bounds.pMinPa - 1e-6);
+    expect(zoomedOutAggressive.viewBounds.hMinJkg).toBeGreaterThanOrEqual(bounds.hMinJkg - 1e-6);
     expect(zoomedOutAggressive.viewBounds.pMaxPa).toBeGreaterThan(bounds.pMaxPa);
+    expect(zoomedOutAggressive.viewBounds.hMaxJkg).toBeGreaterThan(bounds.hMaxJkg);
   });
 });

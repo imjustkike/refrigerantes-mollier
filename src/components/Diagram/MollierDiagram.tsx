@@ -9,6 +9,7 @@ import { DiagramPoint } from '../../types/thermo';
 import { ThermoProvider } from '../../engine/provider/ThermoProvider';
 import { Units } from '../../engine/types/thermoContract';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { RefrigerantSelectorDropdown } from '../Header/RefrigerantSelectorDropdown';
 
 const PlotlyMollierDiagram = React.lazy(() =>
   import('./PlotlyMollierDiagram').then((m) => ({ default: m.PlotlyMollierDiagram }))
@@ -536,19 +537,19 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
         diagramTheme === 'danfoss' ? 'theme-danfoss bg-slate-100' : 'theme-dark bg-slate-950'
       }`}
     >
-      {/* Top Inspector Status Bar - Fixed at top-left, never overlaps the diagram */}
+      {/* Top Inspector Status Bar - Fixed single-row layout */}
       <div
-        className={`h-9 px-3 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-20 transition-colors ${
+        className={`h-9 px-2.5 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-30 transition-colors whitespace-nowrap overflow-hidden ${
           diagramTheme === 'danfoss'
             ? 'bg-slate-50 border-slate-200 text-slate-800'
             : 'bg-[#15171d] border-slate-800/80 text-slate-200'
         }`}
       >
-        {/* Pinned to top-left: compact square tiles */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Pinned to top-left: compact single-row tiles */}
+        <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
           {/* Tile P */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs shrink-0 ${
               diagramTheme === 'danfoss'
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-[#121419] border-slate-800 text-slate-100'
@@ -562,7 +563,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile T */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs shrink-0 ${
               diagramTheme === 'danfoss'
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-[#121419] border-slate-800 text-slate-100'
@@ -576,7 +577,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile h */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs shrink-0 ${
               diagramTheme === 'danfoss'
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-[#121419] border-slate-800 text-slate-100'
@@ -590,7 +591,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile s */}
           <div
-            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs shrink-0 ${
               diagramTheme === 'danfoss'
                 ? 'bg-white border-slate-200 text-slate-800'
                 : 'bg-[#121419] border-slate-800 text-slate-100'
@@ -608,7 +609,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
             return (
               <div
                 title={vFmt.tooltip}
-                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs cursor-help ${
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-mono text-xs shadow-2xs cursor-help shrink-0 ${
                   diagramTheme === 'danfoss'
                     ? 'bg-white border-slate-200 text-slate-800'
                     : 'bg-[#121419] border-slate-800 text-slate-100'
@@ -624,14 +625,18 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
 
           {/* Tile Fase */}
           {cursorState?.phase && (
-            <span className="px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-[#1c2029] text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 text-[10px] font-mono font-bold shadow-2xs">
-              {cursorState.phase}
+            <span
+              title={cursorState.phase}
+              className="px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-[#1c2029] text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 text-[10px] font-mono font-bold shadow-2xs shrink-0 truncate max-w-[140px] sm:max-w-[200px]"
+            >
+              {cursorState.phase.replace('líquido + vapor, ', '')}
             </span>
           )}
         </div>
 
-        <div className="text-[10px] text-slate-500 font-mono hidden md:block select-none">
-          {cursorState ? 'Inspección activa' : 'Pase el cursor por el diagrama'}
+        {/* Fluid Selector / Catalog right on diagram toolbar */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          <RefrigerantSelectorDropdown size="sm" />
         </div>
       </div>
 

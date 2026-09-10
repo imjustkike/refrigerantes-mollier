@@ -142,41 +142,30 @@ export class DiagramTransform {
     const newHSpan = this._hSpan / factor;
     const newLnPSpan = this._lnPRatio / factor;
 
-    // Allow zooming in up to 50x and zooming out (shrinking the diagram) up to 3.5x
+    // Allow zooming in up to 50x and zooming out up to 1.4x
     const baseHSpan = this.baseBounds.hMaxJkg - this.baseBounds.hMinJkg;
     const baseLnPSpan = Math.log(this.baseBounds.pMaxPa / this.baseBounds.pMinPa);
 
     const minHSpan = baseHSpan / 50;
-    const maxHSpan = baseHSpan * 3.5;
+    const maxHSpan = baseHSpan * 1.4;
     const clampedHSpan = Math.max(minHSpan, Math.min(maxHSpan, newHSpan));
 
     const minLnPSpan = baseLnPSpan / 50;
-    const maxLnPSpan = baseLnPSpan * 3.0;
+    const maxLnPSpan = baseLnPSpan * 1.4;
     const clampedLnPSpan = Math.max(minLnPSpan, Math.min(maxLnPSpan, newLnPSpan));
 
     // 4. Calculate new view bounds maintaining the pivot at (fracX, fracY)
     let newHMin = pivotH - fracX * clampedHSpan;
     let newHMax = newHMin + clampedHSpan;
 
-    if (clampedHSpan <= baseHSpan) {
-      if (newHMin < this.baseBounds.hMinJkg) {
-        newHMin = this.baseBounds.hMinJkg;
-        newHMax = newHMin + clampedHSpan;
-      } else if (newHMax > this.baseBounds.hMaxJkg) {
-        newHMax = this.baseBounds.hMaxJkg;
-        newHMin = newHMax - clampedHSpan;
-      }
-    } else {
-      // When zoomed out past base bounds, keep base domain framed
-      const maxAllowedHMin = this.baseBounds.hMinJkg;
-      const minAllowedHMax = this.baseBounds.hMaxJkg;
-      if (newHMin > maxAllowedHMin) {
-        newHMin = maxAllowedHMin;
-        newHMax = newHMin + clampedHSpan;
-      } else if (newHMax < minAllowedHMax) {
-        newHMax = minAllowedHMax;
-        newHMin = newHMax - clampedHSpan;
-      }
+    // Pin left boundary: minimum enthalpy never drops below base minimum,
+    // so zoom out only expands to the right (revealing higher enthalpy/superheat).
+    if (newHMin < this.baseBounds.hMinJkg) {
+      newHMin = this.baseBounds.hMinJkg;
+      newHMax = newHMin + clampedHSpan;
+    } else if (clampedHSpan <= baseHSpan && newHMax > this.baseBounds.hMaxJkg) {
+      newHMax = this.baseBounds.hMaxJkg;
+      newHMin = newHMax - clampedHSpan;
     }
 
     const lnPivotP = Math.log(pivotP);
@@ -225,14 +214,15 @@ export class DiagramTransform {
         newHMin = newHMax - this._hSpan;
       }
     } else {
-      const limitHMin = this.baseBounds.hMinJkg - (this._hSpan - baseHSpan);
-      const limitHMax = this.baseBounds.hMaxJkg + (this._hSpan - baseHSpan);
-      if (newHMin < limitHMin) {
-        newHMin = limitHMin;
+      // Zoomed out past base domain: keep left pinned to base minimum and cap right
+      if (newHMin < this.baseBounds.hMinJkg) {
+        newHMin = this.baseBounds.hMinJkg;
         newHMax = newHMin + this._hSpan;
-      } else if (newHMax > limitHMax) {
-        newHMax = limitHMax;
-        newHMin = newHMax - this._hSpan;
+      }
+      const maxAllowedH = this.baseBounds.hMinJkg + baseHSpan * 1.4;
+      if (newHMax > maxAllowedH) {
+        newHMax = maxAllowedH;
+        newHMin = Math.max(this.baseBounds.hMinJkg, newHMax - this._hSpan);
       }
     }
 
@@ -259,7 +249,7 @@ export class DiagramTransform {
         lnPMin = baseLnPMin;
         lnPMax = lnPMin + this._lnPRatio;
       }
-      const maxAllowedLnP = baseLnPMin + baseLnPSpan * 3.0;
+      const maxAllowedLnP = baseLnPMin + baseLnPSpan * 1.4;
       if (lnPMax > maxAllowedLnP) {
         lnPMax = maxAllowedLnP;
         lnPMin = Math.max(baseLnPMin, lnPMax - this._lnPRatio);

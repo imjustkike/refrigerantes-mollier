@@ -14,7 +14,6 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
-import { RefrigerantSelectorDropdown } from './RefrigerantSelectorDropdown';
 import { CurvesDropdown } from './CurvesDropdown';
 
 interface HeaderProps {
@@ -131,9 +130,6 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => 
         </div>
 
         <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
-
-        {/* Refrigerant Selector */}
-        <RefrigerantSelectorDropdown />
 
         {/* Curves Toggles */}
         <CurvesDropdown />
