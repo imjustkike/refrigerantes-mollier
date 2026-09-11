@@ -4,6 +4,7 @@ export type SchematicComponentCategory =
   | 'expansion'
   | 'vessels'
   | 'valves'
+  | 'fittings'
   | 'instruments'
   | 'accessories';
 
@@ -50,6 +51,12 @@ export type SchematicComponentType =
   | 'safety_relief_valve'
   | 'hot_gas_bypass_valve'
   | 'ball_service_valve'
+  // Uniones, Derivaciones & Accesorios de Tubería
+  | 'pipe_union_straight'
+  | 'pipe_union_elbow'
+  | 'pipe_union_tee'
+  | 'pipe_union_cross'
+  | 'pipe_junction_dot'
   // Instrumentación & Sensores
   | 'gauge_pressure_hp'
   | 'gauge_pressure_lp'
@@ -148,6 +155,8 @@ export interface SchematicEdgeData {
   pipeState: PipeStateCategory;
   flowDirection?: 'forward' | 'reverse' | 'bidirectional';
   isAnimated?: boolean;
+  waypoints?: Array<{ x: number; y: number }>; // Puntos de quiebre / dobleces móviles de la tubería
+  offset?: number;
   diameterInch?: string;   // ej. 3/8", 1/2", 7/8", 1-1/8"
   diameterMm?: number;
   insulationThicknessMm?: number;

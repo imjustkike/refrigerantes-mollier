@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { Edge, Node } from '@xyflow/react';
-import { PipeStateCategory, SchematicEdgeData, SchematicNodeData } from '../../types/schematic';
+import { PipeStateCategory, SchematicComponentType, SchematicEdgeData, SchematicNodeData } from '../../types/schematic';
 import { COMPONENT_DEFINITIONS } from './symbols/componentDefinitions';
 
 interface ComponentPropertyPanelProps {
@@ -18,6 +18,7 @@ interface ComponentPropertyPanelProps {
   selectedEdge: Edge<SchematicEdgeData> | null;
   onUpdateNodeData: (nodeId: string, updates: Partial<SchematicNodeData>) => void;
   onUpdateEdgeData: (edgeId: string, updates: Partial<SchematicEdgeData>) => void;
+  onSplitEdge?: (edgeId: string, junctionType: SchematicComponentType) => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
   onClose: () => void;
@@ -45,6 +46,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
   selectedEdge,
   onUpdateNodeData,
   onUpdateEdgeData,
+  onSplitEdge,
   onDeleteSelected,
   onDuplicateSelected,
   onClose,
@@ -149,7 +151,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
             <button
               onClick={onDuplicateSelected}
               className="p-1.5 rounded bg-white dark:bg-[#121418] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-              title="Duplicar Componente"
+              title="Duplicar componente (Ctrl+D)"
             >
               <Copy size={13} />
             </button>
@@ -157,344 +159,229 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
             <button
               onClick={onDeleteSelected}
               className="p-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors cursor-pointer"
-              title="Eliminar Componente"
+              title="Eliminar del circuito (Supr)"
             >
               <Trash2 size={13} />
             </button>
           </div>
 
-          {/* Identification Section */}
-          <div className="space-y-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#161922] border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
-              Identificación P&ID
+          {/* General Identification */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+              Identificación y Modelo
             </span>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Tag Técnico</label>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Tag / Código</label>
                 <input
                   type="text"
                   value={nodeData.tag || ''}
                   onChange={(e) => onUpdateNodeData(selectedNode.id, { tag: e.target.value })}
-                  placeholder={def?.defaultTagPrefix || 'TAG-01'}
-                  className="w-full px-2 py-1 bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-slate-700 rounded text-xs font-mono font-bold text-sky-600 dark:text-sky-400 outline-none focus:border-sky-500"
+                  placeholder="ej. CMP-01"
+                  className="w-full px-2 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono font-bold text-sky-600 dark:text-sky-400 outline-none"
                 />
               </div>
+
               <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Modelo Comercial</label>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Nombre de Circuito</label>
                 <input
                   type="text"
-                  value={nodeData.modelNumber || ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { modelNumber: e.target.value })}
-                  placeholder={def?.defaultModel || 'Marca / Modelo'}
-                  className="w-full px-2 py-1 bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-900 dark:text-slate-100 outline-none focus:border-sky-500"
+                  value={nodeData.customName || ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { customName: e.target.value })}
+                  placeholder={def?.defaultLabel || 'Etiqueta'}
+                  className="w-full px-2 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs text-slate-900 dark:text-white outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Nombre / Descripción Personalizada</label>
+              <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Modelo / Referencia Comercial</label>
               <input
                 type="text"
-                value={nodeData.customName || ''}
-                onChange={(e) => onUpdateNodeData(selectedNode.id, { customName: e.target.value })}
-                placeholder={def?.defaultLabel || 'Nombre del equipo'}
-                className="w-full px-2 py-1 bg-white dark:bg-[#1c202a] border border-slate-200 dark:border-slate-700 rounded text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500"
+                value={nodeData.modelNumber || ''}
+                onChange={(e) => onUpdateNodeData(selectedNode.id, { modelNumber: e.target.value })}
+                placeholder="ej. Bitzer 4CES-9Y, Danfoss T2, Copeland ZB45"
+                className="w-full px-2 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-800 dark:text-slate-200 outline-none"
               />
             </div>
           </div>
 
-          {/* Technical Specs: Compressors */}
-          {def?.category === 'compressors' && (
-            <div className="space-y-2.5 p-2.5 rounded-lg bg-sky-50/50 dark:bg-[#121a28] border border-sky-200/60 dark:border-sky-800/60">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 font-mono">
-                Parámetros Termodinámicos y Eléctricos
-              </span>
+          {/* Direct Technical & Thermodynamic Specs */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+              Parámetros de Operación Directos
+            </span>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Potencia Eléctrica (kW)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.powerKw ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { powerKw: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="7.5"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">Desplazamiento (m³/h)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.displacementM3h ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { displacementM3h: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="17.2"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-rose-500 font-medium">P. Descarga (bar)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.pressureOutBar ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureOutBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="14.5"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-rose-300 dark:border-rose-900/60 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-blue-500 font-medium">P. Aspiración (bar)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.pressureInBar ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureInBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="2.1"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-blue-300 dark:border-blue-900/60 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-rose-500">T. Descarga (°C)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.tempOutC ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { tempOutC: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="68.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-blue-500">T. Aspiración (°C)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.tempInC ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { tempInC: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="-5.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Frecuencia (Hz)</span>
-                  <input
-                    type="number"
-                    value={nodeData.frequencyHz ?? 50}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { frequencyHz: parseFloat(e.target.value) })}
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">COP Estimado</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.cop ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { cop: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="3.8"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182030] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Technical Specs: Heat Exchangers */}
-          {def?.category === 'heat_exchangers' && (
-            <div className="space-y-2.5 p-2.5 rounded-lg bg-amber-50/50 dark:bg-[#1e1c14] border border-amber-200/60 dark:border-amber-800/60">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 font-mono">
-                Parámetros del Intercambiador
-              </span>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Capacidad Térmica (kW)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.capacityKw ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { capacityKw: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="25.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#252219] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">T. Trabajo / Setpoint (°C)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.setpointTempC ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { setpointTempC: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="45.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#252219] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-amber-600 font-medium">Subenfriamiento ΔTsc (K)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.subcoolingK ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { subcoolingK: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="4.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#252219] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-sky-600 font-medium">Recalentamiento ΔTsh (K)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.superheatK ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { superheatK: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="6.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#252219] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Technical Specs: Expansion */}
-          {def?.category === 'expansion' && (
-            <div className="space-y-2.5 p-2.5 rounded-lg bg-teal-50/50 dark:bg-[#121f1d] border border-teal-200/60 dark:border-teal-800/60">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 font-mono">
-                Regulación & Expansión
-              </span>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Recalentamiento Útil (K)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.superheatK ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { superheatK: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="5.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182825] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">Consigna Presión (bar)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.setpointBar ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { setpointBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="3.2"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#182825] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
+            {/* Pressure & Temperature Limits */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Salida / HP (bar)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={nodeData.pressureOutBar ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureOutBar: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="14.5"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
               </div>
 
               <div>
-                <span className="text-[10px] text-slate-500">Apertura Válvula (%)</span>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Entrada / LP (bar)</label>
                 <input
                   type="number"
-                  min="0"
-                  max="100"
-                  value={nodeData.openingPercent ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { openingPercent: e.target.value ? parseInt(e.target.value) : undefined })}
-                  placeholder="65"
-                  className="w-full px-2 py-1 bg-white dark:bg-[#182825] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
+                  step="0.1"
+                  value={nodeData.pressureInBar ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureInBar: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="2.1"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
                 />
               </div>
             </div>
-          )}
 
-          {/* Technical Specs: Vessels & Accessories */}
-          {def?.category === 'vessels' && (
-            <div className="space-y-2.5 p-2.5 rounded-lg bg-emerald-50/50 dark:bg-[#121c16] border border-emerald-200/60 dark:border-emerald-800/60">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-mono">
-                Capacidad y Almacenamiento
-              </span>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Salida (°C)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={nodeData.tempOutC ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { tempOutC: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="65.0"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
+              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Volumen (Litros)</span>
-                  <input
-                    type="number"
-                    step="1"
-                    value={nodeData.volumeL ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { volumeL: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="25"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#16241c] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">Presión Diseño (bar)</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={nodeData.pressureOutBar ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureOutBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="28.0"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#16241c] border border-slate-200 dark:border-slate-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Entrada (°C)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={nodeData.tempInC ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { tempInC: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="-5.0"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
               </div>
             </div>
-          )}
 
-          {/* Technical Specs: Instruments */}
-          {def?.category === 'instruments' && (
-            <div className="space-y-2.5 p-2.5 rounded-lg bg-purple-50/50 dark:bg-[#1c1424] border border-purple-200/60 dark:border-purple-800/60">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 font-mono">
-                Valor Medido en Vivo
-              </span>
+            {/* Performance, Capacity & Power */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Potencia / Capacidad (kW)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={nodeData.capacityKw ?? nodeData.powerKw ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                    onUpdateNodeData(selectedNode.id, { capacityKw: val, powerKw: val });
+                  }}
+                  placeholder="8.5"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
+              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-[10px] text-slate-500">Lectura / Valor</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={nodeData.measuredValue ?? ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { measuredValue: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    placeholder="14.8"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#251b30] border border-purple-300 dark:border-purple-700 rounded font-mono text-xs font-bold text-amber-500 dark:text-amber-400"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500">Unidad</span>
-                  <input
-                    type="text"
-                    value={nodeData.measuredUnit || ''}
-                    onChange={(e) => onUpdateNodeData(selectedNode.id, { measuredUnit: e.target.value })}
-                    placeholder="bar / °C / kW"
-                    className="w-full px-2 py-1 bg-white dark:bg-[#251b30] border border-purple-300 dark:border-purple-700 rounded font-mono text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Caudal Volumétrico (m³/h)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={nodeData.displacementM3h ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { displacementM3h: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="24.5"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
               </div>
             </div>
-          )}
 
-          {/* Ports & Connection Guide */}
-          <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            {/* Specific Settings (SH, SC, Opening, Setpoint) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Recalentamiento SH (K)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={nodeData.superheatK ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { superheatK: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="5.0"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Subenfriamiento SC (K)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={nodeData.subcoolingK ?? ''}
+                  onChange={(e) => onUpdateNodeData(selectedNode.id, { subcoolingK: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  placeholder="3.0"
+                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Instrument Measured Value */}
+            {(def?.category === 'instruments' || nodeData.measuredValue !== undefined) && (
+              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-1.5">
+                <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase">
+                  Valor de Medición en Vivo
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[9px] text-slate-500">Valor Medido</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={nodeData.measuredValue ?? ''}
+                      onChange={(e) => onUpdateNodeData(selectedNode.id, { measuredValue: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      placeholder="18.5"
+                      className="w-full px-2 py-1 bg-white dark:bg-[#121419] border border-amber-500/40 rounded text-xs font-mono font-bold text-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-slate-500">Unidad</label>
+                    <input
+                      type="text"
+                      value={nodeData.measuredUnit || 'bar'}
+                      onChange={(e) => onUpdateNodeData(selectedNode.id, { measuredUnit: e.target.value })}
+                      placeholder="bar, °C, kW..."
+                      className="w-full px-2 py-1 bg-white dark:bg-[#121419] border border-amber-500/40 rounded text-xs font-mono text-slate-700 dark:text-slate-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notes & Comments */}
+          <div className="space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <label className="block text-[10px] text-slate-500 font-medium">Notas Técnicas de Montaje</label>
+            <textarea
+              rows={2}
+              value={nodeData.notes || ''}
+              onChange={(e) => onUpdateNodeData(selectedNode.id, { notes: e.target.value })}
+              placeholder="Anotaciones de tubería, cableado o consignas especiales..."
+              className="w-full px-2.5 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded-lg text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-sky-500 resize-none"
+            />
+          </div>
+
+          {/* Connection Ports Reference */}
+          <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-              Puntos de Conexión ({def?.ports.length || 0})
+              Tomas y Puertos de Conexión ({def?.ports.length || 0})
             </span>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {def?.ports.map((p) => (
-                <div key={p.id} className="p-2 rounded bg-slate-50 dark:bg-[#171a22] border border-slate-200 dark:border-slate-800 flex flex-col gap-0.5">
+                <div
+                  key={p.id}
+                  className="p-1.5 rounded-md bg-slate-50 dark:bg-[#181b22] border border-slate-200/80 dark:border-slate-800 flex flex-col gap-0.5 text-[10px]"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <span className="px-1.5 py-0.2 rounded bg-slate-800 text-sky-400 font-mono font-bold text-[9px]">
+                      <span className="px-1 py-0.2 rounded bg-sky-500/20 text-sky-400 font-mono font-bold text-[9px]">
                         {p.shortCode}
                       </span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 text-[11px]">{p.name}</span>
@@ -550,6 +437,75 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
               <span>Eliminar Tubería</span>
             </button>
           </div>
+
+          {/* Trazado y Puntos de Curvatura */}
+          <div className="space-y-2 p-2.5 rounded-lg bg-sky-500/5 dark:bg-sky-950/20 border border-sky-500/30">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                Puntos de Doblez y Enrutamiento
+              </span>
+              <span className="text-[10px] font-mono text-slate-500">
+                {edgeData.waypoints && edgeData.waypoints.length > 0
+                  ? `${edgeData.waypoints.length} puntos manuales`
+                  : 'Automático'}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-tight">
+              Arrastra los círculos de quiebre en la tubería o pulsa &quot;+&quot; en los tramos para agregar nuevos puntos.
+            </p>
+            {edgeData.waypoints && edgeData.waypoints.length > 0 && (
+              <button
+                onClick={() => onUpdateEdgeData(selectedEdge.id, { waypoints: undefined })}
+                className="w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono text-[10px] transition-colors cursor-pointer"
+              >
+                Restablecer a Trazado Automático
+              </button>
+            )}
+          </div>
+
+          {/* Insert Union / Fitting on this pipe */}
+          {onSplitEdge && (
+            <div className="space-y-2 p-2.5 rounded-lg bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/30">
+              <span className="block text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                Insertar Unión en esta Tubería
+              </span>
+              <p className="text-[10px] text-slate-500 leading-tight">
+                Divide este tramo e inserta un racor o accesorio para ramificar el circuito:
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <button
+                  onClick={() => onSplitEdge(selectedEdge.id, 'pipe_union_tee')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#151820] hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-750 text-[10px] font-medium transition-colors cursor-pointer"
+                >
+                  <span>Te (3 vías)</span>
+                </button>
+                <button
+                  onClick={() => onSplitEdge(selectedEdge.id, 'pipe_union_elbow')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#151820] hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-750 text-[10px] font-medium transition-colors cursor-pointer"
+                >
+                  <span>Codo a 90°</span>
+                </button>
+                <button
+                  onClick={() => onSplitEdge(selectedEdge.id, 'pipe_union_cross')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#151820] hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-750 text-[10px] font-medium transition-colors cursor-pointer"
+                >
+                  <span>Cruz (4 vías)</span>
+                </button>
+                <button
+                  onClick={() => onSplitEdge(selectedEdge.id, 'pipe_union_straight')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#151820] hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-750 text-[10px] font-medium transition-colors cursor-pointer"
+                >
+                  <span>Unión Recta</span>
+                </button>
+                <button
+                  onClick={() => onSplitEdge(selectedEdge.id, 'pipe_junction_dot')}
+                  className="col-span-2 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#151820] hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-750 text-[10px] font-medium transition-colors cursor-pointer"
+                >
+                  <span>Punto de Empalme Rápido</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Pipe State / Color Selector */}
           <div className="space-y-2">

@@ -7,6 +7,7 @@ import {
   Eye,
   Flame,
   Gauge,
+  GitFork,
   GripVertical,
   Plus,
   Search,
@@ -39,6 +40,8 @@ const getCategoryIcon = (iconName: string) => {
       return <Database size={14} className="text-emerald-500" />;
     case 'Sliders':
       return <Sliders size={14} className="text-purple-500" />;
+    case 'GitFork':
+      return <GitFork size={14} className="text-cyan-500" />;
     case 'Eye':
       return <Eye size={14} className="text-teal-500" />;
     case 'Activity':

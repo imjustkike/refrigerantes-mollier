@@ -270,3 +270,17 @@
   border-radius: 8px !important;
 }
 
+/* Edge Labels and Interactive Controls Stacking: ALWAYS on top of SVG paths and nodes */
+.react-flow__edgelabel-renderer {
+  z-index: 99999 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+}
+
+.react-flow__edgelabel-renderer > * {
+  pointer-events: auto !important;
+  z-index: 99999 !important;
+}
+
+
+

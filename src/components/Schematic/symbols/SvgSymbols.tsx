@@ -533,6 +533,115 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
         </svg>
       );
 
+    // --- UNIONES & DERIVACIONES DE TUBERÍA ---
+    case 'pipe_union_straight':
+      return (
+        <svg width={width} height={height} viewBox="0 0 70 50" fill="none">
+          {/* Main pipe sleeve */}
+          <rect x="12" y="19" width="46" height="12" rx="2" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          {/* Central coupling collar */}
+          <rect x="29" y="14" width="12" height="22" rx="3" fill={secondaryFill} stroke={accentColor} strokeWidth="2" />
+          {/* Left / Right weld flanges */}
+          <line x1="18" y1="16" x2="18" y2="34" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="52" y1="16" x2="52" y2="34" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          {/* Flow through centerline */}
+          <line x1="6" y1="25" x2="64" y2="25" stroke={accentColor} strokeWidth="2" strokeDasharray="3 3" />
+        </svg>
+      );
+
+    case 'pipe_union_elbow':
+      return (
+        <svg width={width} height={height} viewBox="0 0 65 65" fill="none">
+          {/* Elbow Outer Body */}
+          <path
+            d="M 12 25 L 35 25 Q 45 25 45 35 L 45 54"
+            fill="none"
+            stroke={secondaryFill}
+            strokeWidth="14"
+            strokeLinecap="square"
+          />
+          {/* Elbow Outline */}
+          <path
+            d="M 10 18 L 36 18 Q 52 18 52 34 L 52 56"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="2"
+          />
+          <path
+            d="M 10 32 L 28 32 Q 38 32 38 42 L 38 56"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="2"
+          />
+          {/* Flanges */}
+          <rect x="8" y="15" width="5" height="20" rx="1.5" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="35" y="52" width="20" height="5" rx="1.5" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* Flow center curve */}
+          <path
+            d="M 6 25 L 34 25 Q 45 25 45 36 L 45 59"
+            fill="none"
+            stroke={accentColor}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+
+    case 'pipe_union_tee':
+      return (
+        <svg width={width} height={height} viewBox="0 0 70 70" fill="none">
+          {/* Horizontal pipe body */}
+          <rect x="12" y="20" width="46" height="14" rx="2" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          {/* Vertical branch */}
+          <rect x="28" y="28" width="14" height="30" rx="2" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          {/* Central junction hub */}
+          <rect x="25" y="17" width="20" height="20" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* Flanges */}
+          <rect x="8" y="17" width="5" height="20" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="57" y="17" width="5" height="20" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="25" y="54" width="20" height="5" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* Flow lines */}
+          <line x1="6" y1="27" x2="64" y2="27" stroke={accentColor} strokeWidth="2" strokeDasharray="3 3" />
+          <line x1="35" y1="27" x2="35" y2="62" stroke={accentColor} strokeWidth="2" strokeDasharray="3 3" />
+          <circle cx="35" cy="27" r="3.5" fill={accentColor} />
+        </svg>
+      );
+
+    case 'pipe_union_cross':
+      return (
+        <svg width={width} height={height} viewBox="0 0 70 70" fill="none">
+          {/* Horizontal body */}
+          <rect x="10" y="28" width="50" height="14" rx="2" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          {/* Vertical body */}
+          <rect x="28" y="10" width="14" height="50" rx="2" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          {/* Center Hub */}
+          <rect x="25" y="25" width="20" height="20" rx="4" fill={secondaryFill} stroke={accentColor} strokeWidth="2" />
+          {/* 4 Flanges */}
+          <rect x="6" y="25" width="5" height="20" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="59" y="25" width="5" height="20" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="25" y="6" width="20" height="5" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <rect x="25" y="59" width="20" height="5" rx="1" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* Flow cross */}
+          <line x1="5" y1="35" x2="65" y2="35" stroke={accentColor} strokeWidth="2" strokeDasharray="3 3" />
+          <line x1="35" y1="5" x2="35" y2="65" stroke={accentColor} strokeWidth="2" strokeDasharray="3 3" />
+          <circle cx="35" cy="35" r="4" fill={accentColor} />
+        </svg>
+      );
+
+    case 'pipe_junction_dot':
+      return (
+        <svg width={width} height={height} viewBox="0 0 60 60" fill="none">
+          {/* Connecting Stubs */}
+          <line x1="5" y1="30" x2="55" y2="30" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" />
+          <line x1="30" y1="5" x2="30" y2="55" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" />
+          {/* Outer glow ring */}
+          <circle cx="30" cy="30" r="16" fill={accentColor} fillOpacity={0.2} stroke={accentColor} strokeWidth="2" strokeDasharray="3 2" />
+          {/* Solid Center Joint */}
+          <circle cx="30" cy="30" r="10" fill={isDark ? '#0f172a' : '#ffffff'} stroke={strokeColor} strokeWidth="2.5" />
+          <circle cx="30" cy="30" r="5" fill={accentColor} />
+        </svg>
+      );
+
     // --- INSTRUMENTACION ---
     case 'gauge_pressure_hp':
       return (

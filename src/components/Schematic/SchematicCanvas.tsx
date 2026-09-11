@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -12,6 +12,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   addEdge,
+  reconnectEdge,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -28,6 +29,7 @@ import { ComponentPropertyPanel } from './ComponentPropertyPanel';
 import { SchematicToolbar } from './SchematicToolbar';
 import { NewSchematicModal } from './NewSchematicModal';
 import { SCHEMATIC_PRESETS } from './templates/schematicTemplates';
+import { SchematicActionsContext } from './SchematicActionsContext';
 import { useProject } from '../../context/ProjectContext';
 import { saveFileWithPicker } from '../../utils/exportDiagram';
 
@@ -142,6 +144,15 @@ const SchematicCanvasContent: React.FC = () => {
       );
     },
     [isAnimationRunning, setEdges]
+  );
+
+  // Reconnect handler - allows dragging existing edge endpoints freely to other ports
+  const onReconnect = useCallback(
+    (oldEdge: SchematicEdge, newConnection: Connection) => {
+      setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+      showToast('Conexión reubicada al nuevo puerto.');
+    },
+    [setEdges, showToast]
   );
 
   // Drag & Drop component from palette into canvas
@@ -299,6 +310,138 @@ const SchematicCanvasContent: React.FC = () => {
       );
     },
     [setEdges]
+  );
+
+  // Update Edge Waypoints (custom bend points)
+  const handleUpdateEdgeWaypoints = useCallback(
+    (edgeId: string, waypoints: Array<{ x: number; y: number }>) => {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (edge.id === edgeId) {
+            return {
+              ...edge,
+              data: {
+                pipeState: 'discharge_superheated',
+                ...edge.data,
+                waypoints,
+              },
+            };
+          }
+          return edge;
+        })
+      );
+    },
+    [setEdges]
+  );
+
+  // Update Edge Offset
+  const handleUpdateEdgeOffset = useCallback(
+    (edgeId: string, offset: number) => {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (edge.id === edgeId) {
+            return {
+              ...edge,
+              data: {
+                pipeState: 'discharge_superheated',
+                ...edge.data,
+                offset,
+              },
+            };
+          }
+          return edge;
+        })
+      );
+    },
+    [setEdges]
+  );
+
+  // Split Edge and insert union/junction fitting
+  const handleSplitEdgeWithJunction = useCallback(
+    (edgeId: string, junctionType: SchematicComponentType, position?: { x: number; y: number }) => {
+      const targetEdge = edges.find((e) => e.id === edgeId);
+      if (!targetEdge) return;
+      const def = COMPONENT_DEFINITIONS[junctionType];
+      if (!def) return;
+
+      let nodePos = position;
+      if (!nodePos) {
+        const srcNode = nodes.find((n) => n.id === targetEdge.source);
+        const tgtNode = nodes.find((n) => n.id === targetEdge.target);
+        if (srcNode && tgtNode) {
+          nodePos = {
+            x: (srcNode.position.x + tgtNode.position.x) / 2,
+            y: (srcNode.position.y + tgtNode.position.y) / 2,
+          };
+        } else {
+          nodePos = { x: 250, y: 250 };
+        }
+      }
+
+      const newNodeId = `node_${Date.now()}`;
+      const newNode: SchematicNode = {
+        id: newNodeId,
+        type: 'schematicNode',
+        position: {
+          x: Math.round(nodePos.x - def.dimensions.width / 2),
+          y: Math.round(nodePos.y - def.dimensions.height / 2),
+        },
+        data: {
+          componentType: junctionType,
+          label: def.defaultLabel,
+          tag: `${def.defaultTagPrefix}-${nodes.length + 1}`,
+          isEnergized: isAnimationRunning,
+          ...(def.defaultSpecs || {}),
+        },
+      };
+
+      const portIds = def.ports.map((p) => p.id);
+      const inPortId = portIds[0] || 'port_1';
+      const outPortId = portIds.length > 1 ? portIds[1] : portIds[0];
+
+      const edgeData = targetEdge.data || {
+        pipeState: 'discharge_superheated',
+        isAnimated: isAnimationRunning,
+      };
+
+      const edge1: SchematicEdge = {
+        id: `edge_${Date.now()}_1`,
+        source: targetEdge.source,
+        sourceHandle: targetEdge.sourceHandle,
+        target: newNodeId,
+        targetHandle: inPortId,
+        type: 'refrigerantPipe',
+        data: { ...edgeData },
+      };
+
+      const edge2: SchematicEdge = {
+        id: `edge_${Date.now()}_2`,
+        source: newNodeId,
+        sourceHandle: outPortId,
+        target: targetEdge.target,
+        targetHandle: targetEdge.targetHandle,
+        type: 'refrigerantPipe',
+        data: { ...edgeData },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setEdges((eds) => [...eds.filter((e) => e.id !== edgeId), edge1, edge2]);
+      setSelectedNodeId(newNodeId);
+      setSelectedEdgeId(null);
+      showToast(`Insertada unión: ${def.name}`);
+    },
+    [edges, nodes, isAnimationRunning, setNodes, setEdges, showToast]
+  );
+
+  // Delete specific edge
+  const handleDeleteEdge = useCallback(
+    (edgeId: string) => {
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      if (selectedEdgeId === edgeId) {
+        setSelectedEdgeId(null);
+      }
+    },
+    [selectedEdgeId, setEdges]
   );
 
   // Delete Selected
@@ -559,95 +702,113 @@ const SchematicCanvasContent: React.FC = () => {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) || null;
 
-  return (
-    <div className="flex w-full h-full relative overflow-hidden bg-slate-100 dark:bg-[#0c0e12]">
-      {/* Left Collapsible Component Palette */}
-      <ComponentPalette
-        isOpen={isPaletteOpen}
-        onToggle={() => setIsPaletteOpen(!isPaletteOpen)}
-        onAddComponent={handleAddComponent}
-      />
+  const actionsContextValue = useMemo(
+    () => ({
+      onUpdateEdgeWaypoints: handleUpdateEdgeWaypoints,
+      onUpdateEdgeOffset: handleUpdateEdgeOffset,
+      onSplitEdge: handleSplitEdgeWithJunction,
+      onDeleteEdge: handleDeleteEdge,
+    }),
+    [handleUpdateEdgeWaypoints, handleUpdateEdgeOffset, handleSplitEdgeWithJunction, handleDeleteEdge]
+  );
 
-      {/* Center Graph Workspace */}
-      <div
-        className="flex-1 h-full relative"
-        ref={reactFlowWrapper}
-        onDragOver={onDragOver}
-        onDragEnter={onDragEnter}
-        onDrop={onDrop}
-      >
-        {/* Floating Top Toolbar */}
-        <SchematicToolbar
-          onLoadPreset={handleLoadPreset}
-          onClearCanvas={handleClearCanvas}
-          onNewSchematic={handleNewSchematic}
-          onFitView={() => fitView({ padding: 0.2, duration: 400 })}
-          onExportPng={handleExportPng}
-          onExportSvg={handleExportSvg}
-          isAnimationRunning={isAnimationRunning}
-          onToggleAnimation={handleToggleAnimation}
+  return (
+    <SchematicActionsContext.Provider value={actionsContextValue}>
+      <div className="flex w-full h-full relative overflow-hidden bg-slate-100 dark:bg-[#0c0e12]">
+        {/* Left Collapsible Component Palette */}
+        <ComponentPalette
+          isOpen={isPaletteOpen}
+          onToggle={() => setIsPaletteOpen(!isPaletteOpen)}
+          onAddComponent={handleAddComponent}
         />
 
-        <ReactFlow<SchematicNode, SchematicEdge>
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          defaultEdgeOptions={defaultEdgeOptions}
-          connectionMode={ConnectionMode.Loose}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
+        {/* Center Graph Workspace */}
+        <div
+          className="flex-1 h-full relative"
+          ref={reactFlowWrapper}
           onDragOver={onDragOver}
           onDragEnter={onDragEnter}
-          onSelectionChange={onSelectionChange}
-          fitView
-          snapToGrid
-          snapGrid={[15, 15]}
-          colorMode={themeMode === 'dark' ? 'dark' : 'light'}
-          className="schematic-flow-canvas"
+          onDrop={onDrop}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1.5}
-            color={themeMode === 'dark' ? '#272b35' : '#cbd5e1'}
+          {/* Floating Top Toolbar */}
+          <SchematicToolbar
+            onLoadPreset={handleLoadPreset}
+            onClearCanvas={handleClearCanvas}
+            onNewSchematic={handleNewSchematic}
+            onFitView={() => fitView({ padding: 0.2, duration: 400 })}
+            onExportPng={handleExportPng}
+            onExportSvg={handleExportSvg}
+            isAnimationRunning={isAnimationRunning}
+            onToggleAnimation={handleToggleAnimation}
           />
-          <Controls position="bottom-left" showInteractive={false} className="shadow-lg rounded-xl overflow-hidden" />
-          <MiniMap
-            position="bottom-right"
-            nodeColor={() => (themeMode === 'dark' ? '#38bdf8' : '#0284c7')}
-            maskColor={themeMode === 'dark' ? 'rgba(0, 0, 0, 0.75)' : 'rgba(255, 255, 255, 0.75)'}
-            style={{ width: 140, height: 95 }}
-          />
-        </ReactFlow>
-      </div>
 
-      {/* Right Properties Inspector */}
-      {(selectedNode || selectedEdge) && (
-        <ComponentPropertyPanel
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          onUpdateNodeData={handleUpdateNodeData}
-          onUpdateEdgeData={handleUpdateEdgeData}
-          onDeleteSelected={handleDeleteSelected}
-          onDuplicateSelected={handleDuplicateSelected}
-          onClose={() => {
-            setSelectedNodeId(null);
-            setSelectedEdgeId(null);
-          }}
+          <ReactFlow<SchematicNode, SchematicEdge>
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            defaultEdgeOptions={defaultEdgeOptions}
+            connectionMode={ConnectionMode.Loose}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onReconnect={onReconnect}
+            edgesReconnectable={true}
+            reconnectRadius={25}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragEnter={onDragEnter}
+            onSelectionChange={onSelectionChange}
+            fitView
+            snapToGrid
+            snapGrid={[15, 15]}
+            elevateEdgesOnSelect={true}
+            elevateNodesOnSelect={true}
+            colorMode={themeMode === 'dark' ? 'dark' : 'light'}
+            className="schematic-flow-canvas"
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={20}
+              size={1.5}
+              color={themeMode === 'dark' ? '#272b35' : '#cbd5e1'}
+            />
+            <Controls position="bottom-left" showInteractive={false} className="shadow-lg rounded-xl overflow-hidden" />
+            <MiniMap
+              position="bottom-right"
+              nodeColor={() => (themeMode === 'dark' ? '#38bdf8' : '#0284c7')}
+              maskColor={themeMode === 'dark' ? 'rgba(0, 0, 0, 0.75)' : 'rgba(255, 255, 255, 0.75)'}
+              style={{ width: 140, height: 95 }}
+            />
+          </ReactFlow>
+        </div>
+
+        {/* Right Properties Inspector */}
+        {(selectedNode || selectedEdge) && (
+          <ComponentPropertyPanel
+            selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
+            onUpdateNodeData={handleUpdateNodeData}
+            onUpdateEdgeData={handleUpdateEdgeData}
+            onSplitEdge={handleSplitEdgeWithJunction}
+            onDeleteSelected={handleDeleteSelected}
+            onDuplicateSelected={handleDuplicateSelected}
+            onClose={() => {
+              setSelectedNodeId(null);
+              setSelectedEdgeId(null);
+            }}
+          />
+        )}
+
+        {/* New Schematic Selection Modal */}
+        <NewSchematicModal
+          isOpen={isNewModalOpen}
+          onClose={() => setIsNewModalOpen(false)}
+          onSelectPreset={handleLoadPreset}
+          onSelectBlank={handleSelectBlank}
         />
-      )}
-
-      {/* New Schematic Selection Modal */}
-      <NewSchematicModal
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        onSelectPreset={handleLoadPreset}
-        onSelectBlank={handleSelectBlank}
-      />
-    </div>
+      </div>
+    </SchematicActionsContext.Provider>
   );
 };
 

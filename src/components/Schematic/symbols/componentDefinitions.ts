@@ -755,6 +755,83 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
       { id: 'comp_link', name: 'Alimentación Motor', shortCode: 'PWR', kind: 'generic', position: 'bottom', hint: 'Conexión a cuadro de maniobra del compresor' },
     ],
   },
+
+  // --- UNIONES & DERIVACIONES DE TUBERÍA ---
+  pipe_union_straight: {
+    type: 'pipe_union_straight',
+    category: 'fittings',
+    name: 'Unión Bilateral Recta',
+    description: 'Racor pasante / manguito de unión para empalmar dos tramos de tubería en línea recta.',
+    defaultLabel: 'Unión Recta',
+    defaultTagPrefix: 'UN-01',
+    dimensions: { width: 85, height: 75 },
+    defaultSpecs: {},
+    ports: [
+      { id: 'port_1', name: 'Extremo 1 (Izq)', shortCode: '1', kind: 'generic', position: 'left', hint: 'Conexión para tubería de entrada' },
+      { id: 'port_2', name: 'Extremo 2 (Der)', shortCode: '2', kind: 'generic', position: 'right', hint: 'Conexión para tubería de salida' },
+    ],
+  },
+  pipe_union_elbow: {
+    type: 'pipe_union_elbow',
+    category: 'fittings',
+    name: 'Codo a 90° (Curva)',
+    description: 'Codo de tubería a 90 grados para cambio de dirección de flujo. Rotable a cualquier cuadrante.',
+    defaultLabel: 'Codo 90°',
+    defaultTagPrefix: 'CD-01',
+    dimensions: { width: 85, height: 85 },
+    defaultSpecs: {},
+    ports: [
+      { id: 'port_1', name: 'Extremo Lateral (Izq)', shortCode: '1', kind: 'generic', position: 'left', hint: 'Entrada lateral (rota 90° para cambiar posición)' },
+      { id: 'port_2', name: 'Extremo Inferior (Abajo)', shortCode: '2', kind: 'generic', position: 'bottom', hint: 'Salida a 90 grados (rota para orientar arriba, derecha, etc.)' },
+    ],
+  },
+  pipe_union_tee: {
+    type: 'pipe_union_tee',
+    category: 'fittings',
+    name: 'Unión en T (Derivación 3 Vías)',
+    description: 'Te de tubería para ramificación, bifurcación o mezcla de refrigerante en 3 vías.',
+    defaultLabel: 'Te Derivación',
+    defaultTagPrefix: 'TE-01',
+    dimensions: { width: 90, height: 90 },
+    defaultSpecs: {},
+    ports: [
+      { id: 'main_left', name: 'Paso Principal (Izq)', shortCode: '1', kind: 'generic', position: 'left', hint: 'Línea de paso principal izquierda' },
+      { id: 'main_right', name: 'Paso Principal (Der)', shortCode: '2', kind: 'generic', position: 'right', hint: 'Línea de paso principal derecha' },
+      { id: 'branch', name: 'Ramal Derivación (T)', shortCode: '3', kind: 'generic', position: 'bottom', hint: 'Bifurcación perpendicular (rota para orientar el ramal arriba o hacia un lado)' },
+    ],
+  },
+  pipe_union_cross: {
+    type: 'pipe_union_cross',
+    category: 'fittings',
+    name: 'Cruz 4 Vías / Manifold',
+    description: 'Distribuidor cuádruple en cruz para interconexión simétrica de hasta 4 conexiones.',
+    defaultLabel: 'Cruz 4 Vías',
+    defaultTagPrefix: 'CR-01',
+    dimensions: { width: 95, height: 95 },
+    defaultSpecs: {},
+    ports: [
+      { id: 'port_left', name: 'Vía Izquierda', shortCode: 'O', kind: 'generic', position: 'left', hint: 'Vía horizontal izquierda' },
+      { id: 'port_right', name: 'Vía Derecha', shortCode: 'E', kind: 'generic', position: 'right', hint: 'Vía horizontal derecha' },
+      { id: 'port_top', name: 'Vía Superior', shortCode: 'N', kind: 'generic', position: 'top', hint: 'Vía vertical superior' },
+      { id: 'port_bottom', name: 'Vía Inferior', shortCode: 'S', kind: 'generic', position: 'bottom', hint: 'Vía vertical inferior' },
+    ],
+  },
+  pipe_junction_dot: {
+    type: 'pipe_junction_dot',
+    category: 'fittings',
+    name: 'Punto de Empalme Compacto',
+    description: 'Nodo de conexión rápida multi-vía de tamaño compacto para interconectar tuberías densas.',
+    defaultLabel: 'Empalme',
+    defaultTagPrefix: 'ND-01',
+    dimensions: { width: 70, height: 70 },
+    defaultSpecs: {},
+    ports: [
+      { id: 'port_left', name: 'Vía Izquierda', shortCode: '←', kind: 'generic', position: 'left', hint: 'Conexión Oeste' },
+      { id: 'port_right', name: 'Vía Derecha', shortCode: '→', kind: 'generic', position: 'right', hint: 'Conexión Este' },
+      { id: 'port_top', name: 'Vía Superior', shortCode: '↑', kind: 'generic', position: 'top', hint: 'Conexión Norte' },
+      { id: 'port_bottom', name: 'Vía Inferior', shortCode: '↓', kind: 'generic', position: 'bottom', hint: 'Conexión Sur' },
+    ],
+  },
 };
 
 export const COMPONENT_CATEGORIES: { id: SchematicComponentCategory; label: string; icon: string }[] = [
@@ -763,6 +840,7 @@ export const COMPONENT_CATEGORIES: { id: SchematicComponentCategory; label: stri
   { id: 'expansion', label: 'Expansión & Regulación', icon: 'Gauge' },
   { id: 'vessels', label: 'Recipientes & Aceite', icon: 'Database' },
   { id: 'valves', label: 'Válvulas & Seguridad', icon: 'Sliders' },
+  { id: 'fittings', label: 'Uniones & Derivaciones', icon: 'GitFork' },
   { id: 'accessories', label: 'Filtros & Visores', icon: 'Eye' },
   { id: 'instruments', label: 'Instrumentación & Sensores', icon: 'Activity' },
 ];
