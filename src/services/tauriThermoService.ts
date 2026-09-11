@@ -22,11 +22,40 @@ function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+export async function getLogPath(): Promise<string> {
+  if (isTauri()) {
+    try {
+      return await invoke<string>('get_log_path_cmd');
+    } catch {
+      // ignore
+    }
+  }
+  return 'Web / Local (Consola del navegador)';
+}
+
+export async function logClientEvent(
+  level: 'info' | 'warn' | 'error' | 'debug',
+  message: string,
+  details?: string
+): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invoke('log_client_event_cmd', { level, message, details });
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function fetchCatalog(): Promise<CatalogResponse> {
   if (isTauri()) {
     try {
-      return await invoke<CatalogResponse>('get_catalog');
+      logClientEvent('info', 'Frontend solicitando catálogo termodinámico');
+      const res = await invoke<CatalogResponse>('get_catalog');
+      logClientEvent('info', `Catálogo recibido con ${res.priority_items.length} fluidos prioritarios`);
+      return res;
     } catch (e) {
+      logClientEvent('error', 'Fallo al invocar get_catalog en Tauri', String(e));
       console.warn('Tauri invoke get_catalog failed, falling back to mock:', e);
     }
   }
@@ -36,8 +65,10 @@ export async function fetchCatalog(): Promise<CatalogResponse> {
 export async function fetchFluidDetails(fluidId: string): Promise<FluidInfo> {
   if (isTauri()) {
     try {
+      logClientEvent('info', `Frontend solicitando detalles de fluido: ${fluidId}`);
       return await invoke<FluidInfo>('get_fluid_details', { fluidId });
     } catch (e) {
+      logClientEvent('error', `Fallo al invocar get_fluid_details para ${fluidId}`, String(e));
       console.warn('Tauri invoke get_fluid_details failed:', e);
     }
   }
@@ -47,8 +78,12 @@ export async function fetchFluidDetails(fluidId: string): Promise<FluidInfo> {
 export async function fetchDiagramCurves(fluidId: string): Promise<DiagramCurvesResponse> {
   if (isTauri()) {
     try {
-      return await invoke<DiagramCurvesResponse>('get_diagram_curves_cmd', { fluidId });
+      logClientEvent('info', `Frontend solicitando curvas de Mollier para fluido: ${fluidId}`);
+      const curves = await invoke<DiagramCurvesResponse>('get_diagram_curves_cmd', { fluidId });
+      logClientEvent('info', `Curvas de Mollier recibidas para ${fluidId}`);
+      return curves;
     } catch (e) {
+      logClientEvent('error', `Fallo al calcular curvas de diagrama para ${fluidId}`, String(e));
       console.warn('Tauri invoke get_diagram_curves_cmd failed:', e);
     }
   }

@@ -1,7 +1,24 @@
+use crate::logger::get_current_log_path;
 use crate::thermo::catalog::{get_refrigerant_catalog, CatalogResponse};
 use crate::thermo::curves::{generate_diagram_curves, CurvePoint, DiagramCurvesResponse};
 use crate::thermo::{calculate_state, get_fluid_info, FluidInfo, ThermodynamicState};
 use serde::{Deserialize, Serialize};
+
+#[tauri::command]
+pub fn get_log_path_cmd() -> String {
+    get_current_log_path()
+}
+
+#[tauri::command]
+pub fn log_client_event_cmd(level: String, message: String, details: Option<String>) {
+    let det = details.map(|d| format!(" | Detalle: {}", d)).unwrap_or_default();
+    match level.to_lowercase().as_str() {
+        "error" => log::error!("[Frontend] {}{}", message, det),
+        "warn" => log::warn!("[Frontend] {}{}", message, det),
+        "debug" => log::debug!("[Frontend] {}{}", message, det),
+        _ => log::info!("[Frontend] {}{}", message, det),
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessCalculationRequest {
@@ -26,17 +43,48 @@ pub struct ProcessCalculationResponse {
 
 #[tauri::command]
 pub fn get_catalog() -> Result<CatalogResponse, String> {
-    Ok(get_refrigerant_catalog())
+    log::info!("Invocando 'get_catalog'");
+    let cat = get_refrigerant_catalog();
+    log::info!("'get_catalog' completado exitosamente ({} fluidos prioritarios)", cat.priority_items.len());
+    Ok(cat)
 }
 
 #[tauri::command]
 pub fn get_fluid_details(fluid_id: String) -> Result<FluidInfo, String> {
-    get_fluid_info(&fluid_id)
+    log::info!("Invocando 'get_fluid_details' para fluido '{}'", fluid_id);
+    match get_fluid_info(&fluid_id) {
+        Ok(info) => {
+            log::info!("'get_fluid_details' OK para '{}' (Tc={:?}, Pc={:?})", fluid_id, info.t_crit_c, info.p_crit_bar);
+            Ok(info)
+        }
+        Err(e) => {
+            log::error!("'get_fluid_details' FALLÓ para '{}': {}", fluid_id, e);
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
 pub fn get_diagram_curves_cmd(fluid_id: String) -> Result<DiagramCurvesResponse, String> {
-    generate_diagram_curves(&fluid_id)
+    log::info!("Invocando 'get_diagram_curves_cmd' para fluido '{}'", fluid_id);
+    let start = std::time::Instant::now();
+    match generate_diagram_curves(&fluid_id) {
+        Ok(curves) => {
+            log::info!(
+                "'get_diagram_curves_cmd' OK para '{}' en {:?} (isotermas: {}, isentrópicas: {}, isocoras: {})",
+                fluid_id,
+                start.elapsed(),
+                curves.isotherms.len(),
+                curves.isentropics.len(),
+                curves.isochores.len()
+            );
+            Ok(curves)
+        }
+        Err(e) => {
+            log::error!("'get_diagram_curves_cmd' FALLÓ para '{}': {}", fluid_id, e);
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
@@ -47,7 +95,14 @@ pub fn calculate_point_cmd(
     in2_type: String,
     in2_val: f64,
 ) -> Result<ThermodynamicState, String> {
-    calculate_state(&fluid_id, &in1_type, in1_val, &in2_type, in2_val)
+    log::debug!("Invocando calculate_point_cmd: fluido={}, {}={}, {}={}", fluid_id, in1_type, in1_val, in2_type, in2_val);
+    match calculate_state(&fluid_id, &in1_type, in1_val, &in2_type, in2_val) {
+        Ok(st) => Ok(st),
+        Err(e) => {
+            log::warn!("calculate_point_cmd error ({} {}={}, {}={}): {}", fluid_id, in1_type, in1_val, in2_type, in2_val, e);
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
