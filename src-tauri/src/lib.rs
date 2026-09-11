@@ -9,10 +9,14 @@ pub fn run() {
         log::info!("Logger inicializado en: {:?}", path);
     }
 
-    // 2. Test CoolProp C++ engine availability at startup
-    log::info!("Probando motor termodinámico CoolProp C++...");
-    let cp_ver = thermo::get_coolprop_version();
-    log::info!("Versión CoolProp activa: {}", cp_ver);
+    // 2. Test CoolProp C++ engine availability safely at startup
+    log::info!("Comprobando disponibilidad del motor termodinámico...");
+    if thermo::is_coolprop_available() {
+        let cp_ver = thermo::get_coolprop_version();
+        log::info!("Motor CoolProp C++ activo y cargado: {}", cp_ver);
+    } else {
+        log::warn!("CoolProp.dll no encontrado en el sistema. Se utilizará el motor termodinámico de alta fidelidad integrado sin interrupción.");
+    }
 
     // 3. Build and launch Tauri desktop application
     tauri::Builder::default()

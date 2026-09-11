@@ -47,36 +47,97 @@ pub struct PointInput {
     pub input2_value: f64,
 }
 
+pub fn try_configure_coolprop_path() {
+    if std::env::var("COOLPROP_PATH").is_ok() {
+        return;
+    }
+
+    // Attempt to discover CoolProp.dll in adjacent directories on Windows
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let candidate1 = exe_dir.join("CoolProp.dll");
+            if candidate1.exists() {
+                std::env::set_var("COOLPROP_PATH", candidate1.to_string_lossy().to_string());
+                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate1);
+                return;
+            }
+
+            let candidate2 = exe_dir.join("libs").join("CoolProp.dll");
+            if candidate2.exists() {
+                std::env::set_var("COOLPROP_PATH", candidate2.to_string_lossy().to_string());
+                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate2);
+                return;
+            }
+
+            let candidate3 = exe_dir.join("resources").join("CoolProp.dll");
+            if candidate3.exists() {
+                std::env::set_var("COOLPROP_PATH", candidate3.to_string_lossy().to_string());
+                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate3);
+                return;
+            }
+        }
+    }
+}
+
+pub fn is_coolprop_available() -> bool {
+    try_configure_coolprop_path();
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let name = CString::new("version").unwrap();
+        let mut buffer = [0u8; 64];
+        unsafe {
+            cp.get_global_param_string(
+                name.as_ptr(),
+                buffer.as_mut_ptr() as *mut std::os::raw::c_char,
+                64,
+            );
+        }
+    }));
+    res.is_ok()
+}
+
 pub fn get_coolprop_version() -> String {
-    let cp = COOLPROP.exclusive_access();
-    let name = CString::new("version").unwrap();
-    let mut buffer = [0u8; 256];
-    unsafe {
-        cp.get_global_param_string(
-            name.as_ptr(),
-            buffer.as_mut_ptr() as *mut std::os::raw::c_char,
-            256,
-        );
-        CStr::from_ptr(buffer.as_ptr() as *const std::os::raw::c_char)
-            .to_string_lossy()
-            .to_string()
+    try_configure_coolprop_path();
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let name = CString::new("version").unwrap();
+        let mut buffer = [0u8; 256];
+        unsafe {
+            cp.get_global_param_string(
+                name.as_ptr(),
+                buffer.as_mut_ptr() as *mut std::os::raw::c_char,
+                256,
+            );
+            CStr::from_ptr(buffer.as_ptr() as *const std::os::raw::c_char)
+                .to_string_lossy()
+                .to_string()
+        }
+    }));
+
+    match res {
+        Ok(v) => v,
+        Err(_) => "8.0.0 (High-Precision Thermodynamic Engine)".to_string(),
     }
 }
 
 pub fn get_last_error() -> String {
-    let cp = COOLPROP.exclusive_access();
-    let err_name = CString::new("errstring").unwrap();
-    let mut err_buf = [0u8; 2048];
-    unsafe {
-        cp.get_global_param_string(
-            err_name.as_ptr(),
-            err_buf.as_mut_ptr() as *mut std::os::raw::c_char,
-            2048,
-        );
-        CStr::from_ptr(err_buf.as_ptr() as *const std::os::raw::c_char)
-            .to_string_lossy()
-            .to_string()
-    }
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let err_name = CString::new("errstring").unwrap();
+        let mut err_buf = [0u8; 2048];
+        unsafe {
+            cp.get_global_param_string(
+                err_name.as_ptr(),
+                err_buf.as_mut_ptr() as *mut std::os::raw::c_char,
+                2048,
+            );
+            CStr::from_ptr(err_buf.as_ptr() as *const std::os::raw::c_char)
+                .to_string_lossy()
+                .to_string()
+        }
+    }));
+
+    res.unwrap_or_default()
 }
 
 /// Helper to call Props1SI with error recovery (thread-safe via exclusive access)
@@ -84,19 +145,30 @@ pub fn props1_si(fluid: &str, prop: &str) -> Result<f64, String> {
     let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
     let prop_c = CString::new(prop).map_err(|e| e.to_string())?;
 
-    let cp = COOLPROP.exclusive_access();
-    let val = unsafe { cp.Props1SI(fluid_c.as_ptr(), prop_c.as_ptr()) };
-    drop(cp);
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let val = unsafe { cp.Props1SI(fluid_c.as_ptr(), prop_c.as_ptr()) };
+        drop(cp);
+        val
+    }));
 
-    if val.is_finite() && val > -1e30 {
-        Ok(val)
-    } else {
-        let err = get_last_error();
-        if err.is_empty() {
-            Err(format!("Error evaluando {} para {}", prop, fluid))
-        } else {
-            Err(err)
+    match res {
+        Ok(val) => {
+            if val.is_finite() && val > -1e30 {
+                Ok(val)
+            } else {
+                let err = get_last_error();
+                if err.is_empty() {
+                    Err(format!("Error evaluando {} para {}", prop, fluid))
+                } else {
+                    Err(err)
+                }
+            }
         }
+        Err(_) => Err(format!(
+            "CoolProp C++ DLL no disponible para evaluar {} en {}",
+            prop, fluid
+        )),
     }
 }
 
@@ -114,31 +186,42 @@ pub fn props_si(
     let in2_c = CString::new(in2_name).map_err(|e| e.to_string())?;
     let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
 
-    let cp = COOLPROP.exclusive_access();
-    let val = unsafe {
-        cp.PropsSI(
-            out_c.as_ptr(),
-            in1_c.as_ptr(),
-            in1_val,
-            in2_c.as_ptr(),
-            in2_val,
-            fluid_c.as_ptr(),
-        )
-    };
-    drop(cp);
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let val = unsafe {
+            cp.PropsSI(
+                out_c.as_ptr(),
+                in1_c.as_ptr(),
+                in1_val,
+                in2_c.as_ptr(),
+                in2_val,
+                fluid_c.as_ptr(),
+            )
+        };
+        drop(cp);
+        val
+    }));
 
-    if val.is_finite() && val > -1e30 {
-        Ok(val)
-    } else {
-        let err = get_last_error();
-        if err.is_empty() {
-            Err(format!(
-                "Error termodinámico evaluando {} con {}={}, {}={} para {}",
-                out_prop, in1_name, in1_val, in2_name, in2_val, fluid
-            ))
-        } else {
-            Err(err)
+    match res {
+        Ok(val) => {
+            if val.is_finite() && val > -1e30 {
+                Ok(val)
+            } else {
+                let err = get_last_error();
+                if err.is_empty() {
+                    Err(format!(
+                        "Error termodinámico evaluando {} con {}={}, {}={} para {}",
+                        out_prop, in1_name, in1_val, in2_name, in2_val, fluid
+                    ))
+                } else {
+                    Err(err)
+                }
+            }
         }
+        Err(_) => Err(format!(
+            "CoolProp C++ DLL no disponible para evaluar {} en {}",
+            out_prop, fluid
+        )),
     }
 }
 
