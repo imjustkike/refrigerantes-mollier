@@ -1,5 +1,4 @@
 use crate::thermo::{get_fluid_constants, props_si, resolve_coolprop_fluid_id};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,7 +160,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     // Quality lines (x = 0.1 .. 0.9) inside the dome
     let qualities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
     let quality_lines: Vec<CurveSeries> = qualities
-        .into_par_iter()
+        .into_iter()
         .map(|q| {
             let mut pts = Vec::with_capacity(70);
             let n_pts = 60;
@@ -231,7 +230,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     };
 
     let isotherms: Vec<CurveSeries> = temps_c
-        .into_par_iter()
+        .into_iter()
         .filter_map(|t_c| {
             let t_k = t_c + 273.15;
             let mut pts = Vec::new();
@@ -366,7 +365,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     };
 
     let isentropics: Vec<CurveSeries> = s_vals
-        .into_par_iter()
+        .into_iter()
         .filter_map(|s_kj| {
             let s_j = s_kj * 1000.0;
             let mut pts = Vec::new();
@@ -454,7 +453,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     ];
 
     let isochores: Vec<CurveSeries> = v_vals
-        .into_par_iter()
+        .into_iter()
         .filter_map(|v_m3| {
             let density = 1.0 / v_m3;
             let mut pts = Vec::new();
