@@ -75,32 +75,46 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
         ("R500", vec!["R500.mix", "R500"], "Históricos y existentes", "Mezcla azeotrópica (CFC/HFC)", Some(8077.0), Some("A1".to_string())),
     ];
 
+    let is_cp_online = crate::thermo::is_coolprop_available();
     let mut priority_items = Vec::new();
 
     for (display_name, aliases, group, fluid_type, gwp, ashrae) in raw_priority {
         let mut resolved_id = None;
         let mut resolved_info = None;
 
-        for alias in &aliases {
-            let actual_id = resolve_coolprop_fluid_id(alias);
-            if let Ok(consts) = get_fluid_constants(&actual_id) {
-                if consts.t_crit_k > 0.0 {
-                    resolved_id = Some(actual_id);
-                    resolved_info = crate::thermo::get_fluid_info(alias).ok();
-                    break;
+        if is_cp_online {
+            for alias in &aliases {
+                let actual_id = resolve_coolprop_fluid_id(alias);
+                if let Ok(consts) = get_fluid_constants(&actual_id) {
+                    if consts.t_crit_k > 0.0 {
+                        resolved_id = Some(actual_id);
+                        resolved_info = crate::thermo::get_fluid_info(alias).ok();
+                        break;
+                    }
                 }
             }
         }
 
-        let is_avail = resolved_id.is_some();
+        let is_avail = !is_cp_online || resolved_id.is_some();
         let notes = match &resolved_id {
             Some(id) => Some(format!("Disponible en CoolProp con identificador '{}'", id)),
-            None => Some("No incluido en la base de datos estándar de CoolProp".to_string()),
+            None => {
+                if is_cp_online {
+                    Some("No incluido en la base de datos estándar de CoolProp".to_string())
+                } else {
+                    Some("Modelo termodinámico de alta fidelidad integrado".to_string())
+                }
+            }
         };
+
+        let primary_id = resolved_id.unwrap_or_else(|| aliases[0].to_string());
+        if resolved_info.is_none() {
+            resolved_info = crate::thermo::get_fluid_info(&primary_id).ok();
+        }
 
         priority_items.push(CatalogItem {
             display_name: display_name.to_string(),
-            coolprop_id: resolved_id.unwrap_or_else(|| aliases[0].to_string()),
+            coolprop_id: primary_id,
             aliases: aliases.into_iter().map(|s| s.to_string()).collect(),
             group: group.to_string(),
             fluid_type: fluid_type.to_string(),
@@ -123,23 +137,41 @@ pub fn get_refrigerant_catalog() -> CatalogResponse {
 }
 
 pub fn get_all_coolprop_fluids() -> Vec<String> {
-    let cp = COOLPROP.exclusive_access();
-    let fluids_param = CString::new("fluids_list").unwrap();
-    let mut fluids_buf = vec![0u8; 65536];
-    unsafe {
-        cp.get_global_param_string(
-            fluids_param.as_ptr(),
-            fluids_buf.as_mut_ptr() as *mut std::os::raw::c_char,
-            65536,
-        );
-        let fluids_list = CStr::from_ptr(fluids_buf.as_ptr() as *const std::os::raw::c_char).to_string_lossy();
-        let mut list: Vec<String> = fluids_list
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        list.sort();
-        list
+    if !crate::thermo::is_coolprop_available() {
+        return vec![
+            "Water", "Air", "Nitrogen", "Argon", "Helium", "R11", "R12", "R23", "R507A",
+            "R513A.mix", "R448A.mix", "R449A.mix", "R450A.mix", "R452A.mix", "R454B.mix",
+            "R454C.mix", "R455A.mix", "R407F.mix", "R502.mix", "R422D.mix", "R438A.mix", "R508B.mix"
+        ].into_iter().map(|s| s.to_string()).collect();
     }
+
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cp = COOLPROP.exclusive_access();
+        let fluids_param = CString::new("fluids_list").unwrap();
+        let mut fluids_buf = vec![0u8; 65536];
+        unsafe {
+            cp.get_global_param_string(
+                fluids_param.as_ptr(),
+                fluids_buf.as_mut_ptr() as *mut std::os::raw::c_char,
+                65536,
+            );
+            let fluids_list = CStr::from_ptr(fluids_buf.as_ptr() as *const std::os::raw::c_char).to_string_lossy();
+            let mut list: Vec<String> = fluids_list
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            list.sort();
+            list
+        }
+    }));
+
+    res.unwrap_or_else(|_| {
+        vec![
+            "Water", "Air", "Nitrogen", "Argon", "Helium", "R11", "R12", "R23", "R507A",
+            "R513A.mix", "R448A.mix", "R449A.mix", "R450A.mix", "R452A.mix", "R454B.mix",
+            "R454C.mix", "R455A.mix", "R407F.mix", "R502.mix", "R422D.mix", "R438A.mix", "R508B.mix"
+        ].into_iter().map(|s| s.to_string()).collect()
+    })
 }
 
