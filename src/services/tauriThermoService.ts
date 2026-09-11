@@ -724,7 +724,7 @@ function calculateSuperheatedEnthalpy(
   return h0 - (h0 - hV) * Math.pow(pr, 0.80);
 }
 
-function getMockCatalog(): CatalogResponse {
+export function getMockCatalog(): CatalogResponse {
   const getGroup = (m: FluidThermodynamicModel) => {
     const upper = m.id.toUpperCase();
     if (['R717', 'R744', 'R290', 'R600A', 'R600', 'R1270'].some((k) => upper.includes(k))) {

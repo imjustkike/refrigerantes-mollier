@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { CurvesDropdown } from './CurvesDropdown';
+import { RefrigerantSelectorDropdown } from './RefrigerantSelectorDropdown';
 
 interface HeaderProps {
   onExportPng?: () => void;
@@ -128,6 +129,11 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => 
             <span className="hidden sm:inline">Ciclo 3D</span>
           </button>
         </div>
+
+        <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+        {/* Global Refrigerant Selector */}
+        <RefrigerantSelectorDropdown size="md" />
 
         <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
 

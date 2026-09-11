@@ -539,7 +539,7 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     >
       {/* Top Inspector Status Bar - Fixed single-row layout */}
       <div
-        className={`h-9 px-2.5 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-30 transition-colors whitespace-nowrap overflow-hidden ${
+        className={`h-9 px-2.5 py-1 border-b flex items-center justify-between gap-2 shrink-0 z-30 transition-colors whitespace-nowrap overflow-visible relative ${
           diagramTheme === 'danfoss'
             ? 'bg-slate-50 border-slate-200 text-slate-800'
             : 'bg-[#15171d] border-slate-800/80 text-slate-200'

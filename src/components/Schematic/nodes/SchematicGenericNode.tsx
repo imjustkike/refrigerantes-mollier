@@ -1,11 +1,45 @@
-import React, { memo, useState } from 'react';
-import { Handle, NodeProps, Position } from '@xyflow/react';
-import { SchematicNodeData } from '../../../types/schematic';
+import React, { memo, useEffect, useState } from 'react';
+import { Handle, NodeProps, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { SchematicNodeData, PortDirection } from '../../../types/schematic';
 import { COMPONENT_DEFINITIONS } from '../symbols/componentDefinitions';
 import { SvgSymbol } from '../symbols/SvgSymbols';
 import { useProject } from '../../../context/ProjectContext';
 
-const mapPortPosition = (pos: 'left' | 'right' | 'top' | 'bottom'): Position => {
+export const getTransformedPortPosition = (
+  originalPos: PortDirection,
+  rotation: number = 0,
+  flippedHorizontal: boolean = false,
+  flippedVertical: boolean = false
+): PortDirection => {
+  let pos = originalPos;
+
+  // 1. Flip Horizontal (mirror across Y axis: left <-> right)
+  if (flippedHorizontal) {
+    if (pos === 'left') pos = 'right';
+    else if (pos === 'right') pos = 'left';
+  }
+
+  // 2. Flip Vertical (mirror across X axis: top <-> bottom)
+  if (flippedVertical) {
+    if (pos === 'top') pos = 'bottom';
+    else if (pos === 'bottom') pos = 'top';
+  }
+
+  // 3. Rotation clockwise (0, 90, 180, 270)
+  const normalizedRotation = ((rotation % 360) + 360) % 360;
+  const rotSteps = Math.round(normalizedRotation / 90) % 4;
+
+  const clockwiseOrder: PortDirection[] = ['top', 'right', 'bottom', 'left'];
+  if (rotSteps > 0) {
+    const currentIndex = clockwiseOrder.indexOf(pos);
+    const newIndex = (currentIndex + rotSteps) % 4;
+    pos = clockwiseOrder[newIndex];
+  }
+
+  return pos;
+};
+
+const mapPortPosition = (pos: PortDirection): Position => {
   switch (pos) {
     case 'left':
       return Position.Left;
@@ -48,7 +82,7 @@ const getPortHandleColor = (kind: string): string => {
   }
 };
 
-const getPortOffsetClass = (pos: 'left' | 'right' | 'top' | 'bottom') => {
+const getPortOffsetClass = (pos: PortDirection) => {
   switch (pos) {
     case 'left':
       return '-left-1 -translate-x-full';
@@ -61,11 +95,20 @@ const getPortOffsetClass = (pos: 'left' | 'right' | 'top' | 'bottom') => {
   }
 };
 
-export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected }) => {
+export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
   const nodeData = data as unknown as SchematicNodeData;
   const { themeMode } = useProject();
   const def = COMPONENT_DEFINITIONS[nodeData.componentType];
   const [hoveredPortId, setHoveredPortId] = useState<string | null>(null);
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  const rotation = nodeData.rotation || 0;
+  const flippedHorizontal = !!nodeData.flippedHorizontal;
+  const flippedVertical = !!nodeData.flippedVertical;
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, rotation, flippedHorizontal, flippedVertical, updateNodeInternals]);
 
   if (!def) {
     return (
@@ -75,9 +118,8 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected 
     );
   }
 
-  const rotation = nodeData.rotation || 0;
-  const flippedH = nodeData.flippedHorizontal ? -1 : 1;
-  const flippedV = nodeData.flippedVertical ? -1 : 1;
+  const flippedH = flippedHorizontal ? -1 : 1;
+  const flippedV = flippedVertical ? -1 : 1;
   const transform = `rotate(${rotation}deg) scale(${flippedH}, ${flippedV})`;
 
   // Summary Specs text to display on node footer
@@ -192,7 +234,13 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected 
 
       {/* Port Handles & Visual Badges */}
       {def.ports.map((port) => {
-        const handlePosition = mapPortPosition(port.position);
+        const effectivePosition = getTransformedPortPosition(
+          port.position,
+          rotation,
+          flippedHorizontal,
+          flippedVertical
+        );
+        const handlePosition = mapPortPosition(effectivePosition);
         const handleColor = getPortHandleColor(port.kind);
         const isHovered = hoveredPortId === port.id;
 
@@ -215,11 +263,11 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected 
             {/* Port Short Code Label Pin */}
             <div
               className={`absolute pointer-events-none z-20 flex items-center px-1 py-0.2 rounded font-mono font-bold text-[8px] border shadow-xs transition-opacity duration-150 ${
-                port.position === 'left'
+                effectivePosition === 'left'
                   ? 'left-0 -translate-x-full mr-1'
-                  : port.position === 'right'
+                  : effectivePosition === 'right'
                   ? 'right-0 translate-x-full ml-1'
-                  : port.position === 'top'
+                  : effectivePosition === 'top'
                   ? 'top-0 -translate-y-full mb-1'
                   : 'bottom-0 translate-y-full mt-1'
               } ${
@@ -228,10 +276,10 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected 
                   : 'bg-slate-900/90 dark:bg-black/90 text-slate-200 border-slate-700/80 opacity-80'
               }`}
               style={{
-                borderLeftColor: port.position === 'left' ? handleColor : undefined,
-                borderRightColor: port.position === 'right' ? handleColor : undefined,
-                borderTopColor: port.position === 'top' ? handleColor : undefined,
-                borderBottomColor: port.position === 'bottom' ? handleColor : undefined,
+                borderLeftColor: effectivePosition === 'left' ? handleColor : undefined,
+                borderRightColor: effectivePosition === 'right' ? handleColor : undefined,
+                borderTopColor: effectivePosition === 'top' ? handleColor : undefined,
+                borderBottomColor: effectivePosition === 'bottom' ? handleColor : undefined,
               }}
             >
               <span>{port.shortCode}</span>
@@ -241,7 +289,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ data, selected 
             {isHovered && (
               <div
                 className={`absolute z-50 pointer-events-none nodrag nopan w-48 p-2 rounded-lg bg-slate-900/95 dark:bg-black/95 text-white border border-sky-500/60 shadow-xl backdrop-blur-md flex flex-col gap-1 text-left animate-in fade-in zoom-in-95 duration-100 ${getPortOffsetClass(
-                  port.position
+                  effectivePosition
                 )}`}
               >
                 <div className="flex items-center gap-1.5">

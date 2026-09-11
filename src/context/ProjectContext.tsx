@@ -139,7 +139,7 @@ const POINT_COLORS = [
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
+  const [catalog, setCatalog] = useState<CatalogResponse | null>(() => thermoService.getMockCatalog());
   const [selectedFluidId, setSelectedFluidId] = useState<string>('R134a');
   const [fluidInfo, setFluidInfo] = useState<FluidInfo | null>(null);
 
