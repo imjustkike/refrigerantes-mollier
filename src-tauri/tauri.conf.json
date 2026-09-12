@@ -34,7 +34,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "libs/CoolProp.dll"
+      "libs/CoolProp.dll",
+      "libs/libCoolProp.dylib"
     ],
     "macOS": {
       "frameworks": [

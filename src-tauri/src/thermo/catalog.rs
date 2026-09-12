@@ -1,7 +1,5 @@
-use crate::thermo::{get_fluid_constants, resolve_coolprop_fluid_id, FluidInfo};
-use coolprop_sys::COOLPROP;
+use crate::thermo::{engine::get_engine, get_fluid_constants, resolve_coolprop_fluid_id, FluidInfo};
 use serde::{Deserialize, Serialize};
-use std::ffi::{CStr, CString};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CatalogItem {
@@ -145,17 +143,8 @@ pub fn get_all_coolprop_fluids() -> Vec<String> {
         ].into_iter().map(|s| s.to_string()).collect();
     }
 
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let fluids_param = CString::new("fluids_list").unwrap();
-        let mut fluids_buf = vec![0u8; 65536];
-        unsafe {
-            cp.get_global_param_string(
-                fluids_param.as_ptr(),
-                fluids_buf.as_mut_ptr() as *mut std::os::raw::c_char,
-                65536,
-            );
-            let fluids_list = CStr::from_ptr(fluids_buf.as_ptr() as *const std::os::raw::c_char).to_string_lossy();
+    match get_engine().get_global_param_string("fluids_list") {
+        Ok(fluids_list) => {
             let mut list: Vec<String> = fluids_list
                 .split(',')
                 .map(|s| s.trim().to_string())
@@ -164,14 +153,11 @@ pub fn get_all_coolprop_fluids() -> Vec<String> {
             list.sort();
             list
         }
-    }));
-
-    res.unwrap_or_else(|_| {
-        vec![
+        Err(_) => vec![
             "Water", "Air", "Nitrogen", "Argon", "Helium", "R11", "R12", "R23", "R507A",
             "R513A.mix", "R448A.mix", "R449A.mix", "R450A.mix", "R452A.mix", "R454B.mix",
             "R454C.mix", "R455A.mix", "R407F.mix", "R502.mix", "R422D.mix", "R438A.mix", "R508B.mix"
-        ].into_iter().map(|s| s.to_string()).collect()
-    })
+        ].into_iter().map(|s| s.to_string()).collect(),
+    }
 }
 

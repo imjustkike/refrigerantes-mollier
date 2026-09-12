@@ -1,12 +1,18 @@
 use crate::logger::get_current_log_path;
 use crate::thermo::catalog::{get_refrigerant_catalog, CatalogResponse};
 use crate::thermo::curves::{generate_diagram_curves, CurvePoint, DiagramCurvesResponse};
+use crate::thermo::engine::{get_engine, EngineInfo};
 use crate::thermo::{calculate_state, get_fluid_info, FluidInfo, ThermodynamicState};
 use serde::{Deserialize, Serialize};
 
 #[tauri::command]
 pub fn get_log_path_cmd() -> String {
     get_current_log_path()
+}
+
+#[tauri::command]
+pub fn get_engine_info_cmd() -> EngineInfo {
+    get_engine().get_engine_info()
 }
 
 #[tauri::command]
@@ -42,71 +48,97 @@ pub struct ProcessCalculationResponse {
 }
 
 #[tauri::command]
-pub fn get_catalog() -> Result<CatalogResponse, String> {
-    log::info!("Invocando 'get_catalog'");
-    let cat = get_refrigerant_catalog();
-    log::info!("'get_catalog' completado exitosamente ({} fluidos prioritarios)", cat.priority_items.len());
-    Ok(cat)
+pub async fn get_catalog() -> Result<CatalogResponse, String> {
+    log::info!("Invocando 'get_catalog' en hilo asíncrono");
+    tauri::async_runtime::spawn_blocking(move || {
+        let cat = get_refrigerant_catalog();
+        log::info!("'get_catalog' completado exitosamente ({} fluidos prioritarios)", cat.priority_items.len());
+        Ok(cat)
+    })
+    .await
+    .map_err(|e| format!("Error en hilo de ejecución de catálogo: {}", e))?
 }
 
 #[tauri::command]
-pub fn get_fluid_details(fluid_id: String) -> Result<FluidInfo, String> {
+pub async fn get_fluid_details(fluid_id: String) -> Result<FluidInfo, String> {
     log::info!("Invocando 'get_fluid_details' para fluido '{}'", fluid_id);
-    match get_fluid_info(&fluid_id) {
-        Ok(info) => {
-            log::info!("'get_fluid_details' OK para '{}' (Tc={:?}, Pc={:?})", fluid_id, info.t_crit_c, info.p_crit_bar);
-            Ok(info)
+    tauri::async_runtime::spawn_blocking(move || {
+        match get_fluid_info(&fluid_id) {
+            Ok(info) => {
+                log::info!("'get_fluid_details' OK para '{}' (Tc={:?}, Pc={:?})", fluid_id, info.t_crit_c, info.p_crit_bar);
+                Ok(info)
+            }
+            Err(e) => {
+                log::error!("'get_fluid_details' FALLÓ para '{}': {}", fluid_id, e);
+                Err(e)
+            }
         }
-        Err(e) => {
-            log::error!("'get_fluid_details' FALLÓ para '{}': {}", fluid_id, e);
-            Err(e)
-        }
-    }
+    })
+    .await
+    .map_err(|e| format!("Error en hilo de ejecución: {}", e))?
 }
 
 #[tauri::command]
-pub fn get_diagram_curves_cmd(fluid_id: String) -> Result<DiagramCurvesResponse, String> {
-    log::info!("Invocando 'get_diagram_curves_cmd' para fluido '{}'", fluid_id);
-    let start = std::time::Instant::now();
-    match generate_diagram_curves(&fluid_id) {
-        Ok(curves) => {
-            log::info!(
-                "'get_diagram_curves_cmd' OK para '{}' en {:?} (isotermas: {}, isentrópicas: {}, isocoras: {})",
-                fluid_id,
-                start.elapsed(),
-                curves.isotherms.len(),
-                curves.isentropics.len(),
-                curves.isochores.len()
-            );
-            Ok(curves)
+pub async fn get_diagram_curves_cmd(fluid_id: String) -> Result<DiagramCurvesResponse, String> {
+    log::info!("Invocando 'get_diagram_curves_cmd' para fluido '{}' en hilo no bloqueante", fluid_id);
+    tauri::async_runtime::spawn_blocking(move || {
+        let start = std::time::Instant::now();
+        match generate_diagram_curves(&fluid_id) {
+            Ok(curves) => {
+                log::info!(
+                    "'get_diagram_curves_cmd' OK para '{}' en {:?} (isotermas: {}, isentrópicas: {}, isocoras: {})",
+                    fluid_id,
+                    start.elapsed(),
+                    curves.isotherms.len(),
+                    curves.isentropics.len(),
+                    curves.isochores.len()
+                );
+                Ok(curves)
+            }
+            Err(e) => {
+                log::error!("'get_diagram_curves_cmd' FALLÓ para '{}': {}", fluid_id, e);
+                Err(e)
+            }
         }
-        Err(e) => {
-            log::error!("'get_diagram_curves_cmd' FALLÓ para '{}': {}", fluid_id, e);
-            Err(e)
-        }
-    }
+    })
+    .await
+    .map_err(|e| format!("Error en hilo de cálculo de curvas: {}", e))?
 }
 
 #[tauri::command]
-pub fn calculate_point_cmd(
+pub async fn calculate_point_cmd(
     fluid_id: String,
     in1_type: String,
     in1_val: f64,
     in2_type: String,
     in2_val: f64,
 ) -> Result<ThermodynamicState, String> {
-    log::debug!("Invocando calculate_point_cmd: fluido={}, {}={}, {}={}", fluid_id, in1_type, in1_val, in2_type, in2_val);
-    match calculate_state(&fluid_id, &in1_type, in1_val, &in2_type, in2_val) {
-        Ok(st) => Ok(st),
-        Err(e) => {
-            log::warn!("calculate_point_cmd error ({} {}={}, {}={}): {}", fluid_id, in1_type, in1_val, in2_type, in2_val, e);
-            Err(e)
+    tauri::async_runtime::spawn_blocking(move || {
+        log::debug!("Invocando calculate_point_cmd: fluido={}, {}={}, {}={}", fluid_id, in1_type, in1_val, in2_type, in2_val);
+        match calculate_state(&fluid_id, &in1_type, in1_val, &in2_type, in2_val) {
+            Ok(st) => Ok(st),
+            Err(e) => {
+                log::warn!("calculate_point_cmd error ({} {}={}, {}={}): {}", fluid_id, in1_type, in1_val, in2_type, in2_val, e);
+                Err(e)
+            }
         }
-    }
+    })
+    .await
+    .map_err(|e| format!("Error en hilo de cálculo de punto: {}", e))?
 }
 
 #[tauri::command]
-pub fn calculate_process_curve_cmd(
+pub async fn calculate_process_curve_cmd(
+    req: ProcessCalculationRequest,
+) -> Result<ProcessCalculationResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        calculate_process_curve_internal(req)
+    })
+    .await
+    .map_err(|e| format!("Error en hilo de cálculo de proceso: {}", e))?
+}
+
+fn calculate_process_curve_internal(
     req: ProcessCalculationRequest,
 ) -> Result<ProcessCalculationResponse, String> {
     let s1 = calculate_state(&req.fluid_id, "H", req.p1_h, "P", req.p1_p)?;

@@ -305,15 +305,11 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const revision = ThermoProvider.nextRevision();
 
-    Promise.all([
-      ThermoProvider.fetchDiagramDataset(selectedFluidId, revision),
-      thermoService.fetchDiagramCurves(selectedFluidId).catch(() => null),
-      thermoService.fetchFluidDetails(selectedFluidId).catch(() => null),
-    ])
-      .then(([newDataset, oldCurves, info]) => {
+    ThermoProvider.fetchCompleteFluidData(selectedFluidId, revision)
+      .then(({ dataset: newDataset, rawCurves, fluidInfo: info }) => {
         if (revision === ThermoProvider.getCurrentRevision()) {
           setDataset(newDataset);
-          if (oldCurves) setDiagramCurves(oldCurves);
+          if (rawCurves) setDiagramCurves(rawCurves);
           if (info) setFluidInfo(info);
           setIsLoadingCurves(false);
         }

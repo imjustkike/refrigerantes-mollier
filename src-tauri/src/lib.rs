@@ -1,3 +1,5 @@
+use tauri::Manager;
+
 pub mod commands;
 pub mod logger;
 pub mod thermo;
@@ -9,19 +11,54 @@ pub fn run() {
         log::info!("Logger inicializado en: {:?}", path);
     }
 
-    // 2. Test CoolProp C++ engine availability safely at startup
-    log::info!("Comprobando disponibilidad del motor termodinámico...");
-    if thermo::is_coolprop_available() {
-        let cp_ver = thermo::get_coolprop_version();
-        log::info!("Motor CoolProp C++ activo y cargado: {}", cp_ver);
-    } else {
-        log::warn!("CoolProp.dll no encontrado en el sistema. Se utilizará el motor termodinámico de alta fidelidad integrado sin interrupción.");
-    }
-
-    // 3. Build and launch Tauri desktop application
+    // 2. Build and launch Tauri desktop application
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .setup(|_app| {
+        .setup(|app| {
+            log::info!("Iniciando setup de Tauri y resolviendo recursos...");
+
+            // Resolve potential resource path from Tauri 2 ResourceResolver
+            let mut resource_hint = None;
+            if let Ok(res_dir) = app.path().resource_dir() {
+                #[cfg(target_os = "windows")]
+                {
+                    let c1 = res_dir.join("libs").join("CoolProp.dll");
+                    let c2 = res_dir.join("CoolProp.dll");
+                    if c1.exists() {
+                        resource_hint = Some(c1);
+                    } else if c2.exists() {
+                        resource_hint = Some(c2);
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    let c1 = res_dir.join("libs").join("libCoolProp.dylib");
+                    let c2 = res_dir.join("libCoolProp.dylib");
+                    if c1.exists() {
+                        resource_hint = Some(c1);
+                    } else if c2.exists() {
+                        resource_hint = Some(c2);
+                    }
+                }
+            }
+
+            // Initialize CoolProp with discovered resource hint (or fallback candidates)
+            let _ = thermo::init_coolprop(resource_hint.as_deref());
+
+            let info = thermo::engine::get_engine().get_engine_info();
+            if info.is_ready {
+                log::info!(
+                    "Motor CoolProp activo y verificado. Versión: {}. Ruta: {:?}",
+                    info.version,
+                    info.loaded_path
+                );
+            } else {
+                log::error!(
+                    "Fallo al inicializar CoolProp: {}",
+                    info.error.as_deref().unwrap_or("Error desconocido")
+                );
+            }
+
             log::info!("Tauri Setup completado. Ventana principal lista.");
             Ok(())
         })
@@ -31,6 +68,7 @@ pub fn run() {
             commands::get_diagram_curves_cmd,
             commands::calculate_point_cmd,
             commands::calculate_process_curve_cmd,
+            commands::get_engine_info_cmd,
             commands::get_log_path_cmd,
             commands::log_client_event_cmd
         ])

@@ -18,8 +18,36 @@ export interface ProcessCalculationResult {
   intermediate_points: CurvePoint[];
 }
 
+export interface EngineInfo {
+  is_ready: boolean;
+  version: string;
+  loaded_path: string | null;
+  error: string | null;
+}
+
 function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
+export async function getEngineInfo(): Promise<EngineInfo> {
+  if (isTauri()) {
+    try {
+      return await invoke<EngineInfo>('get_engine_info_cmd');
+    } catch (e) {
+      return {
+        is_ready: false,
+        version: 'Error al consultar backend',
+        loaded_path: null,
+        error: String(e),
+      };
+    }
+  }
+  return {
+    is_ready: true,
+    version: 'Modo Demostración Web (Navegador)',
+    loaded_path: null,
+    error: null,
+  };
 }
 
 export async function getLogPath(): Promise<string> {
@@ -56,7 +84,8 @@ export async function fetchCatalog(): Promise<CatalogResponse> {
       return res;
     } catch (e) {
       logClientEvent('error', 'Fallo al invocar get_catalog en Tauri', String(e));
-      console.warn('Tauri invoke get_catalog failed, falling back to mock:', e);
+      console.error('Tauri invoke get_catalog failed:', e);
+      throw e;
     }
   }
   return getMockCatalog();
@@ -69,7 +98,8 @@ export async function fetchFluidDetails(fluidId: string): Promise<FluidInfo> {
       return await invoke<FluidInfo>('get_fluid_details', { fluidId });
     } catch (e) {
       logClientEvent('error', `Fallo al invocar get_fluid_details para ${fluidId}`, String(e));
-      console.warn('Tauri invoke get_fluid_details failed:', e);
+      console.error('Tauri invoke get_fluid_details failed:', e);
+      throw e;
     }
   }
   return getMockFluidInfo(fluidId);
@@ -84,7 +114,8 @@ export async function fetchDiagramCurves(fluidId: string): Promise<DiagramCurves
       return curves;
     } catch (e) {
       logClientEvent('error', `Fallo al calcular curvas de diagrama para ${fluidId}`, String(e));
-      console.warn('Tauri invoke get_diagram_curves_cmd failed:', e);
+      console.error('Tauri invoke get_diagram_curves_cmd failed:', e);
+      throw e;
     }
   }
   return getMockDiagramCurves(fluidId);
@@ -107,7 +138,7 @@ export async function calculateState(
         in2Val,
       });
     } catch (e) {
-      console.warn('Tauri invoke calculate_point_cmd failed:', e);
+      console.error('Tauri invoke calculate_point_cmd failed:', e);
       throw e;
     }
   }
@@ -137,7 +168,8 @@ export async function calculateProcessCurve(
         },
       });
     } catch (e) {
-      console.warn('Tauri calculate_process_curve_cmd failed:', e);
+      console.error('Tauri calculate_process_curve_cmd failed:', e);
+      throw e;
     }
   }
   return mockCalculateProcess(fluidId, p1H, p1P, p2H, p2P, processType, steps);
@@ -791,7 +823,7 @@ export function getMockCatalog(): CatalogResponse {
   });
 
   return {
-    engine_version: '8.0.0 (CoolProp / High-Precision Engine)',
+    engine_version: 'Modo Demostración Web (Modelos aproximados en navegador)',
     priority_items,
     other_available_fluids: [
       'Water', 'Air', 'Nitrogen', 'Argon', 'Helium', 'R11', 'R12', 'R23', 'R507A',

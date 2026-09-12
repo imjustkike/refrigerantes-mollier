@@ -1,9 +1,10 @@
 pub mod catalog;
 pub mod curves;
+pub mod engine;
 
-use coolprop_sys::COOLPROP;
+use engine::get_engine;
 use serde::{Deserialize, Serialize};
-use std::ffi::{CStr, CString};
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FluidInfo {
@@ -47,132 +48,32 @@ pub struct PointInput {
     pub input2_value: f64,
 }
 
-pub fn try_configure_coolprop_path() {
-    if std::env::var("COOLPROP_PATH").is_ok() {
-        return;
-    }
-
-    // Attempt to discover CoolProp.dll in adjacent directories on Windows
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let candidate1 = exe_dir.join("CoolProp.dll");
-            if candidate1.exists() {
-                std::env::set_var("COOLPROP_PATH", candidate1.to_string_lossy().to_string());
-                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate1);
-                return;
-            }
-
-            let candidate2 = exe_dir.join("libs").join("CoolProp.dll");
-            if candidate2.exists() {
-                std::env::set_var("COOLPROP_PATH", candidate2.to_string_lossy().to_string());
-                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate2);
-                return;
-            }
-
-            let candidate3 = exe_dir.join("resources").join("CoolProp.dll");
-            if candidate3.exists() {
-                std::env::set_var("COOLPROP_PATH", candidate3.to_string_lossy().to_string());
-                log::info!("COOLPROP_PATH configurado automáticamente a: {:?}", candidate3);
-                return;
-            }
-        }
-    }
+pub fn init_coolprop(custom_hint: Option<&Path>) -> Result<(), String> {
+    get_engine().init(custom_hint)
 }
 
 pub fn is_coolprop_available() -> bool {
-    try_configure_coolprop_path();
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let name = CString::new("version").unwrap();
-        let mut buffer = [0u8; 64];
-        unsafe {
-            cp.get_global_param_string(
-                name.as_ptr(),
-                buffer.as_mut_ptr() as *mut std::os::raw::c_char,
-                64,
-            );
-        }
-    }));
-    res.is_ok()
+    get_engine().is_available()
 }
 
 pub fn get_coolprop_version() -> String {
-    try_configure_coolprop_path();
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let name = CString::new("version").unwrap();
-        let mut buffer = [0u8; 256];
-        unsafe {
-            cp.get_global_param_string(
-                name.as_ptr(),
-                buffer.as_mut_ptr() as *mut std::os::raw::c_char,
-                256,
-            );
-            CStr::from_ptr(buffer.as_ptr() as *const std::os::raw::c_char)
-                .to_string_lossy()
-                .to_string()
-        }
-    }));
-
-    match res {
-        Ok(v) => v,
-        Err(_) => "8.0.0 (High-Precision Thermodynamic Engine)".to_string(),
-    }
+    get_engine()
+        .get_version()
+        .unwrap_or_else(|e| format!("No disponible ({})", e))
 }
 
 pub fn get_last_error() -> String {
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let err_name = CString::new("errstring").unwrap();
-        let mut err_buf = [0u8; 2048];
-        unsafe {
-            cp.get_global_param_string(
-                err_name.as_ptr(),
-                err_buf.as_mut_ptr() as *mut std::os::raw::c_char,
-                2048,
-            );
-            CStr::from_ptr(err_buf.as_ptr() as *const std::os::raw::c_char)
-                .to_string_lossy()
-                .to_string()
-        }
-    }));
-
-    res.unwrap_or_default()
+    get_engine()
+        .get_global_param_string("errstring")
+        .unwrap_or_default()
 }
 
-/// Helper to call Props1SI with error recovery (thread-safe via exclusive access)
+/// Helper to call Props1SI with thread-safe synchronized access
 pub fn props1_si(fluid: &str, prop: &str) -> Result<f64, String> {
-    let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
-    let prop_c = CString::new(prop).map_err(|e| e.to_string())?;
-
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let val = unsafe { cp.Props1SI(fluid_c.as_ptr(), prop_c.as_ptr()) };
-        drop(cp);
-        val
-    }));
-
-    match res {
-        Ok(val) => {
-            if val.is_finite() && val > -1e30 {
-                Ok(val)
-            } else {
-                let err = get_last_error();
-                if err.is_empty() {
-                    Err(format!("Error evaluando {} para {}", prop, fluid))
-                } else {
-                    Err(err)
-                }
-            }
-        }
-        Err(_) => Err(format!(
-            "CoolProp C++ DLL no disponible para evaluar {} en {}",
-            prop, fluid
-        )),
-    }
+    get_engine().props1_si(fluid, prop)
 }
 
-/// Helper to call PropsSI with error recovery (thread-safe via exclusive access)
+/// Helper to call PropsSI with thread-safe synchronized access
 pub fn props_si(
     out_prop: &str,
     in1_name: &str,
@@ -181,48 +82,7 @@ pub fn props_si(
     in2_val: f64,
     fluid: &str,
 ) -> Result<f64, String> {
-    let out_c = CString::new(out_prop).map_err(|e| e.to_string())?;
-    let in1_c = CString::new(in1_name).map_err(|e| e.to_string())?;
-    let in2_c = CString::new(in2_name).map_err(|e| e.to_string())?;
-    let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
-
-    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let cp = COOLPROP.exclusive_access();
-        let val = unsafe {
-            cp.PropsSI(
-                out_c.as_ptr(),
-                in1_c.as_ptr(),
-                in1_val,
-                in2_c.as_ptr(),
-                in2_val,
-                fluid_c.as_ptr(),
-            )
-        };
-        drop(cp);
-        val
-    }));
-
-    match res {
-        Ok(val) => {
-            if val.is_finite() && val > -1e30 {
-                Ok(val)
-            } else {
-                let err = get_last_error();
-                if err.is_empty() {
-                    Err(format!(
-                        "Error termodinámico evaluando {} con {}={}, {}={} para {}",
-                        out_prop, in1_name, in1_val, in2_name, in2_val, fluid
-                    ))
-                } else {
-                    Err(err)
-                }
-            }
-        }
-        Err(_) => Err(format!(
-            "CoolProp C++ DLL no disponible para evaluar {} en {}",
-            out_prop, fluid
-        )),
-    }
+    get_engine().props_si(out_prop, in1_name, in1_val, in2_name, in2_val, fluid)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -609,6 +469,24 @@ mod tests {
         let v = get_coolprop_version();
         assert!(!v.is_empty(), "CoolProp version should be non-empty");
         println!("CoolProp version: {}", v);
+    }
+
+    #[test]
+    fn test_coolprop_engine_info() {
+        let info = engine::get_engine().get_engine_info();
+        assert!(info.is_ready, "Engine should be ready in test environment");
+        assert!(info.loaded_path.is_some(), "Loaded path should be tracked");
+        println!("Engine loaded path: {:?}", info.loaded_path);
+        println!("Engine version: {}", info.version);
+    }
+
+    #[test]
+    fn test_coolprop_invalid_path_fails_gracefully() {
+        use engine::CoolPropEngine;
+        use std::path::PathBuf;
+        // Create an isolated engine instance with an invalid path hint
+        let dummy_engine = CoolPropEngine::discover_library_candidates(Some(&PathBuf::from("/nonexistent/path/CoolProp.dll")));
+        assert!(dummy_engine.iter().any(|p| p.to_string_lossy().contains("CoolProp")));
     }
 
     #[test]

@@ -7,7 +7,7 @@ import {
   ThermoPoint,
   Units,
 } from '../types/thermoContract';
-import { FluidInfo, ThermodynamicState } from '../../types/thermo';
+import { FluidInfo, ThermodynamicState, DiagramCurvesResponse } from '../../types/thermo';
 import * as thermoService from '../../services/tauriThermoService';
 
 export interface StructuredThermoError {
@@ -15,6 +15,13 @@ export interface StructuredThermoError {
   operation: string;
   message: string;
   details?: unknown;
+}
+
+export interface CompleteFluidData {
+  dataset: FullDiagramDataset;
+  rawCurves: DiagramCurvesResponse;
+  fluidInfo: FluidInfo | null;
+  revision: number;
 }
 
 export class ThermoProvider {
@@ -37,14 +44,13 @@ export class ThermoProvider {
   }
 
   /**
-   * Fetches full diagram dataset (curves, domain, capabilities) for the given refrigerant.
-   * Uses native CoolProp 8.0 through Tauri when in desktop app, or high-accuracy
-   * multi-fluid thermodynamic EOS models when in web environment.
+   * Fetches raw diagram curves and fluid details in a single query pass,
+   * returning both the normalized FullDiagramDataset and raw curves for UI.
    */
-  static async fetchDiagramDataset(
+  static async fetchCompleteFluidData(
     fluidId: string,
     revision?: number
-  ): Promise<FullDiagramDataset> {
+  ): Promise<CompleteFluidData> {
     const rev = revision ?? this.nextRevision();
     try {
       const [rawCurves, fluidInfo] = await Promise.all([
@@ -56,7 +62,13 @@ export class ThermoProvider {
         throw new Error(`Revision obsoleta (${revision} !== ${this.currentRevision})`);
       }
 
-      return this.normalizeCurvesResponse(fluidId, rev, rawCurves, fluidInfo);
+      const dataset = this.normalizeCurvesResponse(fluidId, rev, rawCurves, fluidInfo);
+      return {
+        dataset,
+        rawCurves,
+        fluidInfo,
+        revision: rev,
+      };
     } catch (err) {
       if (String(err).includes('Revision obsoleta')) {
         throw err;
@@ -64,6 +76,19 @@ export class ThermoProvider {
       console.error(`ThermoProvider: Error fetching curves for ${fluidId}:`, err);
       throw err;
     }
+  }
+
+  /**
+   * Fetches full diagram dataset (curves, domain, capabilities) for the given refrigerant.
+   * Uses native CoolProp 8.0 through Tauri when in desktop app, or high-accuracy
+   * multi-fluid thermodynamic EOS models when in web environment.
+   */
+  static async fetchDiagramDataset(
+    fluidId: string,
+    revision?: number
+  ): Promise<FullDiagramDataset> {
+    const res = await this.fetchCompleteFluidData(fluidId, revision);
+    return res.dataset;
   }
 
   /**
