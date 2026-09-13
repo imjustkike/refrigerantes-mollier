@@ -33,6 +33,7 @@ export interface ComponentPaletteProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddComponent?: (componentType: SchematicComponentType) => void;
+  onStartPointerDrag?: (e: React.PointerEvent, componentType: SchematicComponentType) => void;
 
   // Dynamic Physical Simulation Props
   simState?: SimulationStateResponse | null;
@@ -134,6 +135,7 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   isOpen,
   onToggle,
   onAddComponent,
+  onStartPointerDrag,
   simState = null,
   validationReport = null,
   simSpeed = 1.0,
@@ -167,6 +169,7 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     try {
       event.dataTransfer.setData('application/reactflow-component-type', componentType);
       event.dataTransfer.setData('text/plain', componentType);
+      event.dataTransfer.setData('text', componentType);
       event.dataTransfer.effectAllowed = 'copy';
     } catch (e) {}
     // Global ref fallback for Tauri / WebKit environments
@@ -174,7 +177,10 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   };
 
   const handleDragEnd = () => {
-    (window as any).__draggedSchematicComponent = null;
+    // Keep reference briefly so onDrop has time to process in WebKit / Tauri
+    setTimeout(() => {
+      (window as any).__draggedSchematicComponent = null;
+    }, 1000);
   };
 
   const allDefinitions = Object.values(COMPONENT_DEFINITIONS);
@@ -337,8 +343,9 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                     draggable
                     onDragStart={(e) => handleDragStart(e, def.type)}
                     onDragEnd={handleDragEnd}
+                    onPointerDown={(e) => onStartPointerDrag?.(e, def.type)}
                     onClick={() => onAddComponent?.(def.type)}
-                    className="p-2 rounded-lg bg-slate-50 dark:bg-[#1a1d24] hover:bg-slate-100 dark:hover:bg-[#222630] border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 cursor-grab active:cursor-grabbing transition-all flex items-center gap-3 group shadow-2xs"
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-[#1a1d24] hover:bg-slate-100 dark:hover:bg-[#222630] border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 cursor-grab active:cursor-grabbing transition-all flex items-center gap-3 group shadow-2xs touch-none"
                     title="Arrastre al lienzo o haga clic para agregar"
                   >
                     <GripVertical size={13} className="text-slate-400 group-hover:text-sky-400 shrink-0" />
@@ -402,8 +409,9 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                             draggable
                             onDragStart={(e) => handleDragStart(e, def.type)}
                             onDragEnd={handleDragEnd}
+                            onPointerDown={(e) => onStartPointerDrag?.(e, def.type)}
                             onClick={() => onAddComponent?.(def.type)}
-                            className="p-2 rounded-lg bg-slate-50/70 dark:bg-[#181b22] hover:bg-slate-100 dark:hover:bg-[#20242e] border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 cursor-grab active:cursor-grabbing transition-all flex items-center gap-2.5 group shadow-2xs"
+                            className="p-2 rounded-lg bg-slate-50/70 dark:bg-[#181b22] hover:bg-slate-100 dark:hover:bg-[#20242e] border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 cursor-grab active:cursor-grabbing transition-all flex items-center gap-2.5 group shadow-2xs touch-none"
                             title="Arrastre al lienzo o haga clic para agregar"
                           >
                             <GripVertical size={13} className="text-slate-400 group-hover:text-sky-400 shrink-0" />

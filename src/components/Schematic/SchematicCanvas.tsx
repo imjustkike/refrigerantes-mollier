@@ -22,6 +22,7 @@ import { toPng, toSvg } from 'html-to-image';
 
 import { SchematicEdgeData, SchematicNodeData, SchematicComponentType, PipeStateCategory } from '../../types/schematic';
 import { COMPONENT_DEFINITIONS } from './symbols/componentDefinitions';
+import { SvgSymbol } from './symbols/SvgSymbols';
 import { SchematicGenericNode } from './nodes/SchematicGenericNode';
 import { RefrigerantPipeEdge } from './edges/RefrigerantPipeEdge';
 import { ElectricWireEdge } from './edges/ElectricWireEdge';
@@ -318,25 +319,132 @@ const SchematicCanvasContent: React.FC = () => {
     [nodes]
   );
 
-  // Drag & Drop component from palette into canvas
+  // Universal Pointer & HTML5 Drag & Drop State
+  const [pointerDragState, setPointerDragState] = useState<{
+    componentType: SchematicComponentType;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    isDragging: boolean;
+  } | null>(null);
+
+  const handleStartPointerDrag = useCallback(
+    (e: React.PointerEvent, componentType: SchematicComponentType) => {
+      // Only handle primary mouse / pointer button
+      if (e.button !== 0) return;
+      setPointerDragState({
+        componentType,
+        startX: e.clientX,
+        startY: e.clientY,
+        currentX: e.clientX,
+        currentY: e.clientY,
+        isDragging: false,
+      });
+    },
+    []
+  );
+
+  // Global Pointer Event Listeners for smooth Drag & Drop anywhere in window
+  useEffect(() => {
+    if (!pointerDragState) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      setPointerDragState((prev) => {
+        if (!prev) return null;
+        const dx = e.clientX - prev.startX;
+        const dy = e.clientY - prev.startY;
+        const dist = Math.hypot(dx, dy);
+        const isDragging = prev.isDragging || dist > 6;
+        return {
+          ...prev,
+          currentX: e.clientX,
+          currentY: e.clientY,
+          isDragging,
+        };
+      });
+    };
+
+    const handleWindowPointerUp = (e: PointerEvent) => {
+      if (pointerDragState.isDragging) {
+        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (
+          bounds &&
+          e.clientX >= bounds.left &&
+          e.clientX <= bounds.right &&
+          e.clientY >= bounds.top &&
+          e.clientY <= bounds.bottom
+        ) {
+          const componentType = pointerDragState.componentType;
+          const def = COMPONENT_DEFINITIONS[componentType];
+          if (def) {
+            const flowPos = screenToFlowPosition({
+              x: e.clientX,
+              y: e.clientY,
+            });
+
+            // Center node on drop location and snap to 15px grid
+            const position = {
+              x: Math.round((flowPos.x - def.dimensions.width / 2) / 15) * 15,
+              y: Math.round((flowPos.y - def.dimensions.height / 2) / 15) * 15,
+            };
+
+            const newNodeId = `node_${Date.now()}`;
+            const newNode: SchematicNode = {
+              id: newNodeId,
+              type: 'schematicNode',
+              position,
+              data: {
+                componentType,
+                label: def.defaultLabel,
+                tag: `${def.defaultTagPrefix}-${nodes.length + 1}`,
+                modelNumber: def.defaultModel,
+                isEnergized: isAnimationRunning,
+                ...(def.defaultSpecs || {}),
+              },
+            };
+
+            setNodes((nds) => [...nds, newNode]);
+            setSelectedNodeId(newNodeId);
+            setSelectedEdgeId(null);
+            showToast(`Añadido al circuito: ${def.name}`);
+          }
+        }
+      }
+      setPointerDragState(null);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+    };
+  }, [pointerDragState, screenToFlowPosition, nodes.length, isAnimationRunning, setNodes, showToast]);
+
+  // Drag & Drop component from palette into canvas (Native HTML5 fallback)
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const onDragEnter = useCallback((event: React.DragEvent) => {
     event.preventDefault();
+    event.stopPropagation();
   }, []);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      event.stopPropagation();
 
       let componentType: SchematicComponentType | null = null;
       try {
         const dtType =
           event.dataTransfer.getData('application/reactflow-component-type') ||
-          event.dataTransfer.getData('text/plain');
+          event.dataTransfer.getData('text/plain') ||
+          event.dataTransfer.getData('text');
         if (dtType && COMPONENT_DEFINITIONS[dtType as SchematicComponentType]) {
           componentType = dtType as SchematicComponentType;
         }
@@ -349,14 +457,19 @@ const SchematicCanvasContent: React.FC = () => {
 
       if (!componentType || !COMPONENT_DEFINITIONS[componentType]) return;
 
-      const position = screenToFlowPosition({
+      const def = COMPONENT_DEFINITIONS[componentType];
+      const flowPos = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
 
-      const def = COMPONENT_DEFINITIONS[componentType];
-      const newNodeId = `node_${Date.now()}`;
+      // Center node on drop location and snap to 15px grid
+      const position = {
+        x: Math.round((flowPos.x - def.dimensions.width / 2) / 15) * 15,
+        y: Math.round((flowPos.y - def.dimensions.height / 2) / 15) * 15,
+      };
 
+      const newNodeId = `node_${Date.now()}`;
       const newNode: SchematicNode = {
         id: newNodeId,
         type: 'schematicNode',
@@ -1179,7 +1292,7 @@ const SchematicCanvasContent: React.FC = () => {
     }
   }, [getExportElement, selectedFluidId, showToast]);
 
-  // Keyboard Shortcuts (Delete, Backspace, Ctrl+D)
+  // Keyboard Shortcuts (Delete, Backspace, Ctrl+D, R, H, V)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
@@ -1190,12 +1303,44 @@ const SchematicCanvasContent: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
         handleDuplicateSelected();
+      } else if (selectedNodeId && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === selectedNodeId) {
+              const cur = n.data.rotation || 0;
+              const next = ((cur + 90) % 360) as 0 | 90 | 180 | 270;
+              return { ...n, data: { ...n.data, rotation: next } };
+            }
+            return n;
+          })
+        );
+      } else if (selectedNodeId && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === selectedNodeId) {
+              return { ...n, data: { ...n.data, flippedHorizontal: !n.data.flippedHorizontal } };
+            }
+            return n;
+          })
+        );
+      } else if (selectedNodeId && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === selectedNodeId) {
+              return { ...n, data: { ...n.data, flippedVertical: !n.data.flippedVertical } };
+            }
+            return n;
+          })
+        );
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDeleteSelected, handleDuplicateSelected]);
+  }, [handleDeleteSelected, handleDuplicateSelected, selectedNodeId, setNodes]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) || null;
@@ -1218,6 +1363,7 @@ const SchematicCanvasContent: React.FC = () => {
           isOpen={isPaletteOpen}
           onToggle={() => setIsPaletteOpen(!isPaletteOpen)}
           onAddComponent={handleAddComponent}
+          onStartPointerDrag={handleStartPointerDrag}
           simState={simState}
           validationReport={validationReport}
           simSpeed={simSpeed}
@@ -1357,6 +1503,36 @@ const SchematicCanvasContent: React.FC = () => {
           onSelectPreset={handleLoadPreset}
           onSelectBlank={handleSelectBlank}
         />
+
+        {/* Floating Live Drag Overlay while dragging component from Palette to Canvas */}
+        {pointerDragState?.isDragging && (
+          <div
+            className="fixed pointer-events-none z-9999 -translate-x-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-white/95 dark:bg-[#141720]/95 border-2 border-sky-400 shadow-2xl shadow-sky-500/30 flex flex-col items-center gap-1.5 opacity-90 scale-105"
+            style={{
+              left: `${pointerDragState.currentX}px`,
+              top: `${pointerDragState.currentY}px`,
+              width: `${(COMPONENT_DEFINITIONS[pointerDragState.componentType]?.dimensions.width || 100) + 10}px`,
+            }}
+          >
+            <div className="w-full flex items-center justify-between gap-1 pb-1 border-b border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-mono font-bold text-sky-500 truncate">
+                {COMPONENT_DEFINITIONS[pointerDragState.componentType]?.defaultTagPrefix}
+              </span>
+              <span className="text-[8px] font-mono text-slate-400 shrink-0">Soltar en lienzo</span>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center p-1 my-1">
+              <SvgSymbol
+                type={pointerDragState.componentType}
+                width={Math.max(20, (COMPONENT_DEFINITIONS[pointerDragState.componentType]?.dimensions.width || 100) - 24)}
+                height={Math.max(20, (COMPONENT_DEFINITIONS[pointerDragState.componentType]?.dimensions.height || 80) - 42)}
+                themeMode={themeMode}
+              />
+            </div>
+            <span className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 truncate max-w-full text-center">
+              {COMPONENT_DEFINITIONS[pointerDragState.componentType]?.name}
+            </span>
+          </div>
+        )}
       </div>
     </SchematicActionsContext.Provider>
   );

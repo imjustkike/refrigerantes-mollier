@@ -165,7 +165,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
             <button
               onClick={rotateClockwise}
               className="flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-[#121418] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-              title="Rotar 90° en sentido horario"
+              title="Rotar 90° en sentido horario (Tecla R)"
             >
               <RotateCw size={13} />
               <span className="font-mono text-[10px]">{nodeData.rotation || 0}°</span>
@@ -178,7 +178,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
                   ? 'bg-sky-600 text-white'
                   : 'bg-white dark:bg-[#121418] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
               }`}
-              title="Volteo Horizontal"
+              title="Volteo Horizontal (Tecla H)"
             >
               <FlipHorizontal size={13} />
             </button>
@@ -190,7 +190,7 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
                   ? 'bg-sky-600 text-white'
                   : 'bg-white dark:bg-[#121418] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
               }`}
-              title="Volteo Vertical"
+              title="Volteo Vertical (Tecla V)"
             >
               <FlipVertical size={13} />
             </button>

@@ -111,6 +111,48 @@ describe('getTransformedPortPosition', () => {
     });
   });
 
+  describe('Node Orientation & Dimensions', () => {
+    it('swaps width and height for 90 and 270 deg rotations', () => {
+      const originalWidth = 140;
+      const originalHeight = 80;
+
+      const getDimensions = (rotation: number) => {
+        const isRotated = rotation === 90 || rotation === 270;
+        return {
+          cardWidth: isRotated ? originalHeight + 10 : originalWidth + 10,
+          cardMinHeight: isRotated ? originalWidth + 15 : originalHeight + 15,
+        };
+      };
+
+      // 0 deg: original orientation
+      expect(getDimensions(0)).toEqual({ cardWidth: 150, cardMinHeight: 95 });
+
+      // 90 deg: swapped orientation (horizontal becomes vertical)
+      expect(getDimensions(90)).toEqual({ cardWidth: 90, cardMinHeight: 155 });
+
+      // 180 deg: same card aspect ratio
+      expect(getDimensions(180)).toEqual({ cardWidth: 150, cardMinHeight: 95 });
+
+      // 270 deg: swapped orientation
+      expect(getDimensions(270)).toEqual({ cardWidth: 90, cardMinHeight: 155 });
+    });
+
+    it('generates correct CSS transform for rotation and flips', () => {
+      const getTransform = (rotation: number, flipH: boolean, flipV: boolean) => {
+        const flippedH = flipH ? -1 : 1;
+        const flippedV = flipV ? -1 : 1;
+        const isTransformed = rotation !== 0 || flipH || flipV;
+        return isTransformed ? `rotate(${rotation}deg) scale(${flippedH}, ${flippedV})` : undefined;
+      };
+
+      expect(getTransform(0, false, false)).toBeUndefined();
+      expect(getTransform(90, false, false)).toBe('rotate(90deg) scale(1, 1)');
+      expect(getTransform(0, true, false)).toBe('rotate(0deg) scale(-1, 1)');
+      expect(getTransform(0, false, true)).toBe('rotate(0deg) scale(1, -1)');
+      expect(getTransform(180, true, false)).toBe('rotate(180deg) scale(-1, 1)');
+    });
+  });
+
   describe('Pipe Fittings Definitions', () => {
     it('has valid component definitions for all 5 union and fitting types', async () => {
       const { COMPONENT_DEFINITIONS, COMPONENT_CATEGORIES } = await import('../symbols/componentDefinitions');

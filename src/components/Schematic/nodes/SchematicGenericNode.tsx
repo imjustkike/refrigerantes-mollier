@@ -1,5 +1,6 @@
 import React, { memo, useEffect, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from '@xyflow/react';
+import { RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react';
 import { SchematicNodeData, PortDirection } from '../../../types/schematic';
 import { COMPONENT_DEFINITIONS } from '../symbols/componentDefinitions';
 import { SvgSymbol } from '../symbols/SvgSymbols';
@@ -181,6 +182,13 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
     );
   }
 
+  const isRotated90or270 = rotation === 90 || rotation === 270;
+  const cardWidth = isRotated90or270 ? def.dimensions.height + 10 : def.dimensions.width + 10;
+  const cardMinHeight = isRotated90or270 ? def.dimensions.width + 15 : def.dimensions.height + 15;
+
+  const innerWidth = Math.max(20, def.dimensions.width - 24);
+  const innerHeight = Math.max(20, def.dimensions.height - 42);
+
   const flippedH = flippedHorizontal ? -1 : 1;
   const flippedV = flippedVertical ? -1 : 1;
   const isTransformed = rotation !== 0 || flippedHorizontal || flippedVertical;
@@ -313,16 +321,76 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
   return (
     <div
-      className={`group relative flex flex-col items-center justify-start p-2 rounded-xl transition-[border-color,box-shadow] duration-150 select-none bg-white dark:bg-[#141720] border shadow-md ${
+      className={`group relative flex flex-col items-center justify-start p-2 rounded-xl transition-[border-color,box-shadow,width,min-height] duration-150 select-none bg-white dark:bg-[#141720] border shadow-md ${
         selected
           ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-900 border-sky-400 shadow-sky-500/20'
           : 'border-slate-300 dark:border-slate-700 hover:border-sky-400/70 hover:shadow-lg'
       }`}
       style={{
-        width: `${def.dimensions.width + 10}px`,
-        minHeight: `${def.dimensions.height + 15}px`,
+        width: `${cardWidth}px`,
+        minHeight: `${cardMinHeight}px`,
       }}
     >
+      {/* Floating Quick Action Toolbar on Selected Node */}
+      {selected && (
+        <div className="nodrag nopan absolute -top-9 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-1.5 py-1 rounded-lg bg-slate-900/95 text-white border border-slate-700/80 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const nextRot = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
+              setNodes((nds) =>
+                nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, rotation: nextRot } } : n))
+              );
+            }}
+            className="p-1 rounded hover:bg-slate-800 text-slate-200 hover:text-white transition cursor-pointer flex items-center gap-0.5 text-[9px]"
+            title="Rotar 90° en sentido horario (Tecla R)"
+          >
+            <RotateCw size={12} className="text-sky-400" />
+            <span className="font-mono text-[8.5px] font-bold">{rotation}°</span>
+          </button>
+          <div className="w-[1px] h-3 bg-slate-700" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === id ? { ...n, data: { ...n.data, flippedHorizontal: !flippedHorizontal } } : n
+                )
+              );
+            }}
+            className={`p-1 rounded transition cursor-pointer ${
+              flippedHorizontal
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'hover:bg-slate-800 text-slate-300 hover:text-white'
+            }`}
+            title="Volteo Horizontal (Tecla H)"
+          >
+            <FlipHorizontal size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === id ? { ...n, data: { ...n.data, flippedVertical: !flippedVertical } } : n
+                )
+              );
+            }}
+            className={`p-1 rounded transition cursor-pointer ${
+              flippedVertical
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'hover:bg-slate-800 text-slate-300 hover:text-white'
+            }`}
+            title="Volteo Vertical (Tecla V)"
+          >
+            <FlipVertical size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Top Header: Tag & Model */}
       <div className="w-full flex items-center justify-between gap-1 pb-1 mb-1 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -350,27 +418,41 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
       {/* Main SVG Symbol Body */}
       <div
-        className={`relative flex items-center justify-center p-1 rounded-lg my-auto ${
-          isInteractiveSwitch ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
-        }`}
-        style={isTransformed ? { transform, transformOrigin: 'center center' } : undefined}
-        onClick={isInteractiveSwitch ? handleToggleState : undefined}
-        title={isInteractiveSwitch ? 'Haz clic para alternar estado' : undefined}
+        className="relative flex items-center justify-center p-1 rounded-lg my-auto shrink-0 overflow-visible"
+        style={{
+          width: isRotated90or270 ? `${innerHeight}px` : `${innerWidth}px`,
+          height: isRotated90or270 ? `${innerWidth}px` : `${innerHeight}px`,
+        }}
       >
-        <SvgSymbol
-          type={nodeData.componentType}
-          width={def.dimensions.width - 24}
-          height={def.dimensions.height - 42}
-          isSelected={selected}
-          isEnergized={nodeData.isEnergized}
-          isSwitchClosed={nodeData.isSwitchClosed}
-          measuredValue={nodeData.measuredValue}
-          measuredUnit={nodeData.measuredUnit}
-          resistanceOhm={nodeData.resistanceOhm}
-          isSeriesWarning={nodeData.isSeriesWarning}
-          isSeriesPassThrough={nodeData.isSeriesPassThrough}
-          themeMode={themeMode}
-        />
+        <div
+          className={`flex items-center justify-center ${
+            isInteractiveSwitch ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
+          }`}
+          style={{
+            width: `${innerWidth}px`,
+            height: `${innerHeight}px`,
+            transform: transform || undefined,
+            transformOrigin: 'center center',
+            transition: 'transform 0.15s ease-out',
+          }}
+          onClick={isInteractiveSwitch ? handleToggleState : undefined}
+          title={isInteractiveSwitch ? 'Haz clic para alternar estado' : undefined}
+        >
+          <SvgSymbol
+            type={nodeData.componentType}
+            width={innerWidth}
+            height={innerHeight}
+            isSelected={selected}
+            isEnergized={nodeData.isEnergized}
+            isSwitchClosed={nodeData.isSwitchClosed}
+            measuredValue={nodeData.measuredValue}
+            measuredUnit={nodeData.measuredUnit}
+            resistanceOhm={nodeData.resistanceOhm}
+            isSeriesWarning={nodeData.isSeriesWarning}
+            isSeriesPassThrough={nodeData.isSeriesPassThrough}
+            themeMode={themeMode}
+          />
+        </div>
       </div>
 
       {/* Voltmeter Series Warning & Didactic Bypass Toggle */}
