@@ -382,7 +382,7 @@ export const ExportDiagramModal: React.FC = () => {
               <div className="flex items-center gap-2">
                 <TableProperties size={14} className="text-sky-500" />
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  Incluir tabla de estados termodinámicos en el PDF
+                  Incluir fichas individuales de puntos (página adicional)
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                   {points.length} {points.length === 1 ? 'punto' : 'puntos'}

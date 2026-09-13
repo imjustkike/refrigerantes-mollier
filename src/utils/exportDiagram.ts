@@ -294,6 +294,30 @@ export function renderMollierToCanvas(params: RenderDiagramCanvasParams): HTMLCa
   return canvas;
 }
 
+function parseColorToRgb(color?: string): [number, number, number] {
+  if (!color) return [2, 132, 199];
+  if (color.startsWith('#')) {
+    const clean = color.replace('#', '');
+    if (clean.length === 3) {
+      return [
+        parseInt(clean[0] + clean[0], 16),
+        parseInt(clean[1] + clean[1], 16),
+        parseInt(clean[2] + clean[2], 16),
+      ];
+    }
+    if (clean.length === 6) {
+      const num = parseInt(clean, 16);
+      return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+    }
+  } else if (color.startsWith('rgb')) {
+    const match = color.match(/\d+/g);
+    if (match && match.length >= 3) {
+      return [parseInt(match[0], 10), parseInt(match[1], 10), parseInt(match[2], 10)];
+    }
+  }
+  return [2, 132, 199];
+}
+
 /**
  * Generates a complete PDF document containing the diagram and a technical table of states.
  */
@@ -315,7 +339,14 @@ export function generateMollierPdf(
   const pageHeight = 210;
   const margin = 14;
 
-  // 1. Header Banner
+  const dateStr = new Date().toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // 1. PAGE 1: FULL DIAGRAM
+  // Header Banner
   doc.setFillColor(15, 23, 42); // slate-900
   doc.rect(margin, margin, pageWidth - margin * 2, 14, 'F');
 
@@ -327,103 +358,203 @@ export function generateMollierPdf(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(148, 163, 184); // slate-400
-  const dateStr = new Date().toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
   doc.text(`Refrigerante: ${fluidName}  |  Fecha: ${dateStr}`, pageWidth - margin - 5, margin + 9, {
     align: 'right',
   });
 
-  // 2. Diagram Image
+  // Diagram Image - Full available height so it never gets shrunk
   const imgData = canvas.toDataURL('image/png', 1.0);
   const diagramX = margin;
   const diagramY = margin + 16;
   const diagramW = pageWidth - margin * 2;
-  const diagramH = includeTable && points.length > 0 ? 112 : pageHeight - diagramY - margin - 8;
+  const diagramH = pageHeight - diagramY - margin - 8;
 
   doc.addImage(imgData, 'PNG', diagramX, diagramY, diagramW, diagramH);
 
-  // 3. Technical Points Table (if selected and points exist)
+  // 2. PAGE 2+: INDIVIDUAL POINT INFORMATION CARDS
   if (includeTable && points.length > 0) {
-    const tableY = diagramY + diagramH + 4;
-    const tableW = pageWidth - margin * 2;
+    const cardsPerPage = 6; // 3 rows x 2 columns
+    const cardW = 130;
+    const cardH = 46;
+    const gapX = 9;
+    const gapY = 7;
+    const startY = 34;
 
-    // Table Header
-    doc.setFillColor(241, 245, 249); // slate-100
-    doc.rect(margin, tableY, tableW, 6, 'F');
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.2);
-    doc.rect(margin, tableY, tableW, 6, 'S');
+    const renderPointsHeader = () => {
+      doc.setFillColor(15, 23, 42); // slate-900
+      doc.rect(margin, margin, pageWidth - margin * 2, 14, 'F');
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(15, 23, 42);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(
+        `CoolMollier • ${projectName.toUpperCase()} — PUNTOS TERMODINÁMICOS`,
+        margin + 5,
+        margin + 9
+      );
 
-    const cols = [
-      { label: 'PUNTO', x: margin + 3 },
-      { label: 'PRESIÓN [bar]', x: margin + 35 },
-      { label: 'TEMP. [°C]', x: margin + 70 },
-      { label: 'ENTALPÍA [kJ/kg]', x: margin + 105 },
-      { label: 'ENTROPÍA [kJ/(kg·K)]', x: margin + 145 },
-      { label: 'VOL. ESP. [m³/kg]', x: margin + 190 },
-      { label: 'TÍTULO (x)', x: margin + 230 },
-      { label: 'ESTADO / FASE', x: margin + 255 },
-    ];
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        `Refrigerante: ${fluidName}  |  Total: ${points.length} ${points.length === 1 ? 'punto' : 'puntos'}`,
+        pageWidth - margin - 5,
+        margin + 9,
+        { align: 'right' }
+      );
+    };
 
-    cols.forEach((col) => {
-      doc.text(col.label, col.x, tableY + 4.2);
-    });
+    points.forEach((pt, index) => {
+      const indexOnPage = index % cardsPerPage;
 
-    // Table Rows
-    let currentY = tableY + 6;
-    const rowHeight = 4.8;
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(7.5);
-
-    points.slice(0, 8).forEach((pt, index) => {
-      const isAlt = index % 2 === 1;
-      if (isAlt) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin, currentY, tableW, rowHeight, 'F');
+      if (indexOnPage === 0) {
+        doc.addPage('a4', 'landscape');
+        renderPointsHeader();
       }
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(margin, currentY, tableW, rowHeight, 'S');
 
+      const col = indexOnPage % 2;
+      const row = Math.floor(indexOnPage / 2);
+
+      const cardX = margin + col * (cardW + gapX);
+      const cardY = startY + row * (cardH + gapY);
+
+      // Card container
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setLineWidth(0.3);
+      doc.roundedRect(cardX, cardY, cardW, cardH, 2.5, 2.5, 'FD');
+
+      // Header Band
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.roundedRect(cardX, cardY, cardW, 9.5, 2.5, 2.5, 'F');
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.line(cardX, cardY + 9.5, cardX + cardW, cardY + 9.5);
+
+      // Point Color Dot
+      const [r, g, b] = parseColorToRgb(pt.color);
+      doc.setFillColor(r, g, b);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      doc.circle(cardX + 5, cardY + 4.8, 2.2, 'FD');
+
+      // Point Name
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text(pt.name, margin + 3, currentY + 3.4);
+      doc.setFontSize(9);
+      const ptName = pt.name || `Punto ${index + 1}`;
+      doc.text(ptName, cardX + 9.5, cardY + 6.2);
 
-      doc.setFont('courier', 'normal');
-      doc.text(pt.state.pressure_bar.toFixed(3), margin + 35, currentY + 3.4);
-      doc.text(pt.state.temperature_c.toFixed(2), margin + 70, currentY + 3.4);
-      doc.text(pt.state.enthalpy_kj_kg.toFixed(2), margin + 105, currentY + 3.4);
-      doc.text(pt.state.entropy_kj_kg_k.toFixed(4), margin + 145, currentY + 3.4);
-      doc.text(pt.state.specific_volume_m3_kg.toFixed(5), margin + 190, currentY + 3.4);
-      doc.text(
-        pt.state.vapor_quality !== undefined && pt.state.vapor_quality >= 0
-          ? pt.state.vapor_quality.toFixed(3)
-          : '—',
-        margin + 230,
-        currentY + 3.4
-      );
-      doc.text(pt.state.phase || 'Subenfriado', margin + 255, currentY + 3.4);
+      // Phase Badge
+      const phaseText =
+        pt.state?.phase ||
+        (typeof pt.state?.vapor_quality === 'number' && pt.state.vapor_quality >= 0
+          ? 'Bifásico'
+          : 'Monofásico');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      const badgeW = Math.min(doc.getTextWidth(phaseText) + 5, 48);
+      const badgeX = cardX + cardW - badgeW - 3;
+      doc.setFillColor(224, 242, 254); // sky-100
+      doc.setDrawColor(186, 230, 253); // sky-200
+      doc.setLineWidth(0.2);
+      doc.roundedRect(badgeX, cardY + 2.2, badgeW, 5.2, 1.5, 1.5, 'FD');
+      doc.setTextColor(3, 105, 161); // sky-700
+      doc.text(phaseText, badgeX + 2.5, cardY + 5.8);
 
-      currentY += rowHeight;
+      // Properties Grid
+      const col1LabelX = cardX + 4;
+      const col1ValX = cardX + 28;
+      const col2LabelX = cardX + 68;
+      const col2ValX = cardX + 93;
+
+      const pBar =
+        typeof pt.state?.pressure_bar === 'number'
+          ? `${pt.state.pressure_bar.toFixed(3)} bar(a)`
+          : '—';
+      const tC =
+        typeof pt.state?.temperature_c === 'number'
+          ? `${pt.state.temperature_c.toFixed(2)} °C`
+          : '—';
+      const hKj =
+        typeof pt.state?.enthalpy_kj_kg === 'number'
+          ? `${pt.state.enthalpy_kj_kg.toFixed(2)} kJ/kg`
+          : '—';
+      const rho =
+        typeof pt.state?.density_kg_m3 === 'number'
+          ? `${pt.state.density_kg_m3.toFixed(2)} kg/m³`
+          : '—';
+
+      const sKj =
+        typeof pt.state?.entropy_kj_kg_k === 'number'
+          ? `${pt.state.entropy_kj_kg_k.toFixed(4)} kJ/(kg·K)`
+          : '—';
+      const vM3 =
+        typeof pt.state?.specific_volume_m3_kg === 'number'
+          ? `${pt.state.specific_volume_m3_kg.toFixed(5)} m³/kg`
+          : '—';
+      const xQ =
+        typeof pt.state?.vapor_quality === 'number' && pt.state.vapor_quality >= 0
+          ? `${pt.state.vapor_quality.toFixed(3)} (${(pt.state.vapor_quality * 100).toFixed(1)}%)`
+          : '— (Monofásico)';
+      const inputDef = pt.input1_type ? `${pt.input1_type} + ${pt.input2_type}` : 'Punto de ciclo';
+
+      const rows = [
+        { l1: 'Presión (P):', v1: pBar, l2: 'Entropía (s):', v2: sKj, y: cardY + 16 },
+        { l1: 'Temp. (T):', v1: tC, l2: 'Vol. Esp. (v):', v2: vM3, y: cardY + 24 },
+        { l1: 'Entalpía (h):', v1: hKj, l2: 'Título (x):', v2: xQ, y: cardY + 32 },
+        { l1: 'Densidad (ρ):', v1: rho, l2: 'Parámetros:', v2: inputDef, y: cardY + 40 },
+      ];
+
+      rows.forEach((rData) => {
+        // Divider line above row (except first)
+        if (rData.y > cardY + 16) {
+          doc.setDrawColor(241, 245, 249);
+          doc.setLineWidth(0.2);
+          doc.line(cardX + 3, rData.y - 4.5, cardX + cardW - 3, rData.y - 4.5);
+        }
+
+        // Col 1
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(rData.l1, col1LabelX, rData.y);
+
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(rData.v1, col1ValX, rData.y);
+
+        // Col 2
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(rData.l2, col2LabelX, rData.y);
+
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        const maxValW = cardX + cardW - col2ValX - 3;
+        const valText =
+          doc.getTextWidth(rData.v2) > maxValW ? `${rData.v2.slice(0, 16)}…` : rData.v2;
+        doc.text(valText, col2ValX, rData.y);
+      });
     });
   }
 
-  // 4. Footer
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(
-    'Generado automáticamente por CoolMollier • Motor de cálculo termodinámico CoolProp v8.0',
-    margin,
-    pageHeight - 6
-  );
-  doc.text('Página 1 de 1', pageWidth - margin, pageHeight - 6, { align: 'right' });
+  // 3. Footers for all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      'Generado automáticamente por CoolMollier • Motor de cálculo termodinámico CoolProp v8.0',
+      margin,
+      pageHeight - 6
+    );
+    doc.text(`Página ${p} de ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+  }
 
   return doc;
 }
