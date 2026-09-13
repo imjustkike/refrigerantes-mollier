@@ -151,21 +151,6 @@ const SchematicCanvasContent: React.FC = () => {
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active Connection Tool: Tubería Frigorífica vs Cable Eléctrico
-  const [activeConnectionType, setActiveConnectionType] = useState<'refrigerantPipe' | 'electricWire'>('refrigerantPipe');
-
-  // Separated Counts for Schematic Lines
-  const refrigerantPipeCount = useMemo(() => {
-    return edges.filter(
-      (e) => e.type === 'refrigerantPipe' || (e.type !== 'electricWire' && !e.data?.pipeState?.startsWith('electric_'))
-    ).length;
-  }, [edges]);
-
-  const electricWireCount = useMemo(() => {
-    return edges.filter(
-      (e) => e.type === 'electricWire' || e.data?.edgeType === 'electricWire' || Boolean(e.data?.pipeState?.startsWith('electric_'))
-    ).length;
-  }, [edges]);
 
   // Smart Port Connect handler
   const onConnect: OnConnect = useCallback(
@@ -210,8 +195,8 @@ const SchematicCanvasContent: React.FC = () => {
       } else if (isSourceStrictRefrigerant || isTargetStrictRefrigerant) {
         isElectric = false;
       } else {
-        // Generic/multi-purpose ports follow the active toolbar tool
-        isElectric = activeConnectionType === 'electricWire';
+        // Generic/multi-purpose ports default to refrigerant piping
+        isElectric = false;
       }
 
       if (isElectric) {
@@ -271,7 +256,7 @@ const SchematicCanvasContent: React.FC = () => {
         )
       );
     },
-    [nodes, isAnimationRunning, activeConnectionType, setEdges, showToast]
+    [nodes, isAnimationRunning, setEdges, showToast]
   );
 
   // Reconnect handler - allows dragging existing edge endpoints freely to other ports
@@ -1390,7 +1375,6 @@ const SchematicCanvasContent: React.FC = () => {
         >
           {/* Floating Top Toolbar */}
           <SchematicToolbar
-            onLoadPreset={handleLoadPreset}
             onClearCanvas={handleClearCanvas}
             onNewSchematic={handleNewSchematic}
             onFitView={() => fitView({ padding: 0.2, duration: 400 })}
@@ -1398,10 +1382,6 @@ const SchematicCanvasContent: React.FC = () => {
             onExportSvg={handleExportSvg}
             isAnimationRunning={isAnimationRunning}
             onToggleAnimation={handleToggleAnimation}
-            activeConnectionType={activeConnectionType}
-            onChangeActiveConnectionType={setActiveConnectionType}
-            refrigerantPipeCount={refrigerantPipeCount}
-            electricWireCount={electricWireCount}
           />
 
           {/* Hidden File Input for Loading .pid.json */}
