@@ -857,10 +857,10 @@ function getMockFluidInfo(fluidId: string): FluidInfo {
 function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
   const model = getFluidModel(fluidId);
 
-  const tMin = Math.max(model.t_triple_c + 2, -60);
+  const tMin = Math.max(model.t_triple_c + 1.5, -75);
   const tCrit = model.t_crit_c;
   const pCrit = model.p_crit_bar;
-  const pMin = Math.max(calculatePsat(model, tMin), 0.05);
+  const pMin = Math.max(calculatePsat(model, tMin), 0.02);
   const pMax = model.p_max_bar;
   const hCrit = model.h_crit_kj_kg;
 
@@ -877,13 +877,16 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     const { hL, hV, p } = calculateSatEnthalpies(model, t);
 
     if (p <= pCrit * 1.001) {
-      satLiq.push({ h_kj_kg: hL, p_bar: p, t_c: t, q: 0.0 });
-      satVap.push({ h_kj_kg: hV, p_bar: p, t_c: t, q: 1.0 });
+      const sL = 1.0 + 1.45 * Math.log((t + 273.15) / 273.15);
+      const sV = sL + (hV - hL) / (t + 273.15);
+      satLiq.push({ h_kj_kg: hL, p_bar: p, t_c: t, s_kj_kg_k: sL, q: 0.0 });
+      satVap.push({ h_kj_kg: hV, p_bar: p, t_c: t, s_kj_kg_k: sV, q: 1.0 });
     }
   }
 
   // Critical Point apex
-  const critPoint: CurvePoint = { h_kj_kg: hCrit, p_bar: pCrit, t_c: tCrit, q: 1.0 };
+  const sCrit = 1.0 + 1.45 * Math.log((tCrit + 273.15) / 273.15) + 0.15;
+  const critPoint: CurvePoint = { h_kj_kg: hCrit, p_bar: pCrit, t_c: tCrit, s_kj_kg_k: sCrit, q: 1.0 };
   satLiq.push(critPoint);
   satVap.push(critPoint);
 
@@ -895,6 +898,12 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
   const hMaxDomain = maxSatH + hSpan * 0.60;
   const pMinDomain = pMin;
   const pMaxDomain = pMax;
+
+  // Extended generation domain
+  const pMaxGen = Math.max(pCrit * 8.0, 400.0);
+  const pMinGen = Math.max(0.005, Math.min(pMin * 0.35, 0.05));
+  const hMaxGen = maxSatH + hSpan * 1.5;
+  const hMinGen = Math.max(-250, minSatH - hSpan * 0.25);
 
   // Quality lines (x = 0.1 .. 0.9)
   const quality_lines = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map((q) => {
@@ -919,10 +928,10 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
 
   // Isotherms matching Danfoss Mollier chart
   const temps: number[] = model.id === 'R134a'
-    ? [-60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200, 220, 240]
+    ? [-70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300]
     : (() => {
         const tCMin = Math.floor(tMin / 10) * 10;
-        const tCMax = Math.min(220, tCrit + 80);
+        const tCMax = Math.min(300, tCrit + 120);
         const tArr: number[] = [];
         let curT = tCMin;
         while (curT <= tCMax) {
@@ -940,10 +949,10 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     if (t < tCrit - 0.05) {
       const { hL, hV, p: pSat } = calculateSatEnthalpies(model, t);
 
-      // 1. Subcooled liquid: nearly vertical line from pMax down to pSat
+      // 1. Subcooled liquid: extends from pMaxGen down to pSat
       const nSub = 15;
       for (let j = nSub; j >= 0; j--) {
-        const p = pSat + (pMax - pSat) * (j / nSub);
+        const p = pSat + (pMaxGen - pSat) * (j / nSub);
         const hSub = hL + 0.00085 * (p - pSat) * 100; // v_L * deltaP
         pts.push({ h_kj_kg: hSub, p_bar: p, t_c: t, q: 0.0 });
       }
@@ -956,30 +965,34 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
       }
       pts.push({ h_kj_kg: hV, p_bar: pSat, t_c: t, q: 1.0 });
 
-      // 3. Superheated vapor: smooth curve bending downwards to the right
+      // 3. Superheated vapor: smooth curve bending downwards to the right down to pMinGen
       const nSup = 35;
       const logPSat = Math.log(pSat);
-      const logPMin = Math.log(pMin);
+      const logPMin = Math.log(pMinGen);
 
       for (let j = 1; j <= nSup; j++) {
         const frac = j / nSup;
         const logP = logPSat * (1 - frac) + logPMin * frac;
         const p = Math.exp(logP);
         const hSup = calculateSuperheatedEnthalpy(model, t, p);
-        pts.push({ h_kj_kg: Math.min(hMaxDomain + 80, hSup), p_bar: p, t_c: t });
+        if (hSup <= hMaxGen + 60) {
+          pts.push({ h_kj_kg: hSup, p_bar: p, t_c: t });
+        }
       }
     } else {
-      // Supercritical isotherm (T >= Tcrit): smooth continuous curve passing above critical apex
+      // Supercritical isotherm (T >= Tcrit): smooth continuous curve from pMaxGen down to pMinGen
       const nSc = 45;
-      const logPMin = Math.log(pMin);
-      const logPMax = Math.log(pMax);
+      const logPMin = Math.log(pMinGen);
+      const logPMax = Math.log(pMaxGen);
 
       for (let j = 0; j <= nSc; j++) {
         const frac = j / nSc;
         const p = Math.exp(logPMin + (logPMax - logPMin) * (1 - frac));
         const hBase = hCrit + (t - tCrit) * 2.1;
-        const h = hBase + Math.pow(pMin / p, 0.22) * 90 - (p / pMax) * 45;
-        pts.push({ h_kj_kg: h, p_bar: p, t_c: t });
+        const h = hBase + Math.pow(pMinGen / p, 0.22) * 90 - (p / pMaxGen) * 45;
+        if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+          pts.push({ h_kj_kg: h, p_bar: p, t_c: t });
+        }
       }
     }
 
@@ -993,22 +1006,119 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     };
   });
 
-  // Isentropics (s = const) in superheated vapor region
-  const isentropics = [1.55, 1.65, 1.75, 1.85, 1.95, 2.05, 2.15, 2.25, 2.35, 2.45].map((s) => {
-    const pts: CurvePoint[] = [];
-    const nPtsIsen = 30;
-    const pStart = pMin;
-    const pEnd = pMax * 0.85;
+  // Isentropics (s = const) across full domain (liquid, two-phase, and vapor)
+  const sVals = model.id === 'R134a'
+    ? [
+        0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.25, 1.35, 1.45, 1.55, 1.65,
+        1.70, 1.75, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20,
+        2.25, 2.30, 2.35, 2.40, 2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75,
+        2.80, 2.85, 2.90,
+      ]
+    : [1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8];
 
-    for (let i = 0; i <= nPtsIsen; i++) {
-      const frac = i / nPtsIsen;
-      const p = Math.exp(Math.log(pStart) + (Math.log(pEnd) - Math.log(pStart)) * frac);
-      const tEquiv = calculateTsat(model, p) + (s - 1.65) * 45;
-      if (tEquiv >= calculateTsat(model, p) - 0.5) {
-        const h = calculateSuperheatedEnthalpy(model, Math.max(tMin, tEquiv), p);
-        pts.push({ h_kj_kg: h, p_bar: p, s_kj_kg_k: s });
+  const isentropics = sVals.map((s) => {
+    const pts: CurvePoint[] = [];
+    const maxVapS = satVap[0]?.s_kj_kg_k || 1.80;
+
+    // Find bubble point if s <= sCrit
+    let pBubble = pMinGen;
+    let hBubble = 100;
+    let tBubble = tMin;
+    if (s <= sCrit) {
+      for (let i = 0; i < satLiq.length - 1; i++) {
+        const s0 = satLiq[i].s_kj_kg_k || 0;
+        const s1 = satLiq[i + 1].s_kj_kg_k || 0;
+        if (s >= s0 && s <= s1) {
+          const frac = (s1 - s0) !== 0 ? (s - s0) / (s1 - s0) : 0;
+          pBubble = satLiq[i].p_bar + (satLiq[i + 1].p_bar - satLiq[i].p_bar) * frac;
+          hBubble = satLiq[i].h_kj_kg + (satLiq[i + 1].h_kj_kg - satLiq[i].h_kj_kg) * frac;
+          tBubble = satLiq[i].t_c! + (satLiq[i + 1].t_c! - satLiq[i].t_c!) * frac;
+          break;
+        }
       }
     }
+
+    // Find dew point if s >= sCrit and s <= maxVapS
+    let pDew: number | null = null;
+    let tDew = tMin;
+    if (s >= sCrit && s <= maxVapS) {
+      for (let i = 0; i < satVap.length - 1; i++) {
+        const s0 = satVap[i].s_kj_kg_k || 0;
+        const s1 = satVap[i + 1].s_kj_kg_k || 0;
+        const sLo = Math.min(s0, s1);
+        const sHi = Math.max(s0, s1);
+        if (s >= sLo && s <= sHi) {
+          const frac = (sHi - sLo) !== 0 ? (s - s0) / (s1 - s0) : 0;
+          pDew = satVap[i].p_bar + (satVap[i + 1].p_bar - satVap[i].p_bar) * frac;
+          tDew = satVap[i].t_c! + (satVap[i + 1].t_c! - satVap[i].t_c!) * frac;
+          break;
+        }
+      }
+    }
+
+    if (s <= sCrit) {
+      // 1. Subcooled liquid from pMaxGen down to pBubble
+      const nSub = 15;
+      for (let i = 0; i <= nSub; i++) {
+        const frac = i / nSub;
+        const p = Math.exp(Math.log(pMaxGen) * (1 - frac) + Math.log(pBubble) * frac);
+        const h = hBubble + 0.00085 * (p - pBubble) * 100;
+        if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+          pts.push({ h_kj_kg: h, p_bar: p, t_c: tBubble, s_kj_kg_k: s, q: i === nSub ? 0.0 : undefined });
+        }
+      }
+      // 2. Two-phase branch inside dome down to pMinGen
+      const n2p = 20;
+      for (let i = 1; i <= n2p; i++) {
+        const frac = i / n2p;
+        const p = Math.exp(Math.log(pBubble) * (1 - frac) + Math.log(pMinGen) * frac);
+        const t = calculateTsat(model, p);
+        const { hL, hV } = calculateSatEnthalpies(model, t);
+        const sL = 1.0 + 1.45 * Math.log((t + 273.15) / 273.15);
+        const sV = sL + (hV - hL) / (t + 273.15);
+        if (sV > sL) {
+          const q = Math.max(0.0, Math.min(1.0, (s - sL) / (sV - sL)));
+          const h = hL + q * (hV - hL);
+          if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+            pts.push({ h_kj_kg: h, p_bar: p, t_c: t, s_kj_kg_k: s, q });
+          }
+        }
+      }
+    } else {
+      // Superheated vapor from pMaxGen down to pDew (or pMinGen)
+      const pBottom = pDew ?? pMinGen;
+      const nSup = 25;
+      for (let i = 0; i <= nSup; i++) {
+        const frac = i / nSup;
+        const p = Math.exp(Math.log(pMaxGen) * (1 - frac) + Math.log(pBottom) * frac);
+        const tSat = calculateTsat(model, p);
+        const tEquiv = tSat + (s - (pDew ? sCrit : 1.65)) * 48;
+        const h = calculateSuperheatedEnthalpy(model, Math.max(tMin, tEquiv), p);
+        if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+          pts.push({ h_kj_kg: h, p_bar: p, t_c: tEquiv, s_kj_kg_k: s, q: (i === nSup && pDew !== null) ? 1.0 : undefined });
+        }
+      }
+      // If crossed dew line, continue into dome down to pMinGen
+      if (pDew !== null && pDew > pMinGen * 1.01) {
+        const n2p = 20;
+        for (let i = 1; i <= n2p; i++) {
+          const frac = i / n2p;
+          const p = Math.exp(Math.log(pDew) * (1 - frac) + Math.log(pMinGen) * frac);
+          const t = calculateTsat(model, p);
+          const { hL, hV } = calculateSatEnthalpies(model, t);
+          const sL = 1.0 + 1.45 * Math.log((t + 273.15) / 273.15);
+          const sV = sL + (hV - hL) / (t + 273.15);
+          if (sV > sL) {
+            const q = Math.max(0.0, Math.min(1.0, (s - sL) / (sV - sL)));
+            const h = hL + q * (hV - hL);
+            if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+              pts.push({ h_kj_kg: h, p_bar: p, t_c: t, s_kj_kg_k: s, q });
+            }
+          }
+        }
+      }
+    }
+
     return {
       id: `s_${s.toFixed(2)}`,
       name: `s = ${s.toFixed(2)} kJ/(kg·K)`,
@@ -1019,14 +1129,18 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
     };
   });
 
-  // Isochores (v = const) in superheated vapor region (v >= v_crit)
-  const isochores = [0.006, 0.008, 0.01, 0.015, 0.02, 0.03, 0.05, 0.08, 0.1, 0.2, 0.5, 1.0, 2.0].map((v) => {
+  // Isochores (v = const) in vapor region matching standard Mollier diagrams
+  const isochores = [
+    0.002, 0.0025, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010,
+    0.015, 0.020, 0.030, 0.040, 0.050, 0.060, 0.070, 0.080, 0.090, 0.10,
+    0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0,
+  ].map((v) => {
     const pts: CurvePoint[] = [];
-    const nPtsIso = 35;
+    const nPtsIso = 40;
     // Isochore equation: P ~ R * T / v
     const R = 8.314 / model.molar_mass; // J/(kg*K)
-    const tStart = Math.max(tMin, -50);
-    const tEnd = tCrit + 120;
+    const tStart = Math.max(tMin, -75);
+    const tEnd = tCrit + 420;
 
     for (let i = 0; i <= nPtsIso; i++) {
       const frac = i / nPtsIso;
@@ -1036,9 +1150,14 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
       const pSat = calculatePsat(model, t);
 
       // Only plot in vapor region (P <= P_sat or T >= T_sat)
-      if (pIdealBar <= pSat * 1.02 && pIdealBar >= pMin * 0.5 && pIdealBar <= pMax * 1.1) {
+      if (pIdealBar <= pSat * 1.02 && pIdealBar >= pMinGen * 0.5) {
         const h = calculateSuperheatedEnthalpy(model, t, Math.min(pSat, pIdealBar));
-        pts.push({ h_kj_kg: h, p_bar: pIdealBar, v_m3_kg: v, t_c: t });
+        if (h >= hMinGen - 50 && h <= hMaxGen + 60) {
+          pts.push({ h_kj_kg: h, p_bar: pIdealBar, v_m3_kg: v, t_c: t });
+        }
+        if (pIdealBar > pMaxGen * 1.05 || h > hMaxGen + 50) {
+          break;
+        }
       }
     }
 

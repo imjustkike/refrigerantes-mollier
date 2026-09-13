@@ -45,6 +45,58 @@ pub struct DiagramCurvesResponse {
     pub quality_lines: Vec<CurveSeries>,
 }
 
+fn interpolate_sat_curve(pts: &[CurvePoint], p_bar: f64) -> Option<(f64, f64, f64, f64)> {
+    if pts.is_empty() {
+        return None;
+    }
+    if p_bar <= pts[0].p_bar {
+        return Some((
+            pts[0].h_kj_kg,
+            pts[0].s_kj_kg_k.unwrap_or(0.0),
+            pts[0].t_c.unwrap_or(0.0),
+            pts[0].v_m3_kg.unwrap_or(0.0008),
+        ));
+    }
+    if p_bar >= pts.last().unwrap().p_bar {
+        let last = pts.last().unwrap();
+        return Some((
+            last.h_kj_kg,
+            last.s_kj_kg_k.unwrap_or(0.0),
+            last.t_c.unwrap_or(0.0),
+            last.v_m3_kg.unwrap_or(0.0008),
+        ));
+    }
+    let idx = match pts.binary_search_by(|p| p.p_bar.partial_cmp(&p_bar).unwrap_or(std::cmp::Ordering::Equal)) {
+        Ok(i) => {
+            return Some((
+                pts[i].h_kj_kg,
+                pts[i].s_kj_kg_k.unwrap_or(0.0),
+                pts[i].t_c.unwrap_or(0.0),
+                pts[i].v_m3_kg.unwrap_or(0.0008),
+            ))
+        }
+        Err(i) => i,
+    };
+    if idx == 0 || idx >= pts.len() {
+        return None;
+    }
+    let p0 = &pts[idx - 1];
+    let p1 = &pts[idx];
+    let ln_p = p_bar.ln();
+    let ln_p0 = p0.p_bar.ln();
+    let ln_p1 = p1.p_bar.ln();
+    let frac = if (ln_p1 - ln_p0).abs() > 1e-12 {
+        (ln_p - ln_p0) / (ln_p1 - ln_p0)
+    } else {
+        0.0
+    };
+    let h = p0.h_kj_kg + (p1.h_kj_kg - p0.h_kj_kg) * frac;
+    let s = p0.s_kj_kg_k.unwrap_or(0.0) + (p1.s_kj_kg_k.unwrap_or(0.0) - p0.s_kj_kg_k.unwrap_or(0.0)) * frac;
+    let t = p0.t_c.unwrap_or(0.0) + (p1.t_c.unwrap_or(0.0) - p0.t_c.unwrap_or(0.0)) * frac;
+    let v = p0.v_m3_kg.unwrap_or(0.0008) + (p1.v_m3_kg.unwrap_or(0.0008) - p0.v_m3_kg.unwrap_or(0.0008)) * frac;
+    Some((h, s, t, v))
+}
+
 pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, String> {
     let resolved_fluid = resolve_coolprop_fluid_id(fluid_id);
     let fluid_id = resolved_fluid.as_str();
@@ -53,11 +105,12 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     let t_crit_k = consts.t_crit_k;
     let p_crit_pa = consts.p_crit_pa;
 
-    // Practical refrigeration minimum temperature: around -60 °C or T_min + 2K
-    let t_min_k = (consts.t_min_k + 2.0).max(213.15).min(t_crit_k - 30.0);
+    // Practical refrigeration minimum temperature:
+    // Allow going down safely near triple point (+1.5K) or down to -75 °C (198.15 K)
+    let t_min_k = (consts.t_min_k + 1.5).max(198.15).min(t_crit_k - 30.0);
     let p_min_pa = props_si("P", "T", t_min_k, "Q", 0.0, fluid_id)
-        .unwrap_or(10000.0)
-        .max(5000.0); // at least 0.05 bar
+        .unwrap_or(5000.0)
+        .max(2000.0); // down to 0.02 bar
 
     let p_crit_bar = p_crit_pa / 1e5;
 
@@ -137,7 +190,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     let h_span = (max_sat_h - min_sat_h).max(200.0);
     let h_min = (min_sat_h - h_span * 0.10).max(-150.0);
     let h_max = max_sat_h + h_span * 0.65;
-    let p_min = (p_min_pa / 1e5).max(0.05);
+    let p_min = (p_min_pa / 1e5).max(0.02);
     let p_max = (p_crit_bar * 1.10).max(10.0);
     let (h_min_kj_kg, h_max_kj_kg, p_min_bar, p_max_bar) = (h_min, h_max, p_min, p_max);
 
@@ -153,9 +206,11 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     };
 
     // Extended domain for thermodynamic curve series generation:
-    // Ensures isotherms, isentropes, and isochores extend smoothly across the entire zoom-out headroom
-    let p_max_gen_bar = (p_max_bar * 2.8).max(150.0);
-    let h_max_gen_kj = h_max_kj_kg + h_span * 0.8;
+    // Ensures isotherms, isentropes, and isochores extend smoothly across the entire zoom-out headroom (up to 400 bar and 950+ kJ/kg)
+    let p_max_gen_bar = (p_crit_bar * 8.0).max(400.0).min(1000.0);
+    let p_min_gen_bar = (p_min_bar * 0.35).min(0.05).max(0.005);
+    let h_max_gen_kj = max_sat_h + h_span * 1.5;
+    let h_min_gen_kj = (min_sat_h - h_span * 0.25).max(-250.0);
 
     // Quality lines (x = 0.1 .. 0.9) inside the dome
     let qualities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
@@ -203,10 +258,10 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         })
         .collect();
 
-    // Isotherms (T = const) matching Danfoss chart (-60..+90 by 10°C, then +100..+300 by 20°C)
+    // Isotherms (T = const) matching Danfoss chart (-70..+90 by 10°C, then +100..+300 by 20°C)
     let temps_c: Vec<f64> = if fluid_id == "R134a" {
         vec![
-            -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0,
+            -70.0, -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0,
             60.0, 70.0, 80.0, 90.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 220.0, 240.0,
             260.0, 280.0, 300.0,
         ]
@@ -243,13 +298,14 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
                 let h_sat_vap = props_si("H", "T", t_k, "Q", 1.0, fluid_id).unwrap_or(400_000.0);
                 let v_sat_liq = props_si("D", "T", t_k, "Q", 0.0, fluid_id).ok().map(|d| 1.0 / d).unwrap_or(0.00085);
 
-                // 1. Subcooled liquid: thermodynamically exact relation dh = v_liq * dP (nearly vertical line)
+                // 1. Subcooled liquid: extends from p_max_gen_bar down to p_sat
                 let p_max_sub = (p_max_gen_bar * 1e5).max(p_sat_liq * 1.05);
                 let n_sub = 20;
                 for i in (0..=n_sub).rev() {
-                    let p = p_sat_liq + (p_max_sub - p_sat_liq) * (i as f64 / n_sub as f64);
-                    // dh = v * dp
-                    let h = h_sat_liq + v_sat_liq * (p - p_sat_liq);
+                    let frac = i as f64 / n_sub as f64;
+                    let p = p_sat_liq + (p_max_sub - p_sat_liq) * frac;
+                    let h = props_si("H", "T", t_k, "P", p, fluid_id)
+                        .unwrap_or_else(|_| h_sat_liq + v_sat_liq * (p - p_sat_liq));
                     pts.push(CurvePoint {
                         h_kj_kg: h / 1000.0,
                         p_bar: p / 1e5,
@@ -284,8 +340,8 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
                     q: Some(1.0),
                 });
 
-                // 3. Superheated vapor: from p_sat_vap down to p_min_bar (continuous curve)
-                let p_min_sup = (p_min_bar * 1e5).min(p_sat_vap * 0.98).max(1000.0);
+                // 3. Superheated vapor: from p_sat_vap down to p_min_gen_bar (continuous curve)
+                let p_min_sup = (p_min_gen_bar * 1e5).min(p_sat_vap * 0.98).max(500.0);
                 if p_sat_vap > p_min_sup {
                     let n_sup = 35;
                     for i in 1..=n_sup {
@@ -294,35 +350,40 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
                         let p = log_p.exp();
                         let h = props_si("H", "T", t_k, "P", p, fluid_id)
                             .unwrap_or_else(|_| h_sat_vap + (p_sat_vap / p).ln() * 15_000.0);
-                        let h_clamped = h.max(h_sat_vap);
-                        pts.push(CurvePoint {
-                            h_kj_kg: h_clamped / 1000.0,
-                            p_bar: p / 1e5,
-                            t_c: Some(t_c),
-                            s_kj_kg_k: None,
-                            v_m3_kg: None,
-                            q: None,
-                        });
+                        let h_kj = (h.max(h_sat_vap)) / 1000.0;
+                        if h_kj <= h_max_gen_kj + 60.0 {
+                            pts.push(CurvePoint {
+                                h_kj_kg: h_kj,
+                                p_bar: p / 1e5,
+                                t_c: Some(t_c),
+                                s_kj_kg_k: None,
+                                v_m3_kg: None,
+                                q: None,
+                            });
+                        }
                     }
                 }
             } else {
-                // Supercritical isotherm: smooth curve from p_max_gen down to p_min
+                // Supercritical isotherm: smooth curve from p_max_gen down to p_min_gen
                 let n_pts = 55;
-                let log_p_min = (p_min_bar * 1e5).ln();
+                let log_p_min = (p_min_gen_bar * 1e5).ln();
                 let log_p_max = (p_max_gen_bar * 1e5).ln();
 
                 for i in (0..=n_pts).rev() {
                     let frac = i as f64 / n_pts as f64;
                     let p = (log_p_min + (log_p_max - log_p_min) * frac).exp();
                     if let Ok(h) = props_si("H", "T", t_k, "P", p, fluid_id) {
-                        pts.push(CurvePoint {
-                            h_kj_kg: h / 1000.0,
-                            p_bar: p / 1e5,
-                            t_c: Some(t_c),
-                            s_kj_kg_k: None,
-                            v_m3_kg: None,
-                            q: None,
-                        });
+                        let h_kj = h / 1000.0;
+                        if h_kj >= h_min_gen_kj - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
+                            pts.push(CurvePoint {
+                                h_kj_kg: h_kj,
+                                p_bar: p / 1e5,
+                                t_c: Some(t_c),
+                                s_kj_kg_k: None,
+                                v_m3_kg: None,
+                                q: None,
+                            });
+                        }
                     }
                 }
             }
@@ -342,9 +403,12 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         })
         .collect();
 
-    // Isentropics (s = const) in vapor/superheated region matching Danfoss/Mollier PDF
-    let s_min_chart = sat_liquid_pts.iter().filter_map(|p| p.s_kj_kg_k).fold(1.0f64, f64::min);
+    // Isentropics (s = const) across the full diagram domain (liquid, two-phase, and vapor)
+    let s_min_chart = sat_liquid_pts.first().and_then(|p| p.s_kj_kg_k).unwrap_or(0.65);
     let s_max_chart = sat_vapor_pts.iter().filter_map(|p| p.s_kj_kg_k).fold(2.0f64, f64::max) + 0.8;
+    let s_crit_kj = sat_liquid_pts.last().and_then(|p| p.s_kj_kg_k).unwrap_or(1.56);
+    let max_vap_s = sat_vapor_pts.first().and_then(|p| p.s_kj_kg_k).unwrap_or(1.80);
+
     let s_vals: Vec<f64> = if fluid_id == "R134a" {
         vec![
             0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.25, 1.35, 1.45, 1.55, 1.65,
@@ -354,8 +418,8 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         ]
     } else {
         let mut s_vec = Vec::new();
-        let start = ((s_min_chart * 10.0).floor() / 10.0).max(0.5);
-        let end = ((s_max_chart * 10.0).ceil() / 10.0 + 0.4).min(3.8);
+        let start = ((s_min_chart * 10.0).floor() / 10.0).max(0.4);
+        let end = ((s_max_chart * 10.0).ceil() / 10.0 + 0.4).min(4.0);
         let mut cur_s = start;
         while cur_s <= end {
             s_vec.push((cur_s * 100.0).round() / 100.0);
@@ -369,61 +433,213 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         .filter_map(|s_kj| {
             let s_j = s_kj * 1000.0;
             let mut pts = Vec::new();
-            let p_min_pa = p_min_bar * 1e5;
-            let p_max_pa = p_max_gen_bar * 1e5;
 
-            // Anchor starting point at saturation vapor curve if s_kj falls in range
-            let sat_anchor = sat_vapor_pts
-                .iter()
-                .find(|pt| pt.s_kj_kg_k.map_or(false, |s| s >= s_kj));
-
-            let p_start = sat_anchor.map(|pt| (pt.p_bar * 1e5).max(p_min_pa)).unwrap_or(p_min_pa);
-            let p_end = p_max_pa;
-            let log_p_start = p_start.ln();
-            let log_p_end = p_end.ln();
-
-            let mut prev_t = sat_anchor.and_then(|pt| pt.t_c.map(|c| c + 273.15)).unwrap_or(t_min_k + 10.0);
-            let n_pts = 24;
-
-            for i in 0..=n_pts {
-                let frac = i as f64 / n_pts as f64;
-                let p = (log_p_start + (log_p_end - log_p_start) * frac).exp();
-
-                // Fast 1D Newton solver using forward (T, P) evaluations
-                let mut cur_t = prev_t;
-                let mut converged = false;
-
-                for _ in 0..8 {
-                    if let Ok(s_eval) = props_si("S", "T", cur_t, "P", p, fluid_id) {
-                        let diff = s_eval - s_j;
-                        if diff.abs() < 2.0 {
-                            converged = true;
-                            break;
-                        }
-                        let ds_dt = 3.3;
-                        let step = -diff / ds_dt;
-                        cur_t += step.max(-20.0).min(20.0);
-                        if cur_t < 150.0 || cur_t > 650.0 {
-                            break;
-                        }
+            // Locate intersection with liquid curve if s_kj <= s_crit_kj
+            let bubble_state = if s_kj <= s_crit_kj {
+                if let Some(first) = sat_liquid_pts.first() {
+                    if s_kj <= first.s_kj_kg_k.unwrap_or(0.0) {
+                        Some((first.p_bar, first.h_kj_kg, first.t_c.unwrap_or(0.0), first.v_m3_kg.unwrap_or(0.0008)))
                     } else {
+                        let mut found = None;
+                        for w in sat_liquid_pts.windows(2) {
+                            let s0 = w[0].s_kj_kg_k.unwrap_or(0.0);
+                            let s1 = w[1].s_kj_kg_k.unwrap_or(0.0);
+                            if s_kj >= s0 && s_kj <= s1 {
+                                let frac = if (s1 - s0).abs() > 1e-12 { (s_kj - s0) / (s1 - s0) } else { 0.0 };
+                                let p = (w[0].p_bar.ln() + (w[1].p_bar.ln() - w[0].p_bar.ln()) * frac).exp();
+                                let h = w[0].h_kj_kg + (w[1].h_kj_kg - w[0].h_kj_kg) * frac;
+                                let t = w[0].t_c.unwrap_or(0.0) + (w[1].t_c.unwrap_or(0.0) - w[0].t_c.unwrap_or(0.0)) * frac;
+                                let v = w[0].v_m3_kg.unwrap_or(0.0008) + (w[1].v_m3_kg.unwrap_or(0.0008) - w[0].v_m3_kg.unwrap_or(0.0008)) * frac;
+                                found = Some((p, h, t, v));
+                                break;
+                            }
+                        }
+                        found
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Locate intersection with dew curve if s_kj >= s_crit_kj and s_kj <= max_vap_s
+            let dew_state = if s_kj >= s_crit_kj && s_kj <= max_vap_s {
+                let mut found = None;
+                for w in sat_vapor_pts.windows(2) {
+                    let s0 = w[0].s_kj_kg_k.unwrap_or(0.0);
+                    let s1 = w[1].s_kj_kg_k.unwrap_or(0.0);
+                    let (s_lo, s_hi) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
+                    if s_kj >= s_lo && s_kj <= s_hi {
+                        let frac = if (s_hi - s_lo).abs() > 1e-12 { (s_kj - s0) / (s1 - s0) } else { 0.0 };
+                        let p = (w[0].p_bar.ln() + (w[1].p_bar.ln() - w[0].p_bar.ln()) * frac).exp();
+                        let h = w[0].h_kj_kg + (w[1].h_kj_kg - w[0].h_kj_kg) * frac;
+                        let t = w[0].t_c.unwrap_or(0.0) + (w[1].t_c.unwrap_or(0.0) - w[0].t_c.unwrap_or(0.0)) * frac;
+                        let v = w[0].v_m3_kg.unwrap_or(0.05) + (w[1].v_m3_kg.unwrap_or(0.05) - w[0].v_m3_kg.unwrap_or(0.05)) * frac;
+                        found = Some((p, h, t, v));
                         break;
                     }
                 }
+                found
+            } else {
+                None
+            };
 
-                if converged {
-                    prev_t = cur_t;
-                    if let Ok(h) = props_si("H", "T", cur_t, "P", p, fluid_id) {
-                        let h_kj = h / 1000.0;
-                        if h_kj >= h_min_kj_kg - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
+            if s_kj <= s_crit_kj {
+                // Subcooled / compressed liquid down to P_bubble, then two-phase down to P_min_gen
+                let (p_bubble, h_bubble, t_bubble, v_bubble) = bubble_state.unwrap_or((p_min_gen_bar, 100.0, domain.t_min_c, 0.0008));
+                let p_top = p_max_gen_bar;
+                let p_bottom = p_bubble;
+
+                if p_top > p_bottom * 1.01 {
+                    let n_sub = 15;
+                    for i in 0..=n_sub {
+                        let frac = i as f64 / n_sub as f64;
+                        let log_p = p_top.ln() * (1.0 - frac) + p_bottom.ln() * frac;
+                        let p_bar = log_p.exp();
+                        let p_pa = p_bar * 1e5;
+
+                        // For subcooled liquid along isentrope (ds=0): dh = v*dP
+                        let h_kj = h_bubble + v_bubble * (p_pa - p_bottom * 1e5) / 1000.0;
+                        let t_c = t_bubble;
+
+                        if h_kj >= h_min_gen_kj - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
                             pts.push(CurvePoint {
                                 h_kj_kg: h_kj,
-                                p_bar: p / 1e5,
-                                t_c: Some(cur_t - 273.15),
+                                p_bar,
+                                t_c: Some(t_c),
+                                s_kj_kg_k: Some(s_kj),
+                                v_m3_kg: Some(v_bubble),
+                                q: if i == n_sub { Some(0.0) } else { None },
+                            });
+                        }
+                    }
+                }
+
+                // Two-phase branch inside dome
+                let p_dome_top = p_bubble;
+                let p_dome_bot = p_min_gen_bar;
+                if p_dome_top > p_dome_bot * 1.01 {
+                    let n_2p = 20;
+                    for i in 1..=n_2p {
+                        let frac = i as f64 / n_2p as f64;
+                        let log_p = p_dome_top.ln() * (1.0 - frac) + p_dome_bot.ln() * frac;
+                        let p_bar = log_p.exp();
+
+                        if let (Some((hl, sl, tl, _)), Some((hv, sv, _, _))) = (
+                            interpolate_sat_curve(&sat_liquid_pts, p_bar),
+                            interpolate_sat_curve(&sat_vapor_pts, p_bar),
+                        ) {
+                            if sv > sl {
+                                let q = ((s_kj - sl) / (sv - sl)).max(0.0).min(1.0);
+                                let h_kj = hl + q * (hv - hl);
+                                if h_kj >= h_min_gen_kj - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
+                                    pts.push(CurvePoint {
+                                        h_kj_kg: h_kj,
+                                        p_bar,
+                                        t_c: Some(tl),
+                                        s_kj_kg_k: Some(s_kj),
+                                        v_m3_kg: None,
+                                        q: Some(q),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Vapor / supercritical branch: from p_dew up to p_max_gen
+                let (p_dew, _, t_dew, _) = dew_state.unwrap_or((p_min_gen_bar, 0.0, domain.t_min_c, 0.0));
+                let p_top = p_max_gen_bar;
+                let p_bottom = p_dew;
+
+                let n_sup = 25;
+                let mut sup_pts = Vec::with_capacity(n_sup + 1);
+                let mut prev_t = t_dew + 273.15;
+
+                for i in 0..=n_sup {
+                    let frac = i as f64 / n_sup as f64;
+                    // March from p_bottom up to p_top so previous temperature is a great initial guess
+                    let log_p = p_bottom.ln() * (1.0 - frac) + p_top.ln() * frac;
+                    let p_bar = log_p.exp();
+                    let p_pa = p_bar * 1e5;
+
+                    let mut h_res = None;
+                    let mut t_res = None;
+
+                    if consts.is_pure {
+                        if let Ok(h) = props_si("H", "P", p_pa, "S", s_j, fluid_id) {
+                            h_res = Some(h / 1000.0);
+                            t_res = props_si("T", "P", p_pa, "S", s_j, fluid_id).ok().map(|t| t - 273.15);
+                        }
+                    }
+
+                    if h_res.is_none() {
+                        let mut cur_t = prev_t;
+                        for _ in 0..6 {
+                            if let Ok(s_eval) = props_si("S", "T", cur_t, "P", p_pa, fluid_id) {
+                                let diff = s_eval - s_j;
+                                if diff.abs() < 2.0 {
+                                    if let Ok(h) = props_si("H", "T", cur_t, "P", p_pa, fluid_id) {
+                                        h_res = Some(h / 1000.0);
+                                        t_res = Some(cur_t - 273.15);
+                                        prev_t = cur_t;
+                                        break;
+                                    }
+                                }
+                                let step = -diff / 3.0;
+                                cur_t += step.max(-20.0).min(20.0);
+                                if cur_t < 150.0 || cur_t > 800.0 { break; }
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+
+                    if let Some(h_kj) = h_res {
+                        if h_kj >= h_min_gen_kj - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
+                            sup_pts.push(CurvePoint {
+                                h_kj_kg: h_kj,
+                                p_bar,
+                                t_c: t_res,
                                 s_kj_kg_k: Some(s_kj),
                                 v_m3_kg: None,
-                                q: if i == 0 && sat_anchor.is_some() { Some(1.0) } else { None },
+                                q: if i == 0 && dew_state.is_some() { Some(1.0) } else { None },
                             });
+                        }
+                    }
+                }
+
+                // Reverse so order goes from high pressure down to dew line
+                sup_pts.reverse();
+                pts.extend(sup_pts);
+
+                // If intersects dew line, continue into two-phase dome down to p_min_gen
+                if dew_state.is_some() && p_dew > p_min_gen_bar * 1.01 {
+                    let n_2p = 20;
+                    for i in 1..=n_2p {
+                        let frac = i as f64 / n_2p as f64;
+                        let log_p = p_dew.ln() * (1.0 - frac) + p_min_gen_bar.ln() * frac;
+                        let p_bar = log_p.exp();
+
+                        if let (Some((hl, sl, tl, _)), Some((hv, sv, _, _))) = (
+                            interpolate_sat_curve(&sat_liquid_pts, p_bar),
+                            interpolate_sat_curve(&sat_vapor_pts, p_bar),
+                        ) {
+                            if sv > sl {
+                                let q = ((s_kj - sl) / (sv - sl)).max(0.0).min(1.0);
+                                let h_kj = hl + q * (hv - hl);
+                                if h_kj >= h_min_gen_kj - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
+                                    pts.push(CurvePoint {
+                                        h_kj_kg: h_kj,
+                                        p_bar,
+                                        t_c: Some(tl),
+                                        s_kj_kg_k: Some(s_kj),
+                                        v_m3_kg: None,
+                                        q: Some(q),
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -445,9 +661,8 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         .collect();
 
     // Isochores (v = const) in vapor region matching standard Mollier diagrams
-    // (Only vapor isochores v >= v_crit, starting at dew curve Q=1 or P_min)
     let v_vals: Vec<f64> = vec![
-        0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010, 0.015, 0.020, 0.030,
+        0.002, 0.0025, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.010, 0.015, 0.020, 0.030,
         0.040, 0.050, 0.060, 0.070, 0.080, 0.090, 0.10, 0.15, 0.20, 0.30,
         0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0,
     ];
@@ -457,32 +672,31 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
         .filter_map(|v_m3| {
             let density = 1.0 / v_m3;
             let mut pts = Vec::new();
-            let p_min_pa = p_min_bar * 1e5;
+            let p_min_pa = p_min_gen_bar * 1e5;
             let p_max_pa = p_max_gen_bar * 1e5;
 
             // Anchor isochore on dew curve (Q=1): find T where saturated vapor volume matches v_m3
-            // In sat_vapor_pts, v_m3_kg starts large at T_min and decreases to v_crit at T_crit
             let t_sat_opt = sat_vapor_pts
                 .iter()
                 .find(|pt| pt.v_m3_kg.map_or(false, |v| v <= v_m3))
                 .and_then(|pt| pt.t_c.map(|c| c + 273.15));
 
-            // If v_m3 is smaller than critical volume or no anchor, skip to avoid 2-phase spinodal artifacts
             let t_start = match t_sat_opt {
                 Some(t) => t,
                 None => {
-                    // Check if v_m3 > v_sat at T_min (superheated at all T >= T_min)
                     let v_at_tmin = sat_vapor_pts.first().and_then(|pt| pt.v_m3_kg).unwrap_or(0.1);
                     if v_m3 >= v_at_tmin {
                         t_min_k
+                    } else if v_m3 >= 0.0018 {
+                        t_crit_k - 0.5
                     } else {
                         return None;
                     }
                 }
             };
 
-            let t_end = t_crit_k + 240.0;
-            let n_pts = 30;
+            let t_end = (t_crit_k + 450.0).min(750.0); // up to 475 °C
+            let n_pts = 40;
             for i in 0..=n_pts {
                 let frac = i as f64 / n_pts as f64;
                 let t = t_start + (t_end - t_start) * frac;
@@ -490,7 +704,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
                     props_si("P", "T", t, "D", density, fluid_id),
                     props_si("H", "T", t, "D", density, fluid_id),
                 ) {
-                    if p.is_finite() && h.is_finite() && p >= p_min_pa * 0.5 && p <= p_max_pa * 1.15 {
+                    if p.is_finite() && h.is_finite() && p >= p_min_pa * 0.3 {
                         let h_kj = h / 1000.0;
                         if h_kj >= h_min_kj_kg - 50.0 && h_kj <= h_max_gen_kj + 60.0 {
                             pts.push(CurvePoint {
@@ -501,6 +715,9 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
                                 v_m3_kg: Some(v_m3),
                                 q: if i == 0 && t_sat_opt.is_some() { Some(1.0) } else { None },
                             });
+                        }
+                        if p > p_max_pa * 1.05 || h_kj > h_max_gen_kj + 50.0 {
+                            break;
                         }
                     }
                 }
@@ -572,6 +789,29 @@ mod tests {
         let last_vap = res.saturation_vapor.points.last().unwrap();
         println!("First vap: h={}, P={}", first_vap.h_kj_kg, first_vap.p_bar);
         println!("Last vap (crit): h={}, P={}", last_vap.h_kj_kg, last_vap.p_bar);
+
+        // Check isentropics span from top/right to bottom
+        for isen in &res.isentropics {
+            let p_first = isen.points.first().unwrap().p_bar;
+            let p_last = isen.points.last().unwrap().p_bar;
+            let h_first = isen.points.first().unwrap().h_kj_kg;
+            println!("{}: {} pts, P=[{:.2}, {:.2}] bar, h=[{:.1}, {:.1}] kJ/kg",
+                isen.name, isen.points.len(), p_first, p_last,
+                h_first, isen.points.last().unwrap().h_kj_kg
+            );
+            assert!(p_first >= 50.0 || h_first >= 750.0,
+                "Isentrope {} should start at high pressure or right border (got P={}, h={})",
+                isen.name, p_first, h_first
+            );
+            assert!(p_last <= 2.0, "Isentrope {} should reach low pressure (got P={})", isen.name, p_last);
+        }
+
+        // Check isochores reach past 800 kJ/kg and up to high pressure
+        let max_isochore_h = res.isochores.iter().flat_map(|iso| iso.points.iter()).map(|p| p.h_kj_kg).fold(0.0f64, f64::max);
+        let max_isochore_p = res.isochores.iter().flat_map(|iso| iso.points.iter()).map(|p| p.p_bar).fold(0.0f64, f64::max);
+        println!("Isochores span: max h = {:.1} kJ/kg, max P = {:.1} bar", max_isochore_h, max_isochore_p);
+        assert!(max_isochore_h > 800.0, "Isochores should extend past 800 kJ/kg, got {}", max_isochore_h);
+        assert!(max_isochore_p >= 300.0, "Isochores should extend up to high pressure (got P={})", max_isochore_p);
     }
 
     #[test]
