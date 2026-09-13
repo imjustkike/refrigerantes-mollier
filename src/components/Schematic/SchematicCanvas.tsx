@@ -24,6 +24,7 @@ import { SchematicEdgeData, SchematicNodeData, SchematicComponentType, PipeState
 import { COMPONENT_DEFINITIONS } from './symbols/componentDefinitions';
 import { SchematicGenericNode } from './nodes/SchematicGenericNode';
 import { RefrigerantPipeEdge } from './edges/RefrigerantPipeEdge';
+import { ElectricWireEdge } from './edges/ElectricWireEdge';
 import { ComponentPalette } from './ComponentPalette';
 import { ComponentPropertyPanel } from './ComponentPropertyPanel';
 import { SchematicToolbar } from './SchematicToolbar';
@@ -32,6 +33,20 @@ import { SCHEMATIC_PRESETS } from './templates/schematicTemplates';
 import { SchematicActionsContext } from './SchematicActionsContext';
 import { useProject } from '../../context/ProjectContext';
 import { saveFileWithPicker } from '../../utils/exportDiagram';
+import {
+  SimulationStateResponse,
+  ValidationReport,
+} from '../../types/pidSimulation';
+import * as simService from '../../services/pidSimulationService';
+import {
+  buildInstallationSchemaFromFlow,
+  exportPidProjectJson,
+  importPidProjectJson,
+} from '../../utils/pidFileStorage';
+import { SimulationChartsModal } from './simulation/SimulationChartsModal';
+import { AlarmEventLog } from './simulation/AlarmEventLog';
+import { ElectricalPanel } from './simulation/ElectricalPanel';
+import { solveElectricalCircuit } from '../../engine/electrical/circuitSolver';
 
 type SchematicNode = Node<SchematicNodeData>;
 type SchematicEdge = Edge<SchematicEdgeData>;
@@ -45,6 +60,7 @@ const nodeTypes = {
 
 const edgeTypes = {
   refrigerantPipe: RefrigerantPipeEdge,
+  electricWire: ElectricWireEdge,
 };
 
 const defaultEdgeOptions = {
@@ -126,16 +142,127 @@ const SchematicCanvasContent: React.FC = () => {
   const [isAnimationRunning, setIsAnimationRunning] = useState(true);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
 
-  // Connect handler
+  // Dynamic Physical Simulation States
+  const [simState, setSimState] = useState<SimulationStateResponse | null>(null);
+  const [simSpeed, setSimSpeed] = useState<number>(1.0);
+  const [isChartsOpen, setIsChartsOpen] = useState(false);
+  const [isElectricalPanelOpen, setIsElectricalPanelOpen] = useState(false);
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Active Connection Tool: Tubería Frigorífica vs Cable Eléctrico
+  const [activeConnectionType, setActiveConnectionType] = useState<'refrigerantPipe' | 'electricWire'>('refrigerantPipe');
+
+  // Separated Counts for Schematic Lines
+  const refrigerantPipeCount = useMemo(() => {
+    return edges.filter(
+      (e) => e.type === 'refrigerantPipe' || (e.type !== 'electricWire' && !e.data?.pipeState?.startsWith('electric_'))
+    ).length;
+  }, [edges]);
+
+  const electricWireCount = useMemo(() => {
+    return edges.filter(
+      (e) => e.type === 'electricWire' || e.data?.edgeType === 'electricWire' || Boolean(e.data?.pipeState?.startsWith('electric_'))
+    ).length;
+  }, [edges]);
+
+  // Smart Port Connect handler
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      const sDef = sourceNode ? COMPONENT_DEFINITIONS[sourceNode.data.componentType] : null;
+      const tDef = targetNode ? COMPONENT_DEFINITIONS[targetNode.data.componentType] : null;
+      const sPort = sDef?.ports.find((p) => p.id === connection.sourceHandle);
+      const tPort = tDef?.ports.find((p) => p.id === connection.targetHandle);
+
+      let pipeState: PipeStateCategory = 'discharge_superheated';
+
+      // Check if connection is electrical
+      const isSourceElectric =
+        sPort?.kind.startsWith('electric_') ||
+        sDef?.category === 'basic_electrical' ||
+        (sDef?.category === 'electrical' && sPort?.kind !== 'suction' && sPort?.kind !== 'discharge');
+
+      const isTargetElectric =
+        tPort?.kind.startsWith('electric_') ||
+        tDef?.category === 'basic_electrical' ||
+        (tDef?.category === 'electrical' && tPort?.kind !== 'suction' && tPort?.kind !== 'discharge');
+
+      const isSourceStrictRefrigerant =
+        sPort && ['discharge', 'suction', 'condensed', 'subcooled', 'expansion_out', 'evaporated', 'oil'].includes(sPort.kind);
+      const isTargetStrictRefrigerant =
+        tPort && ['discharge', 'suction', 'condensed', 'subcooled', 'expansion_out', 'evaporated', 'oil'].includes(tPort.kind);
+
+      // Prevent incompatible connections between electrical and refrigerant domains
+      if (sourceNode && targetNode) {
+        if ((isSourceElectric && isTargetStrictRefrigerant) || (isTargetElectric && isSourceStrictRefrigerant)) {
+          showToast('⚠️ Incompatible: No se puede conectar un borne eléctrico a una tubería de refrigerante.');
+          return;
+        }
+      }
+
+      // Determine whether line is an electric wire or refrigerant pipe
+      let isElectric = false;
+      if (isSourceElectric || isTargetElectric) {
+        isElectric = true;
+      } else if (isSourceStrictRefrigerant || isTargetStrictRefrigerant) {
+        isElectric = false;
+      } else {
+        // Generic/multi-purpose ports follow the active toolbar tool
+        isElectric = activeConnectionType === 'electricWire';
+      }
+
+      if (isElectric) {
+        if (
+          sPort?.kind === 'electric_neutral' ||
+          tPort?.kind === 'electric_neutral' ||
+          connection.sourceHandle === 'neg' ||
+          connection.targetHandle === 'neg' ||
+          connection.sourceHandle === 'neutral' ||
+          connection.targetHandle === 'neutral'
+        ) {
+          pipeState = 'electric_neutral';
+        } else if (sPort?.kind === 'electric_ground' || tPort?.kind === 'electric_ground') {
+          pipeState = 'electric_ground';
+        } else if (sPort?.kind === 'electric_control' || tPort?.kind === 'electric_control') {
+          pipeState = 'electric_control';
+        } else if (sPort?.kind === 'electric_signal' || tPort?.kind === 'electric_signal') {
+          pipeState = 'electric_signal';
+        } else {
+          pipeState = 'electric_phase';
+        }
+      } else {
+        if (sPort?.kind === 'suction' || tPort?.kind === 'suction') {
+          pipeState = 'suction_superheated';
+        } else if (sPort?.kind === 'discharge' || tPort?.kind === 'discharge') {
+          pipeState = 'discharge_superheated';
+        } else if (sPort?.kind === 'condensed' || tPort?.kind === 'condensed') {
+          pipeState = 'condensing_liquid';
+        } else if (sPort?.kind === 'subcooled' || tPort?.kind === 'subcooled') {
+          pipeState = 'subcooled_liquid';
+        } else if (sPort?.kind === 'expansion_out' || tPort?.kind === 'expansion_out') {
+          pipeState = 'two_phase_flashing';
+        } else if (sPort?.kind === 'evaporated' || tPort?.kind === 'evaporated') {
+          pipeState = 'evaporating_vapor';
+        } else if (sPort?.kind === 'oil' || tPort?.kind === 'oil') {
+          pipeState = 'oil_line';
+        }
+      }
+
+      const newEdgeType = isElectric ? 'electricWire' : 'refrigerantPipe';
       setEdges((eds) =>
         addEdge(
           {
             ...connection,
-            type: 'refrigerantPipe',
+            type: newEdgeType,
             data: {
-              pipeState: 'discharge_superheated',
+              pipeState,
+              edgeType: newEdgeType,
+              wireSectionMm2: isElectric ? 2.5 : undefined,
+              wireFunction: isElectric ? (pipeState.replace('electric_', '') as any) : undefined,
+              diameterInch: isElectric ? undefined : '1/2"',
+              diameterMm: isElectric ? undefined : 16.0,
               isAnimated: isAnimationRunning,
             },
           },
@@ -143,7 +270,7 @@ const SchematicCanvasContent: React.FC = () => {
         )
       );
     },
-    [isAnimationRunning, setEdges]
+    [nodes, isAnimationRunning, activeConnectionType, setEdges, showToast]
   );
 
   // Reconnect handler - allows dragging existing edge endpoints freely to other ports
@@ -153,6 +280,42 @@ const SchematicCanvasContent: React.FC = () => {
       showToast('Conexión reubicada al nuevo puerto.');
     },
     [setEdges, showToast]
+  );
+
+  // Validate that electrical ports connect to electrical ports, and pipes connect to pipes
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (!sourceNode || !targetNode) return true;
+
+      const sDef = COMPONENT_DEFINITIONS[sourceNode.data.componentType];
+      const tDef = COMPONENT_DEFINITIONS[targetNode.data.componentType];
+      const sPort = sDef?.ports.find((p) => p.id === connection.sourceHandle);
+      const tPort = tDef?.ports.find((p) => p.id === connection.targetHandle);
+
+      const isSourceElectric =
+        sPort?.kind.startsWith('electric_') ||
+        sDef?.category === 'basic_electrical' ||
+        (sDef?.category === 'electrical' && sPort?.kind !== 'suction' && sPort?.kind !== 'discharge');
+
+      const isTargetElectric =
+        tPort?.kind.startsWith('electric_') ||
+        tDef?.category === 'basic_electrical' ||
+        (tDef?.category === 'electrical' && tPort?.kind !== 'suction' && tPort?.kind !== 'discharge');
+
+      const isSourceStrictRefrigerant =
+        sPort && ['discharge', 'suction', 'condensed', 'subcooled', 'expansion_out', 'evaporated', 'oil'].includes(sPort.kind);
+      const isTargetStrictRefrigerant =
+        tPort && ['discharge', 'suction', 'condensed', 'subcooled', 'expansion_out', 'evaporated', 'oil'].includes(tPort.kind);
+
+      if ((isSourceElectric && isTargetStrictRefrigerant) || (isTargetElectric && isSourceStrictRefrigerant)) {
+        return false;
+      }
+
+      return true;
+    },
+    [nodes]
   );
 
   // Drag & Drop component from palette into canvas
@@ -310,6 +473,50 @@ const SchematicCanvasContent: React.FC = () => {
       );
     },
     [setEdges]
+  );
+
+  // Convert Edge Type between Refrigerant Pipe and Electric Wire
+  const handleConvertEdgeType = useCallback(
+    (edgeId: string, newType: 'refrigerantPipe' | 'electricWire') => {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (edge.id !== edgeId) return edge;
+          if (newType === 'electricWire') {
+            return {
+              ...edge,
+              type: 'electricWire',
+              data: {
+                ...edge.data,
+                edgeType: 'electricWire',
+                pipeState: 'electric_phase',
+                wireFunction: 'phase',
+                wireSectionMm2: edge.data?.wireSectionMm2 ?? 2.5,
+                isAnimated: isAnimationRunning,
+              },
+            };
+          } else {
+            return {
+              ...edge,
+              type: 'refrigerantPipe',
+              data: {
+                ...edge.data,
+                edgeType: 'refrigerantPipe',
+                pipeState: 'discharge_superheated',
+                diameterInch: edge.data?.diameterInch ?? '1/2"',
+                diameterMm: edge.data?.diameterMm ?? 16.0,
+                isAnimated: isAnimationRunning,
+              },
+            };
+          }
+        })
+      );
+      showToast(
+        newType === 'electricWire'
+          ? '⚡ Línea convertida a Conexión Eléctrica'
+          : '❄️ Línea convertida a Tubería Frigorífica'
+      );
+    },
+    [isAnimationRunning, setEdges, showToast]
   );
 
   // Update Edge Waypoints (custom bend points)
@@ -502,6 +709,231 @@ const SchematicCanvasContent: React.FC = () => {
     [fitView, setNodes, setEdges, showToast]
   );
 
+  // Start simulation
+  const handleStartSimulation = useCallback(async () => {
+    try {
+      const schema = buildInstallationSchemaFromFlow(
+        'Instalación P&ID Dinámica',
+        selectedFluidId || 'R134a',
+        18.0,
+        simState?.current_charge_kg || 18.0,
+        nodes,
+        edges,
+        simState?.electrical
+          ? {
+              supply_type: 'ThreePhase400V',
+              voltage_v: 400.0,
+              frequency_hz: 50.0,
+              max_contracted_power_kw: 25.0,
+              demand_control_enabled: true,
+              demand_limit_kw: 20.0,
+              breakers: simState.electrical.breakers,
+            }
+          : undefined,
+        simState?.chambers
+      );
+
+      const val = await simService.validateInstallationSchema(schema);
+      setValidationReport(val);
+
+      if (!val.is_valid) {
+        showToast(`❌ Error de validación: ${val.issues[0]?.message}`);
+        return;
+      }
+
+      await simService.loadInstallationSchema(schema);
+      await simService.startSimulation();
+      showToast('▶ Simulación física iniciada.');
+
+      const state = await simService.getSimulationState();
+      if (state) setSimState(state);
+    } catch (e) {
+      console.error('Error starting simulation', e);
+      showToast('Error al iniciar la simulación.');
+    }
+  }, [nodes, edges, selectedFluidId, simState, showToast]);
+
+  const handlePauseSimulation = useCallback(async () => {
+    try {
+      await simService.pauseSimulation();
+      const state = await simService.getSimulationState();
+      if (state) setSimState(state);
+      showToast('⏸ Simulación pausada.');
+    } catch (e) {
+      console.error(e);
+    }
+  }, [showToast]);
+
+  const handleResetSimulation = useCallback(async () => {
+    try {
+      await simService.resetSimulation();
+      const state = await simService.getSimulationState();
+      if (state) setSimState(state);
+      showToast('🔄 Simulación reiniciada a condiciones iniciales.');
+    } catch (e) {
+      console.error(e);
+    }
+  }, [showToast]);
+
+  const handleStepSimulation = useCallback(async () => {
+    try {
+      const state = await simService.stepSimulation(0.5);
+      if (state) setSimState(state);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleSetSpeed = useCallback(async (spd: number) => {
+    setSimSpeed(spd);
+    await simService.setSimulationSpeed(spd);
+  }, []);
+
+  const handleIntervene = useCallback(
+    async (action: string, targetId: string, value: number = 0.0) => {
+      try {
+        const msg = await simService.interveneSimulation(action, targetId, value);
+        showToast(msg);
+        const state = await simService.getSimulationState();
+        if (state) setSimState(state);
+      } catch (e) {
+        showToast(`❌ ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+    [showToast]
+  );
+
+  const handleSaveProject = useCallback(async () => {
+    try {
+      const jsonStr = exportPidProjectJson(
+        'Mi Instalacion PID',
+        selectedFluidId || 'R134a',
+        18.0,
+        simState?.current_charge_kg || 18.0,
+        nodes,
+        edges,
+        simState?.electrical
+          ? {
+              supply_type: 'ThreePhase400V',
+              voltage_v: 400.0,
+              frequency_hz: 50.0,
+              max_contracted_power_kw: 25.0,
+              demand_control_enabled: true,
+              demand_limit_kw: 20.0,
+              breakers: simState.electrical.breakers,
+            }
+          : undefined,
+        simState?.chambers
+      );
+
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const filename = `instalacion_pid_${(selectedFluidId || 'r134a').toLowerCase()}`;
+      const res = await saveFileWithPicker(blob, filename, 'json' as any);
+      if (res.success) {
+        showToast(`✅ Esquema guardado: ${res.filename}`);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error al guardar archivo P&ID');
+    }
+  }, [nodes, edges, selectedFluidId, simState, showToast]);
+
+  const handleLoadProjectClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const res = importPidProjectJson(text);
+        if (res.success && res.nodes && res.edges) {
+          setNodes(res.nodes);
+          setEdges(res.edges);
+          if (res.installation) {
+            await simService.loadInstallationSchema(res.installation);
+            const state = await simService.getSimulationState();
+            if (state) setSimState(state);
+          }
+          showToast(`✅ Instalación '${file.name}' cargada y migrada correctamente.`);
+          setTimeout(() => {
+            fitView({ padding: 0.2, duration: 400 });
+          }, 100);
+        } else {
+          showToast(`❌ Error al importar: ${res.error || 'Formato desconocido'}`);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Error al leer el archivo seleccionado');
+      }
+      e.target.value = '';
+    },
+    [setNodes, setEdges, fitView, showToast]
+  );
+
+  // Periodic Simulation Ticker
+  useEffect(() => {
+    let interval: any = null;
+    if (simState?.is_running) {
+      interval = setInterval(async () => {
+        try {
+          const res = await simService.stepSimulation(0.25);
+          if (res) {
+            setSimState(res);
+
+            // Reflejar estados calculados en nodos (energizado, presiones, potencias)
+            setNodes((prevNodes) =>
+              prevNodes.map((n) => {
+                const eqCalc = res.equipments[n.id];
+                if (eqCalc) {
+                  return {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      isEnergized:
+                        eqCalc.run_state === 'Running' || eqCalc.run_state === 'Starting',
+                      powerKw: eqCalc.electrical_power_kw,
+                      capacityKw:
+                        eqCalc.thermal_capacity_kw || n.data.capacityKw,
+                      pressureInBar: eqCalc.inlet_pressure_bar ?? n.data.pressureInBar,
+                      pressureOutBar: eqCalc.outlet_pressure_bar ?? n.data.pressureOutBar,
+                    },
+                  };
+                }
+                return n;
+              })
+            );
+
+            // Animar tuberías según caudal real circulante
+            const isFlowing = res.total_cooling_capacity_kw > 0.05;
+            setEdges((prevEdges) =>
+              prevEdges.map((e) => ({
+                ...e,
+                data: {
+                  pipeState: e.data?.pipeState ?? 'discharge_superheated',
+                  ...e.data,
+                  isAnimated: isFlowing,
+                  pressureBar:
+                    e.data?.pipeState?.includes('discharge')
+                      ? res.discharge_pressure_bar
+                      : res.suction_pressure_bar,
+                },
+              }))
+            );
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 250);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [simState?.is_running, setNodes, setEdges]);
+
   // New Schematic Modal trigger
   const handleNewSchematic = useCallback(() => {
     setIsNewModalOpen(true);
@@ -519,6 +951,48 @@ const SchematicCanvasContent: React.FC = () => {
     } catch (e) {}
     showToast('Lienzo en blanco creado listo para diseñar.');
   }, [setNodes, setEdges, showToast]);
+
+  // Real-time Electrical Circuit Solver
+  useEffect(() => {
+    const hasElectrical = nodes.some(
+      (n) =>
+        COMPONENT_DEFINITIONS[n.data.componentType]?.category === 'basic_electrical' ||
+        COMPONENT_DEFINITIONS[n.data.componentType]?.category === 'electrical'
+    );
+    if (!hasElectrical) return;
+
+    const result = solveElectricalCircuit(nodes, edges);
+
+    let nodesChanged = false;
+    for (let i = 0; i < nodes.length; i++) {
+      const orig = nodes[i].data;
+      const solved = result.nodes[i]?.data;
+      if (
+        solved &&
+        (orig.isEnergized !== solved.isEnergized || orig.measuredValue !== solved.measuredValue)
+      ) {
+        nodesChanged = true;
+        break;
+      }
+    }
+
+    let edgesChanged = false;
+    for (let i = 0; i < edges.length; i++) {
+      const orig = edges[i].data?.isAnimated;
+      const solved = result.edges[i]?.data?.isAnimated;
+      if (orig !== solved) {
+        edgesChanged = true;
+        break;
+      }
+    }
+
+    if (nodesChanged) {
+      setNodes(result.nodes);
+    }
+    if (edgesChanged) {
+      setEdges(result.edges);
+    }
+  }, [nodes, edges, setNodes, setEdges]);
 
   // Clear Canvas (Borrar todo el esquema)
   const handleClearCanvas = useCallback(() => {
@@ -715,11 +1189,25 @@ const SchematicCanvasContent: React.FC = () => {
   return (
     <SchematicActionsContext.Provider value={actionsContextValue}>
       <div className="flex w-full h-full relative overflow-hidden bg-slate-100 dark:bg-[#0c0e12]">
-        {/* Left Collapsible Component Palette */}
+        {/* Left Sidepanel: Integrated Simulation Controls & Component Palette */}
         <ComponentPalette
           isOpen={isPaletteOpen}
           onToggle={() => setIsPaletteOpen(!isPaletteOpen)}
           onAddComponent={handleAddComponent}
+          simState={simState}
+          validationReport={validationReport}
+          simSpeed={simSpeed}
+          onStartSim={handleStartSimulation}
+          onPauseSim={handlePauseSimulation}
+          onStepSim={handleStepSimulation}
+          onResetSim={handleResetSimulation}
+          onSetSpeed={handleSetSpeed}
+          onIntervene={handleIntervene}
+          onToggleCharts={() => setIsChartsOpen(!isChartsOpen)}
+          onToggleElectrical={() => setIsElectricalPanelOpen(!isElectricalPanelOpen)}
+          isElectricalOpen={isElectricalPanelOpen}
+          onSaveProject={handleSaveProject}
+          onLoadProject={handleLoadProjectClick}
         />
 
         {/* Center Graph Workspace */}
@@ -740,6 +1228,40 @@ const SchematicCanvasContent: React.FC = () => {
             onExportSvg={handleExportSvg}
             isAnimationRunning={isAnimationRunning}
             onToggleAnimation={handleToggleAnimation}
+            activeConnectionType={activeConnectionType}
+            onChangeActiveConnectionType={setActiveConnectionType}
+            refrigerantPipeCount={refrigerantPipeCount}
+            electricWireCount={electricWireCount}
+          />
+
+          {/* Hidden File Input for Loading .pid.json */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            accept=".json,.pid.json"
+            className="hidden"
+          />
+
+          {/* Live Alarm and Event Log Drawer */}
+          <AlarmEventLog
+            alarms={simState?.active_alarms ?? []}
+            onIntervene={handleIntervene}
+          />
+
+          {/* Electrical Panel Drawer */}
+          {isElectricalPanelOpen && (
+            <ElectricalPanel
+              panelState={simState?.electrical ?? null}
+              onIntervene={handleIntervene}
+            />
+          )}
+
+          {/* Simulation Time-Series Charts Modal */}
+          <SimulationChartsModal
+            isOpen={isChartsOpen}
+            onClose={() => setIsChartsOpen(false)}
+            history={simState?.recent_history ?? []}
           />
 
           <ReactFlow<SchematicNode, SchematicEdge>
@@ -753,6 +1275,7 @@ const SchematicCanvasContent: React.FC = () => {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
+            isValidConnection={isValidConnection}
             edgesReconnectable={true}
             reconnectRadius={25}
             onDrop={onDrop}
@@ -763,7 +1286,7 @@ const SchematicCanvasContent: React.FC = () => {
             snapToGrid
             snapGrid={[15, 15]}
             elevateEdgesOnSelect={true}
-            elevateNodesOnSelect={true}
+            elevateNodesOnSelect={false}
             colorMode={themeMode === 'dark' ? 'dark' : 'light'}
             className="schematic-flow-canvas"
           >
@@ -791,6 +1314,7 @@ const SchematicCanvasContent: React.FC = () => {
             onUpdateNodeData={handleUpdateNodeData}
             onUpdateEdgeData={handleUpdateEdgeData}
             onSplitEdge={handleSplitEdgeWithJunction}
+            onConvertEdgeType={handleConvertEdgeType}
             onDeleteSelected={handleDeleteSelected}
             onDuplicateSelected={handleDuplicateSelected}
             onClose={() => {

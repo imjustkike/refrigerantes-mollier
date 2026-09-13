@@ -2,6 +2,7 @@ use tauri::Manager;
 
 pub mod commands;
 pub mod logger;
+pub mod pid_sim;
 pub mod thermo;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -70,7 +71,16 @@ pub fn run() {
             commands::calculate_process_curve_cmd,
             commands::get_engine_info_cmd,
             commands::get_log_path_cmd,
-            commands::log_client_event_cmd
+            commands::log_client_event_cmd,
+            pid_sim::pid_sim_load_schema_cmd,
+            pid_sim::pid_sim_start_cmd,
+            pid_sim::pid_sim_pause_cmd,
+            pid_sim::pid_sim_reset_cmd,
+            pid_sim::pid_sim_step_cmd,
+            pid_sim::pid_sim_set_speed_cmd,
+            pid_sim::pid_sim_intervene_cmd,
+            pid_sim::pid_sim_get_state_cmd,
+            pid_sim::pid_sim_validate_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

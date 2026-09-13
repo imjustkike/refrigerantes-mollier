@@ -270,6 +270,32 @@
   border-radius: 8px !important;
 }
 
+/* Edge & Node Layering: Pipes and Electrical Wires ALWAYS render in front of component cards */
+.react-flow__edges {
+  z-index: 10 !important;
+}
+
+.react-flow__nodes {
+  z-index: 5 !important;
+}
+
+.react-flow__node {
+  z-index: 5 !important;
+}
+
+.react-flow__node.selected {
+  z-index: 6 !important;
+}
+
+.react-flow__handle {
+  z-index: 30 !important;
+  pointer-events: auto !important;
+}
+
+svg.react-flow__connectionline {
+  z-index: 1001 !important;
+}
+
 /* Edge Labels and Interactive Controls Stacking: ALWAYS on top of SVG paths and nodes */
 .react-flow__edgelabel-renderer {
   z-index: 99999 !important;

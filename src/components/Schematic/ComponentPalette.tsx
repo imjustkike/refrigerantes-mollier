@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import {
   Activity,
+  Box,
   ChevronDown,
   ChevronRight,
+  Cpu,
   Database,
   Eye,
   Flame,
   Gauge,
   GitFork,
   GripVertical,
+  Lightbulb,
+  Pause,
+  Play,
   Plus,
   Search,
   Sliders,
@@ -21,15 +26,39 @@ import {
 import { SvgSymbol } from './symbols/SvgSymbols';
 import { SchematicComponentType } from '../../types/schematic';
 import { useProject } from '../../context/ProjectContext';
+import { SimulationControlsBar } from './simulation/SimulationControlsBar';
+import { SimulationStateResponse, ValidationReport } from '../../types/pidSimulation';
 
-interface ComponentPaletteProps {
+export interface ComponentPaletteProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddComponent?: (componentType: SchematicComponentType) => void;
+
+  // Dynamic Physical Simulation Props
+  simState?: SimulationStateResponse | null;
+  validationReport?: ValidationReport | null;
+  simSpeed?: number;
+  onStartSim?: () => void;
+  onPauseSim?: () => void;
+  onStepSim?: () => void;
+  onResetSim?: () => void;
+  onSetSpeed?: (speed: number) => void;
+  onIntervene?: (action: string, targetId: string, value?: number) => void;
+  onToggleCharts?: () => void;
+  onToggleElectrical?: () => void;
+  isElectricalOpen?: boolean;
+  onSaveProject?: () => void;
+  onLoadProject?: () => void;
 }
 
 const getCategoryIcon = (iconName: string) => {
   switch (iconName) {
+    case 'Lightbulb':
+      return <Lightbulb size={14} className="text-yellow-400" />;
+    case 'Box':
+      return <Box size={14} className="text-sky-500" />;
+    case 'Cpu':
+      return <Cpu size={14} className="text-amber-500" />;
     case 'Zap':
       return <Zap size={14} className="text-amber-500" />;
     case 'Flame':
@@ -50,14 +79,82 @@ const getCategoryIcon = (iconName: string) => {
   }
 };
 
+const ELECTRICAL_GROUPS = [
+  {
+    id: 'alimentacion',
+    label: 'Alimentación',
+    icon: '⚡',
+    types: ['dc_power_source', 'power_source_ac', 'power_source_ac_3p', 'cell_dc_simple', 'battery_dc_cell'],
+  },
+  {
+    id: 'conexiones',
+    label: 'Conexiones',
+    icon: '🔌',
+    types: ['junction_dot_electric', 'terminal_block_electric', 'connector_plug_socket', 'neutral_terminal', 'ground_earth'],
+  },
+  {
+    id: 'interruptores',
+    label: 'Interruptores y Mandos',
+    icon: '🔘',
+    types: ['switch_spst', 'switch_spdt', 'pushbutton_simple', 'pushbutton_no', 'pushbutton_nc_simple', 'pushbutton_nc', 'selector_switch_rotary', 'emergency_stop_button'],
+  },
+  {
+    id: 'protecciones',
+    label: 'Protecciones',
+    icon: '🛡️',
+    types: ['fuse_disconnect', 'circuit_breaker_mcb', 'residual_current_device', 'switch_disconnector', 'motor_protection_switch'],
+  },
+  {
+    id: 'reles',
+    label: 'Relés y Contactores',
+    icon: '🔄',
+    types: ['relay_coil_auxiliary', 'contact_aux_no', 'contact_aux_nc', 'contactor_relay', 'timer_delay_on'],
+  },
+  {
+    id: 'receptores',
+    label: 'Receptores',
+    icon: '💡',
+    types: ['light_bulb', 'diode_led', 'electric_heater', 'electric_motor_1p', 'electric_motor_3p', 'buzzer_siren', 'solenoid_coil'],
+  },
+  {
+    id: 'transformacion',
+    label: 'Transformación',
+    icon: '⚙️',
+    types: ['control_transformer', 'power_supply_dc_24v'],
+  },
+  {
+    id: 'medicion',
+    label: 'Medición',
+    icon: '📟',
+    types: ['voltmeter_basic', 'ammeter_basic', 'ohmmeter_basic', 'wattmeter_basic', 'multimeter_digital'],
+  },
+];
+
 export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   isOpen,
   onToggle,
   onAddComponent,
+  simState = null,
+  validationReport = null,
+  simSpeed = 1.0,
+  onStartSim,
+  onPauseSim,
+  onStepSim,
+  onResetSim,
+  onSetSpeed,
+  onIntervene,
+  onToggleCharts,
+  onToggleElectrical,
+  isElectricalOpen = true,
+  onSaveProject,
+  onLoadProject,
 }) => {
   const { themeMode } = useProject();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedElectricalGroup, setSelectedElectricalGroup] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const isRunning = simState?.is_running ?? false;
 
   const toggleCategory = (catId: string) => {
     setCollapsedCategories((prev) => ({
@@ -89,54 +186,137 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
           c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
           c.defaultTagPrefix.toLowerCase().includes(searchQuery.toLowerCase())
       )
+    : selectedElectricalGroup
+    ? allDefinitions.filter((c) => {
+        const group = ELECTRICAL_GROUPS.find((g) => g.id === selectedElectricalGroup);
+        return group ? group.types.includes(c.type) : false;
+      })
     : null;
 
   return (
     <div
       className={`h-full bg-white/95 dark:bg-[#13151b]/95 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-200 z-20 shadow-md ${
-        isOpen ? 'w-96' : 'w-10'
+        isOpen ? 'w-[380px]' : 'w-12'
       }`}
     >
-      {/* Palette Header */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        {isOpen && (
+      {/* Sidepanel Header */}
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+        {isOpen ? (
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400">
               <Sliders size={13} />
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-                Componentes P&ID
+                Esquema P&ID & Simulación
               </span>
               <span className="text-[10px] text-slate-500 font-mono">
-                {allDefinitions.length} elementos HVAC/R
+                {allDefinitions.length} elementos • Motor Físico CoolProp
               </span>
             </div>
           </div>
+        ) : (
+          <div className="w-full flex flex-col items-center gap-2">
+            <button
+              onClick={onToggle}
+              className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+              title="Expandir panel lateral"
+            >
+              <ChevronRight size={15} />
+            </button>
+            {/* Quick Play / Pause when collapsed */}
+            <button
+              onClick={isRunning ? onPauseSim : onStartSim}
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
+                isRunning
+                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 animate-pulse'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-500'
+              }`}
+              title={isRunning ? 'Pausar simulación' : 'Iniciar simulación'}
+            >
+              {isRunning ? <Pause size={14} /> : <Play size={14} />}
+            </button>
+          </div>
         )}
 
-        <button
-          onClick={onToggle}
-          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
-          title={isOpen ? 'Contraer paleta' : 'Expandir paleta de componentes'}
-        >
-          {isOpen ? <ChevronDown size={14} className="-rotate-90" /> : <ChevronRight size={14} />}
-        </button>
+        {isOpen && (
+          <button
+            onClick={onToggle}
+            className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+            title="Contraer panel"
+          >
+            <ChevronDown size={14} className="-rotate-90" />
+          </button>
+        )}
       </div>
 
       {isOpen && (
         <>
-          {/* Search Bar */}
-          <div className="p-2.5 border-b border-slate-200 dark:border-slate-800">
+          {/* Integrated Simulation Controls Section */}
+          <SimulationControlsBar
+            simState={simState}
+            validationReport={validationReport}
+            speed={simSpeed}
+            onStart={onStartSim ?? (() => {})}
+            onPause={onPauseSim ?? (() => {})}
+            onStep={onStepSim ?? (() => {})}
+            onReset={onResetSim ?? (() => {})}
+            onSetSpeed={onSetSpeed ?? (() => {})}
+            onIntervene={onIntervene ?? (() => {})}
+            onToggleCharts={onToggleCharts ?? (() => {})}
+            onToggleElectrical={onToggleElectrical ?? (() => {})}
+            isElectricalOpen={isElectricalOpen}
+            onSaveProject={onSaveProject ?? (() => {})}
+            onLoadProject={onLoadProject ?? (() => {})}
+          />
+
+          {/* Search Bar & Group Filter Pills */}
+          <div className="p-2.5 border-b border-slate-200 dark:border-slate-800 shrink-0 space-y-2">
             <div className="relative flex items-center">
               <Search size={13} className="absolute left-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar componente (ej. Scroll, TXV, Flash)..."
+                placeholder="Buscar componente (ej. Scroll, Bombilla, Voltímetro)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-500 outline-none focus:border-sky-500 transition-colors"
               />
+            </div>
+
+            {/* Quick Filter Pills for Electrical Groups */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[9.5px]">
+              <button
+                type="button"
+                onClick={() => setSelectedElectricalGroup(null)}
+                className={`px-2 py-0.5 rounded-full whitespace-nowrap transition cursor-pointer font-medium ${
+                  selectedElectricalGroup === null && !searchQuery
+                    ? 'bg-sky-500 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                Todos
+              </button>
+              {ELECTRICAL_GROUPS.map((grp) => {
+                const isSel = selectedElectricalGroup === grp.id;
+                return (
+                  <button
+                    key={grp.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedElectricalGroup(isSel ? null : grp.id);
+                      setSearchQuery('');
+                    }}
+                    className={`px-2 py-0.5 rounded-full whitespace-nowrap transition cursor-pointer flex items-center gap-1 font-medium ${
+                      isSel
+                        ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{grp.icon}</span>
+                    <span>{grp.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -145,7 +325,11 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
             {filteredComponents ? (
               <div className="space-y-1.5">
                 <div className="text-[10px] font-mono text-slate-500 px-1">
-                  {filteredComponents.length} resultados para &quot;{searchQuery}&quot;
+                  {searchQuery
+                    ? `${filteredComponents.length} resultados para "${searchQuery}"`
+                    : `Grupo: ${
+                        ELECTRICAL_GROUPS.find((g) => g.id === selectedElectricalGroup)?.label
+                      } (${filteredComponents.length} componentes)`}
                 </div>
                 {filteredComponents.map((def) => (
                   <div

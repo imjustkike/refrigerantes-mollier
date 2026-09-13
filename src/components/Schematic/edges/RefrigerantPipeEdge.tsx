@@ -44,6 +44,16 @@ export const getPipeColor = (state: PipeStateCategory): string => {
       return '#a855f7'; // Púrpura desescarche
     case 'secondary_fluid':
       return '#10b981'; // Esmeralda agua
+    case 'electric_phase':
+      return '#b45309'; // Marrón fase fuerza (L1, L2, L3)
+    case 'electric_neutral':
+      return '#2563eb'; // Azul eléctrico neutro (N)
+    case 'electric_ground':
+      return '#65a30d'; // Verde lima tierra de protección (PE)
+    case 'electric_control':
+      return '#dc2626'; // Rojo maniobra y mando (230V / 24V)
+    case 'electric_signal':
+      return '#9333ea'; // Púrpura señal analógica / bus
     case 'control_line':
     default:
       return '#94a3b8'; // Gris
@@ -63,7 +73,7 @@ export function getDefaultWaypoints(
   targetY: number,
   targetPosition: string
 ): { x: number; y: number }[] {
-  const CLEARANCE = 30; // Minimum clearance distance (px) away from component ports
+  const CLEARANCE = 35; // Minimum clearance distance (px) away from component ports
 
   // Departure vector from source port (pointing outward away from component)
   const dirS = {

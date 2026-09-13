@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ArrowLeftRight,
   Copy,
   FlipHorizontal,
   FlipVertical,
@@ -8,6 +9,7 @@ import {
   Sliders,
   Trash2,
   X,
+  Zap,
 } from 'lucide-react';
 import { Edge, Node } from '@xyflow/react';
 import { PipeStateCategory, SchematicComponentType, SchematicEdgeData, SchematicNodeData } from '../../types/schematic';
@@ -19,6 +21,7 @@ interface ComponentPropertyPanelProps {
   onUpdateNodeData: (nodeId: string, updates: Partial<SchematicNodeData>) => void;
   onUpdateEdgeData: (edgeId: string, updates: Partial<SchematicEdgeData>) => void;
   onSplitEdge?: (edgeId: string, junctionType: SchematicComponentType) => void;
+  onConvertEdgeType?: (edgeId: string, newType: 'refrigerantPipe' | 'electricWire') => void;
   onDeleteSelected: () => void;
   onDuplicateSelected: () => void;
   onClose: () => void;
@@ -41,12 +44,53 @@ const STANDARD_PIPE_DIAMETERS = [
   '1/4"', '3/8"', '1/2"', '5/8"', '3/4"', '7/8"', '1-1/8"', '1-3/8"', '1-5/8"', '2-1/8"', '2-5/8"', 'DN50', 'DN80', 'DN100'
 ];
 
+const ELECTRIC_WIRE_OPTIONS: {
+  id: PipeStateCategory;
+  label: string;
+  sublabel: string;
+  color: string;
+}[] = [
+  {
+    id: 'electric_phase',
+    label: 'Fase de Potencia (L1 / L2 / L3)',
+    sublabel: 'Conductor activo bajo tensión o +DC (Marrón)',
+    color: '#b45309',
+  },
+  {
+    id: 'electric_neutral',
+    label: 'Neutro de Retorno (N)',
+    sublabel: 'Retorno de neutro o común de masa -DC (Azul eléctrico)',
+    color: '#2563eb',
+  },
+  {
+    id: 'electric_ground',
+    label: 'Tierra de Protección (PE)',
+    sublabel: 'Conductor de equipotencialidad (Verde/Amarillo)',
+    color: '#65a30d',
+  },
+  {
+    id: 'electric_control',
+    label: 'Línea de Maniobra y Control',
+    sublabel: 'Termostatos, presostatos, pulsadores y relés (Rojo)',
+    color: '#dc2626',
+  },
+  {
+    id: 'electric_signal',
+    label: 'Señal Analógica / Sonda',
+    sublabel: 'Sondas de temperatura, 0-10V, 4-20mA (Púrpura)',
+    color: '#9333ea',
+  },
+];
+
+const STANDARD_WIRE_SECTIONS = [0.75, 1.0, 1.5, 2.5, 4.0, 6.0, 10.0, 16.0];
+
 export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
   selectedNode,
   selectedEdge,
   onUpdateNodeData,
   onUpdateEdgeData,
   onSplitEdge,
+  onConvertEdgeType,
   onDeleteSelected,
   onDuplicateSelected,
   onClose,
@@ -57,6 +101,21 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
   if (selectedNode) {
     const nodeData = selectedNode.data;
     const def = COMPONENT_DEFINITIONS[nodeData.componentType];
+    const category = def?.category || '';
+
+    const isRefrigerantComponent = [
+      'compressors',
+      'heat_exchangers',
+      'expansion',
+      'vessels',
+      'valves',
+      'piping',
+    ].includes(category);
+
+    const isElectricalOnly = [
+      'basic_electrical',
+      'electrical',
+    ].includes(category) && !selectedNode.data.componentType.includes('compressor');
 
     const rotateClockwise = () => {
       const current = nodeData.rotation || 0;
@@ -201,127 +260,204 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
                 type="text"
                 value={nodeData.modelNumber || ''}
                 onChange={(e) => onUpdateNodeData(selectedNode.id, { modelNumber: e.target.value })}
-                placeholder="ej. Bitzer 4CES-9Y, Danfoss T2, Copeland ZB45"
+                placeholder={
+                  isRefrigerantComponent
+                    ? 'ej. Bitzer 4CES-9Y, Danfoss T2, Copeland ZB45'
+                    : isElectricalOnly
+                    ? 'ej. Philips E27 60W, Osram LED, Schneider iC60N'
+                    : 'ej. Referencia de catálogo / modelo'
+                }
                 className="w-full px-2 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-800 dark:text-slate-200 outline-none"
               />
             </div>
           </div>
 
-          {/* Direct Technical & Thermodynamic Specs */}
-          <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-              Parámetros de Operación Directos
-            </span>
+          {/* Direct Technical & Thermodynamic Specs (Only for Refrigerant Components) */}
+          {isRefrigerantComponent && (
+            <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                Parámetros Termodinámicos y de Operación
+              </span>
 
-            {/* Pressure & Temperature Limits */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Salida / HP (bar)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={nodeData.pressureOutBar ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureOutBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="14.5"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
+              {/* Pressure & Temperature Limits */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Salida / HP (bar)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={nodeData.pressureOutBar ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureOutBar: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="14.5"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Entrada / LP (bar)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={nodeData.pressureInBar ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureInBar: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="2.1"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Presión Entrada / LP (bar)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={nodeData.pressureInBar ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { pressureInBar: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="2.1"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Salida (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.tempOutC ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { tempOutC: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="65.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Entrada (°C)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.tempInC ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { tempInC: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="-5.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Performance, Capacity & Power */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Potencia / Capacidad (kW)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={nodeData.capacityKw ?? nodeData.powerKw ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                      onUpdateNodeData(selectedNode.id, { capacityKw: val, powerKw: val });
+                    }}
+                    placeholder="8.5"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Caudal Volumétrico (m³/h)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.displacementM3h ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { displacementM3h: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="24.5"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Specific Settings (SH, SC, Opening, Setpoint) */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Recalentamiento SH (K)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.superheatK ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { superheatK: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="5.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Subenfriamiento SC (K)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.subcoolingK ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { subcoolingK: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="3.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Salida (°C)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={nodeData.tempOutC ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { tempOutC: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="65.0"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
+          {/* Direct Electrical Parameters (Only for pure electrical components like bulbs, resistors, batteries) */}
+          {isElectricalOnly && (
+            <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                Parámetros Eléctricos de Operación
+              </span>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Tensión Nominal (V)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={nodeData.voltageV ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { voltageV: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="12.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Potencia Eléctrica (kW)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={nodeData.powerKw ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { powerKw: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="0.06"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Temperatura Entrada (°C)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={nodeData.tempInC ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { tempInC: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="-5.0"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Resistencia Carga (Ω)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={nodeData.resistanceOhm ?? ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { resistanceOhm: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="24.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
 
-            {/* Performance, Capacity & Power */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Potencia / Capacidad (kW)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={nodeData.capacityKw ?? nodeData.powerKw ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? parseFloat(e.target.value) : undefined;
-                    onUpdateNodeData(selectedNode.id, { capacityKw: val, powerKw: val });
-                  }}
-                  placeholder="8.5"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Caudal Volumétrico (m³/h)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={nodeData.displacementM3h ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { displacementM3h: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="24.5"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            {/* Specific Settings (SH, SC, Opening, Setpoint) */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Recalentamiento SH (K)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={nodeData.superheatK ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { superheatK: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="5.0"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Subenfriamiento SC (K)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={nodeData.subcoolingK ?? ''}
-                  onChange={(e) => onUpdateNodeData(selectedNode.id, { subcoolingK: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  placeholder="3.0"
-                  className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
-                />
+                <div>
+                  <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">Disyuntor / Protección</label>
+                  <select
+                    value={nodeData.breakerId || ''}
+                    onChange={(e) => onUpdateNodeData(selectedNode.id, { breakerId: e.target.value || undefined })}
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  >
+                    <option value="">(Sin protección)</option>
+                    <option value="b_main">IGA General (50 A)</option>
+                    <option value="b_comp1">Q1 Compresor 1 (16 A)</option>
+                    <option value="b_comp2">Q2 Compresor 2 (16 A)</option>
+                    <option value="b_cond">Q3 Ventilador Cond. (6 A)</option>
+                    <option value="b_evap">Q4 Vent. Evaporador (4 A)</option>
+                    <option value="b_defrost">Q5 Desescarche (16 A)</option>
+                  </select>
+                </div>
               </div>
             </div>
+          )}
+
+          <div className="space-y-2.5">
 
             {/* Instrument Measured Value */}
             {(def?.category === 'instruments' || nodeData.measuredValue !== undefined) && (
@@ -400,20 +536,226 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
     );
   }
 
-  // Edge / Pipe Inspector
+  // Edge / Pipe & Wire Inspector
   if (selectedEdge) {
     const edgeData = (selectedEdge.data || {}) as SchematicEdgeData;
+    const isElectricWire =
+      selectedEdge.type === 'electricWire' ||
+      edgeData.edgeType === 'electricWire' ||
+      Boolean(edgeData.pipeState?.startsWith('electric_'));
 
+    // --- 1. FICHA DE CONEXIÓN ELÉCTRICA (CABLES Y CONDUCTORES) ---
+    if (isElectricWire) {
+      return (
+        <div className="w-88 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-amber-500/5 dark:bg-[#151410]">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/30 shadow-xs">
+                <Zap size={15} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                  Ficha de Cableado Eléctrico
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                  Línea / Conexión Eléctrica
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3.5 space-y-4 text-xs">
+            {/* Quick Actions (Convert or Delete) */}
+            <div className="flex items-center justify-between gap-2">
+              {onConvertEdgeType && (
+                <button
+                  type="button"
+                  onClick={() => onConvertEdgeType(selectedEdge.id, 'refrigerantPipe')}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 font-semibold text-[11px] transition-colors cursor-pointer"
+                  title="Cambiar esta línea a tubería frigorífica"
+                >
+                  <ArrowLeftRight size={12} />
+                  <span>Pasar a Tubería ❄️</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onDeleteSelected}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-semibold text-[11px] transition-colors cursor-pointer ml-auto"
+                title="Eliminar este cable"
+              >
+                <Trash2 size={12} />
+                <span>Eliminar Cable</span>
+              </button>
+            </div>
+
+            {/* Trazado y Puntos de Curvatura */}
+            <div className="space-y-2 p-2.5 rounded-lg bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/30">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  Puntos de Doblez y Enrutamiento
+                </span>
+                <span className="text-[10px] font-mono text-slate-500">
+                  {edgeData.waypoints && edgeData.waypoints.length > 0
+                    ? `${edgeData.waypoints.length} puntos manuales`
+                    : 'Automático'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-tight">
+                Arrastra los tiradores del cable o pulsa &quot;+&quot; en los tramos para agregar quiebres ortogonales.
+              </p>
+              {edgeData.waypoints && edgeData.waypoints.length > 0 && (
+                <button
+                  onClick={() => onUpdateEdgeData(selectedEdge.id, { waypoints: undefined })}
+                  className="w-full px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono text-[10px] transition-colors cursor-pointer"
+                >
+                  Restablecer a Trazado Automático
+                </button>
+              )}
+            </div>
+
+            {/* Función del Conductor */}
+            <div className="space-y-2">
+              <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                Función / Tipo de Conductor
+              </label>
+              <div className="space-y-1">
+                {ELECTRIC_WIRE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      onUpdateEdgeData(selectedEdge.id, {
+                        pipeState: opt.id,
+                        edgeType: 'electricWire',
+                      })
+                    }
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-colors cursor-pointer ${
+                      edgeData.pipeState === opt.id
+                        ? 'bg-slate-100 dark:bg-[#1a1d24] border-amber-500 text-slate-900 dark:text-white font-semibold'
+                        : 'bg-transparent border-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] leading-tight truncate">{opt.label}</span>
+                      <span className="text-[9px] text-slate-400 leading-tight truncate">{opt.sublabel}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sección del Conductor */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-slate-500 font-medium">Sección Normalizada (mm²)</label>
+                <span className="font-mono text-amber-500 font-bold text-xs">
+                  {edgeData.wireSectionMm2 || 1.5} mm²
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1 pt-1">
+                {STANDARD_WIRE_SECTIONS.map((sec) => {
+                  const isCurrent = (edgeData.wireSectionMm2 || 1.5) === sec;
+                  return (
+                    <button
+                      key={sec}
+                      type="button"
+                      onClick={() => onUpdateEdgeData(selectedEdge.id, { wireSectionMm2: sec })}
+                      className={`py-1 rounded text-[10px] font-mono font-semibold border transition-colors cursor-pointer ${
+                        isCurrent
+                          ? 'bg-amber-600 text-white border-amber-500 shadow-xs font-bold'
+                          : 'bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-750'
+                      }`}
+                    >
+                      {sec} mm²
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Etiqueta del Conductor */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <label className="block text-[10px] text-slate-500 mb-0.5 font-medium">
+                Etiqueta / Identificador de Conductor
+              </label>
+              <input
+                type="text"
+                value={edgeData.wireTag || edgeData.customLabel || ''}
+                onChange={(e) =>
+                  onUpdateEdgeData(selectedEdge.id, {
+                    wireTag: e.target.value,
+                    customLabel: e.target.value,
+                  })
+                }
+                placeholder="ej. L1-KM1, N-EVAP, CTRL-TERMOSTATO..."
+                className="w-full px-2.5 py-1.5 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded-lg text-xs text-slate-900 dark:text-white outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            {/* Parámetros Eléctricos de la Línea */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                Magnitudes Eléctricas de la Línea
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[10px] text-slate-500">Tensión Nominal (V)</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={edgeData.voltageV ?? ''}
+                    onChange={(e) =>
+                      onUpdateEdgeData(selectedEdge.id, {
+                        voltageV: e.target.value ? parseFloat(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder="230 / 400"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500">Intensidad (A)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={edgeData.wireCurrentA ?? ''}
+                    onChange={(e) =>
+                      onUpdateEdgeData(selectedEdge.id, {
+                        wireCurrentA: e.target.value ? parseFloat(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder="5.0"
+                    className="w-full px-2 py-1 bg-slate-100 dark:bg-[#1a1d24] border border-slate-200 dark:border-slate-750 rounded text-xs font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- 2. FICHA DE TUBERÍA FRIGORÍFICA ---
     return (
       <div className="w-88 h-full bg-white/95 dark:bg-[#13151b]/95 border-l border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl select-none">
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#101217]">
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-sky-500/5 dark:bg-[#0f1418]">
           <div className="flex items-center gap-2">
-            <Sliders size={14} className="text-sky-500" />
+            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-500 border border-sky-500/30 shadow-xs">
+              <Sliders size={15} />
+            </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-                Ficha de Tubería
+                Ficha de Tubería Frigorífica
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">
+              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-mono">
                 Tramo de Circuito Frigorífico
               </span>
             </div>
@@ -427,13 +769,26 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-3.5 space-y-4 text-xs">
-          {/* Delete Edge Button */}
-          <div className="flex justify-end">
+          {/* Quick Actions Bar (Convert to wire or delete) */}
+          <div className="flex items-center justify-between gap-2">
+            {onConvertEdgeType && (
+              <button
+                type="button"
+                onClick={() => onConvertEdgeType(selectedEdge.id, 'electricWire')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold text-[11px] transition-colors cursor-pointer"
+                title="Cambiar esta tubería a conexión eléctrica"
+              >
+                <ArrowLeftRight size={12} />
+                <span>Pasar a Cable ⚡</span>
+              </button>
+            )}
             <button
+              type="button"
               onClick={onDeleteSelected}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-semibold text-[11px] transition-colors cursor-pointer ml-auto"
+              title="Eliminar esta tubería del circuito"
             >
-              <Trash2 size={13} />
+              <Trash2 size={12} />
               <span>Eliminar Tubería</span>
             </button>
           </div>
@@ -516,7 +871,12 @@ export const ComponentPropertyPanel: React.FC<ComponentPropertyPanelProps> = ({
               {PIPE_STATE_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => onUpdateEdgeData(selectedEdge.id, { pipeState: opt.id })}
+                  onClick={() =>
+                    onUpdateEdgeData(selectedEdge.id, {
+                      pipeState: opt.id,
+                      edgeType: 'refrigerantPipe',
+                    })
+                  }
                   className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-colors cursor-pointer ${
                     edgeData.pipeState === opt.id
                       ? 'bg-slate-100 dark:bg-[#1a1d24] border-sky-500 text-slate-900 dark:text-white font-semibold'

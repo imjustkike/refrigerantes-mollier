@@ -1,4 +1,7 @@
+import type { Edge, Node } from '@xyflow/react';
+
 export type SchematicComponentCategory =
+  | 'basic_electrical'
   | 'compressors'
   | 'heat_exchangers'
   | 'expansion'
@@ -6,7 +9,9 @@ export type SchematicComponentCategory =
   | 'valves'
   | 'fittings'
   | 'instruments'
-  | 'accessories';
+  | 'accessories'
+  | 'chambers'
+  | 'electrical';
 
 export type SchematicComponentType =
   // Compresores & Bombas
@@ -63,7 +68,76 @@ export type SchematicComponentType =
   | 'sensor_temperature'
   | 'pressure_switch'
   | 'flow_meter'
-  | 'power_meter';
+  | 'power_meter'
+  // Cámaras Frigoríficas & Recintos
+  | 'cold_room_conservation'
+  | 'cold_room_freezer'
+  | 'cold_room_blast_chiller'
+  | 'conditioned_room'
+  | 'cold_room_fermentation'
+  | 'cold_room_ripening'
+  | 'cold_room_drying'
+  | 'ice_storage_room'
+  // Instalación Eléctrica: Cuadros, Acometida y Protecciones
+  | 'electrical_panel_main'
+  | 'power_supply_terminal'
+  | 'ground_earth'
+  | 'circuit_breaker_mcb'
+  | 'residual_current_device'
+  | 'motor_protection_switch'
+  | 'fuse_disconnect'
+  | 'thermal_overload_relay'
+  // Instalación Eléctrica: Maniobra, Contactos y Relés
+  | 'contactor_relay'
+  | 'relay_coil_auxiliary'
+  | 'contact_aux_no'
+  | 'contact_aux_nc'
+  | 'timer_delay_on'
+  | 'timer_delay_off'
+  | 'pushbutton_no'
+  | 'pushbutton_nc'
+  | 'emergency_stop_button'
+  | 'selector_switch_rotary'
+  // Instalación Eléctrica: Transformadores y Fuentes
+  | 'control_transformer'
+  | 'power_supply_dc_24v'
+  // Instalación Eléctrica: Señalización
+  | 'pilot_light_green'
+  | 'pilot_light_red'
+  | 'pilot_light_amber'
+  | 'buzzer_siren'
+  // Instalación Eléctrica: Cargas, Motores y Electrónica
+  | 'electric_motor_3p'
+  | 'electric_motor_1p'
+  | 'electric_heater'
+  | 'solenoid_coil'
+  | 'frequency_inverter_vfd'
+  | 'soft_starter'
+  | 'power_demand_controller'
+  // Electricidad Básica & Didáctica (Circuitos Elementales)
+  | 'battery_dc_cell'
+  | 'cell_dc_simple'
+  | 'dc_power_source'
+  | 'power_source_ac'
+  | 'power_source_ac_3p'
+  | 'junction_dot_electric'
+  | 'terminal_block_electric'
+  | 'connector_plug_socket'
+  | 'neutral_terminal'
+  | 'switch_disconnector'
+  | 'light_bulb'
+  | 'switch_spst'
+  | 'switch_spdt'
+  | 'pushbutton_simple'
+  | 'pushbutton_nc_simple'
+  | 'resistor_fixed'
+  | 'potentiometer'
+  | 'capacitor_fixed'
+  | 'diode_led'
+  | 'voltmeter_basic'
+  | 'ammeter_basic'
+  | 'ohmmeter_basic'
+  | 'wattmeter_basic';
 
 export type PortDirection = 'left' | 'right' | 'top' | 'bottom';
 
@@ -83,6 +157,11 @@ export type PortKind =
   | 'water_out'      // Salida agua secundaria
   | 'hot_gas_bypass' // Bypass gas caliente / desescarche
   | 'defrost'        // Inyección desescarche
+  | 'electric_power'   // Línea / Fase eléctrica de fuerza (L1, L2, L3)
+  | 'electric_neutral' // Neutro de red (N)
+  | 'electric_ground'  // Conductor de protección / Puesta a tierra (PE ⏚)
+  | 'electric_control' // Maniobra / Bobinas / Contactos auxiliares (A1, A2, NO, NC)
+  | 'electric_signal'  // Señal analógica o sonda (0-10V, 4-20mA, NTC/PT100)
   | 'generic';       // Puerto genérico bidireccional
 
 export interface ComponentPort {
@@ -135,6 +214,59 @@ export interface SchematicNodeData {
   // Medición de Instrumentos
   measuredValue?: number;
   measuredUnit?: string;
+
+  // Vinculación Eléctrica y Cámaras Frigoríficas
+  breakerId?: string;
+  chamberId?: string;
+  isLeadCompressor?: boolean;
+
+  // Propiedades Específicas de Cámaras Frigoríficas
+  chamberLengthM?: number;
+  chamberWidthM?: number;
+  chamberHeightM?: number;
+  chamberVolumeM3?: number;
+  chamberAreaM2?: number;
+  chamberUValue?: number;         // W / (m²·K)
+  productMassKg?: number;         // kg
+  productCp?: number;             // kJ / (kg·K)
+  productTempC?: number;          // °C
+  isDoorOpen?: boolean;
+  internalLightingW?: number;     // W
+  occupancyPeople?: number;
+  isDefrostActive?: boolean;
+  defrostPowerKw?: number;
+
+  // Propiedades Específicas de Cuadros Eléctricos y Protecciones
+  supplyType?: 'SinglePhase230V' | 'ThreePhase400V';
+  ratedCurrentA?: number;         // In (A) ej. 16, 25, 32, 50, 63
+  curveType?: 'B' | 'C' | 'D';
+  isBreakerClosed?: boolean;
+  isBreakerTripped?: boolean;
+  thermalMemoryPercent?: number;  // 0 - 100%
+  tripReason?: string;
+  maxContractedPowerKw?: number;  // kW
+  demandLimitKw?: number;         // kW
+
+  // Maniobra Eléctrica y Automatismos
+  contactState?: 'open' | 'closed';
+  timerDelayS?: number;
+  coilVoltageV?: number;
+  isPushButtonPressed?: boolean;
+  selectorPosition?: 'man' | 'off' | 'auto';
+  pilotLightColor?: 'green' | 'red' | 'amber' | 'white';
+  overloadCurrentSettingA?: number;
+  fuseRatingA?: number;
+  motorPoleCount?: number;
+  motorRpm?: number;
+
+  // Circuitos Eléctricos Básicos & Didácticos
+  isSwitchClosed?: boolean;
+  resistanceOhm?: number;
+  capacitanceUf?: number;
+  currentA?: number;
+  powerWatts?: number;
+  isSeriesWarning?: boolean;
+  isSeriesPassThrough?: boolean;
 }
 
 export type PipeStateCategory =
@@ -148,15 +280,24 @@ export type PipeStateCategory =
   | 'oil_line'              // Verde Oliva / Lima (#84cc16)
   | 'hot_gas_defrost'       // Púrpura (#a855f7)
   | 'secondary_fluid'       // Esmeralda (#10b981)
-  | 'control_line';         // Gris discontinuo (#94a3b8)
+  | 'control_line'          // Gris discontinuo (#94a3b8)
+  // Cableado Eléctrico Didáctico
+  | 'electric_phase'        // Fase de potencia L1, L2, L3 (Marrón #b45309)
+  | 'electric_neutral'      // Neutro N (Azul eléctrico #2563eb)
+  | 'electric_ground'       // Conductor de protección PE (Verde/Amarillo #65a30d)
+  | 'electric_control'      // Maniobra 230V / 24V (Rojo #dc2626)
+  | 'electric_signal';      // Señal o sonda (Púrpura #9333ea)
 
 export interface SchematicEdgeData {
   [key: string]: unknown;
   pipeState: PipeStateCategory;
+  edgeType?: 'electricWire' | 'refrigerantPipe';
   flowDirection?: 'forward' | 'reverse' | 'bidirectional';
   isAnimated?: boolean;
   waypoints?: Array<{ x: number; y: number }>; // Puntos de quiebre / dobleces móviles de la tubería
   offset?: number;
+
+  // Propiedades Exclusivas de Tuberías Frigoríficas
   diameterInch?: string;   // ej. 3/8", 1/2", 7/8", 1-1/8"
   diameterMm?: number;
   insulationThicknessMm?: number;
@@ -166,6 +307,14 @@ export interface SchematicEdgeData {
   massFlowKgS?: number;
   customLabel?: string;
   fluidName?: string;
+
+  // Propiedades Exclusivas de Conexiones Eléctricas (Cables)
+  wireSectionMm2?: number;  // 0.75, 1.5, 2.5, 4.0, 6.0, 10.0 mm²
+  wireFunction?: 'phase' | 'neutral' | 'ground' | 'dc_pos' | 'dc_neg' | 'control' | 'signal';
+  wireTag?: string;
+  voltageV?: number;
+  voltageDropV?: number;
+  wireCurrentA?: number;
 }
 
 export interface SchematicComponentDefinition {
@@ -191,3 +340,6 @@ export interface SchematicPreset {
   nodes: any[];
   edges: any[];
 }
+
+export type SchematicNode = Node<SchematicNodeData>;
+export type SchematicEdge = Edge<SchematicEdgeData>;

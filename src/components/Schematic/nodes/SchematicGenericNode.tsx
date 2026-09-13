@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { Handle, NodeProps, Position, useUpdateNodeInternals } from '@xyflow/react';
+import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from '@xyflow/react';
 import { SchematicNodeData, PortDirection } from '../../../types/schematic';
 import { COMPONENT_DEFINITIONS } from '../symbols/componentDefinitions';
 import { SvgSymbol } from '../symbols/SvgSymbols';
@@ -77,6 +77,16 @@ const getPortHandleColor = (kind: string): string => {
       return '#f43f5e'; // Rose
     case 'bulb':
       return '#eab308'; // Yellow
+    case 'electric_power':
+      return '#b45309'; // Brown (Power Phase L1/L2/L3)
+    case 'electric_neutral':
+      return '#2563eb'; // Blue (Neutral N)
+    case 'electric_ground':
+      return '#65a30d'; // Lime Green (Earth PE)
+    case 'electric_control':
+      return '#dc2626'; // Red (Control Circuit / Coil / Auxiliary)
+    case 'electric_signal':
+      return '#9333ea'; // Purple (Signal 0-10V / Sensor)
     default:
       return '#94a3b8'; // Slate
   }
@@ -98,6 +108,7 @@ const getPortOffsetClass = (pos: PortDirection) => {
 export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
   const nodeData = data as unknown as SchematicNodeData;
   const { themeMode } = useProject();
+  const { setNodes } = useReactFlow();
   const def = COMPONENT_DEFINITIONS[nodeData.componentType];
   const [hoveredPortId, setHoveredPortId] = useState<string | null>(null);
   const updateNodeInternals = useUpdateNodeInternals();
@@ -109,6 +120,54 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
   useEffect(() => {
     updateNodeInternals(id);
   }, [id, rotation, flippedHorizontal, flippedVertical, updateNodeInternals]);
+
+  const isInteractiveSwitch = [
+    'switch_spst',
+    'switch_spdt',
+    'switch_disconnector',
+    'selector_switch_rotary',
+    'pushbutton_simple',
+    'pushbutton_nc_simple',
+    'pushbutton_no',
+    'pushbutton_nc',
+    'circuit_breaker_mcb',
+    'motor_protection_switch',
+    'emergency_stop_button',
+  ].includes(nodeData.componentType);
+
+  const handleToggleState = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === id) {
+          const prevClosed = !!n.data.isSwitchClosed;
+          const nextClosed = !prevClosed;
+
+          let nextSelectorPos = n.data.selectorPosition;
+          if (n.data.componentType === 'selector_switch_rotary') {
+            nextSelectorPos =
+              n.data.selectorPosition === 'man'
+                ? 'off'
+                : n.data.selectorPosition === 'off'
+                ? 'auto'
+                : 'man';
+          }
+
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              isSwitchClosed: nextClosed,
+              isPushButtonPressed: !n.data.isPushButtonPressed,
+              isBreakerClosed: nextClosed,
+              selectorPosition: nextSelectorPos,
+            },
+          };
+        }
+        return n;
+      })
+    );
+  };
 
   if (!def) {
     return (
@@ -124,6 +183,74 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
   // Summary Specs text to display on node footer
   const renderSpecsSnippet = () => {
+    // Basic Electrical Loads & Sources
+    if (nodeData.componentType === 'light_bulb') {
+      return nodeData.isEnergized ? (
+        <span className="font-bold text-amber-500 dark:text-yellow-300 text-[10px] flex items-center justify-center gap-1">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping" />
+          ENCENDIDA (LUZ)
+        </span>
+      ) : (
+        <span className="text-slate-400 text-[9px]">Apagada</span>
+      );
+    }
+
+    if (nodeData.componentType === 'diode_led') {
+      return nodeData.isEnergized ? (
+        <span className="font-bold text-emerald-500 dark:text-emerald-400 text-[10px]">ILUMINADO (ON)</span>
+      ) : (
+        <span className="text-slate-400 text-[9px]">Apagado</span>
+      );
+    }
+
+    if (nodeData.componentType === 'battery_dc_cell') {
+      return (
+        <span className="font-bold text-sky-500 dark:text-sky-400 text-[10px]">
+          DC {nodeData.voltageV || 12}V
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'cell_dc_simple') {
+      return (
+        <span className="font-bold text-amber-500 dark:text-amber-400 text-[10px]">
+          DC {nodeData.voltageV || 1.5}V (Pila AA)
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'dc_power_source') {
+      return (
+        <span className="font-bold text-sky-500 dark:text-sky-400 text-[10px]">
+          DC {nodeData.voltageV || 12}V (Regulable)
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'power_source_ac_3p') {
+      return (
+        <span className="font-bold text-amber-500 dark:text-amber-400 text-[10px]">
+          3~ 400V 50Hz (Trifásica)
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'resistor_fixed') {
+      return (
+        <span className="font-mono text-amber-500 dark:text-amber-400 text-[10px]">
+          {nodeData.resistanceOhm || 100} Ω
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'switch_disconnector') {
+      return (
+        <span className={`font-bold text-[9px] ${nodeData.isSwitchClosed ? 'text-emerald-500' : 'text-rose-500'}`}>
+          {nodeData.isSwitchClosed ? 'CERRADO (I)' : 'SECCIONADO (0)'}
+        </span>
+      );
+    }
+
     // Instruments (Gauges, Sensors, Meters)
     if (nodeData.measuredValue !== undefined) {
       return (
@@ -219,8 +346,12 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
       {/* Main SVG Symbol Body */}
       <div
-        className="relative flex items-center justify-center p-1 rounded-lg transition-transform duration-100 my-auto"
+        className={`relative flex items-center justify-center p-1 rounded-lg transition-transform duration-100 my-auto ${
+          isInteractiveSwitch ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
+        }`}
         style={{ transform }}
+        onClick={isInteractiveSwitch ? handleToggleState : undefined}
+        title={isInteractiveSwitch ? 'Haz clic para alternar estado' : undefined}
       >
         <SvgSymbol
           type={nodeData.componentType}
@@ -228,9 +359,111 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
           height={def.dimensions.height - 42}
           isSelected={selected}
           isEnergized={nodeData.isEnergized}
+          isSwitchClosed={nodeData.isSwitchClosed}
+          measuredValue={nodeData.measuredValue}
+          measuredUnit={nodeData.measuredUnit}
+          resistanceOhm={nodeData.resistanceOhm}
+          isSeriesWarning={nodeData.isSeriesWarning}
+          isSeriesPassThrough={nodeData.isSeriesPassThrough}
           themeMode={themeMode}
         />
       </div>
+
+      {/* Voltmeter Series Warning & Didactic Bypass Toggle */}
+      {nodeData.componentType === 'voltmeter_basic' && (
+        <div className="flex flex-col items-center gap-1 my-1 w-full px-1 z-30">
+          {nodeData.isSeriesWarning && !nodeData.isSeriesPassThrough && (
+            <div className="w-full p-1 bg-amber-500/20 border border-amber-500/60 rounded text-[8px] text-amber-300 text-center leading-tight">
+              ⚠️ <b>En serie:</b> R interna 10MΩ no deja pasar corriente a la bombilla.
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === id
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          isSeriesPassThrough: !n.data.isSeriesPassThrough,
+                        },
+                      }
+                    : n
+                )
+              );
+            }}
+            className={`nodrag px-2 py-0.5 rounded text-[8px] font-bold tracking-tight shadow-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+              nodeData.isSeriesPassThrough
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400'
+                : 'bg-amber-600/90 hover:bg-amber-500 text-white border border-amber-400'
+            }`}
+            title="Activar paso de corriente en serie para prácticas didácticas"
+          >
+            <span>
+              {nodeData.isSeriesPassThrough
+                ? '✓ Bypass Activo (Conduce)'
+                : '⚡ Activar Bypass Serie'}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Direct One-Click Toggle Control for Switches & Pushbuttons */}
+      {/* Interactive Toggle Switch Button */}
+      {isInteractiveSwitch && (
+        <button
+          type="button"
+          onClick={handleToggleState}
+          className={`nodrag my-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight shadow-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1 z-30 ${
+            nodeData.componentType === 'switch_spdt'
+              ? nodeData.isSwitchClosed
+                ? 'bg-sky-600 hover:bg-sky-500 text-white border border-sky-400 shadow-sky-500/30'
+                : 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-400 shadow-amber-500/30'
+              : nodeData.componentType === 'emergency_stop_button'
+              ? nodeData.isPushButtonPressed
+                ? 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 animate-pulse shadow-rose-500/30'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400'
+              : nodeData.componentType === 'selector_switch_rotary'
+              ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600'
+              : nodeData.isSwitchClosed
+              ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400'
+              : 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400'
+          }`}
+          title="Haz clic para conmutar estado"
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              nodeData.componentType === 'switch_spdt'
+                ? 'bg-white'
+                : nodeData.isSwitchClosed
+                ? 'bg-white animate-pulse'
+                : 'bg-rose-200'
+            }`}
+          />
+          <span>
+            {nodeData.componentType === 'switch_spdt'
+              ? nodeData.isSwitchClosed
+                ? 'POSICIÓN 2 (L2)'
+                : 'POSICIÓN 1 (L1)'
+              : nodeData.componentType === 'emergency_stop_button'
+              ? nodeData.isPushButtonPressed
+                ? 'DISPARADA (PARO)'
+                : 'REARMADA (OK)'
+              : nodeData.componentType === 'selector_switch_rotary'
+              ? nodeData.selectorPosition === 'man'
+                ? 'MANUAL'
+                : nodeData.selectorPosition === 'off'
+                ? 'PARO (0)'
+                : 'AUTOMÁTICO'
+              : nodeData.isSwitchClosed
+              ? 'CERRADO (ON)'
+              : 'ABIERTO (OFF)'}
+          </span>
+        </button>
+      )}
 
       {/* Port Handles & Visual Badges */}
       {def.ports.map((port) => {

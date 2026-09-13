@@ -23,6 +23,10 @@ interface SchematicToolbarProps {
   onExportSvg: () => void;
   isAnimationRunning: boolean;
   onToggleAnimation: () => void;
+  activeConnectionType?: 'refrigerantPipe' | 'electricWire';
+  onChangeActiveConnectionType?: (type: 'refrigerantPipe' | 'electricWire') => void;
+  refrigerantPipeCount?: number;
+  electricWireCount?: number;
 }
 
 const getPresetIcon = (iconName: string) => {
@@ -48,6 +52,10 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
   onExportSvg,
   isAnimationRunning,
   onToggleAnimation,
+  activeConnectionType = 'refrigerantPipe',
+  onChangeActiveConnectionType,
+  refrigerantPipeCount = 0,
+  electricWireCount = 0,
 }) => {
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
 
@@ -103,6 +111,59 @@ export const SchematicToolbar: React.FC<SchematicToolbarProps> = ({
           </div>
         )}
       </div>
+
+      <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+      {/* Connection Type Switcher & Counters (Tuberías Frigoríficas vs Conexiones Eléctricas) */}
+      {onChangeActiveConnectionType && (
+        <div className="flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 shadow-inner">
+          <button
+            type="button"
+            onClick={() => onChangeActiveConnectionType('refrigerantPipe')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              activeConnectionType === 'refrigerantPipe'
+                ? 'bg-sky-600 text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Herramienta activa: Trazado de Tuberías Frigoríficas"
+          >
+            <span>❄️</span>
+            <span>Tuberías</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeConnectionType === 'refrigerantPipe'
+                  ? 'bg-sky-700/90 text-sky-100'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {refrigerantPipeCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeActiveConnectionType('electricWire')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              activeConnectionType === 'electricWire'
+                ? 'bg-amber-600 text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Herramienta activa: Trazado de Conexiones Eléctricas (Cables)"
+          >
+            <Zap size={12} className={activeConnectionType === 'electricWire' ? 'text-amber-200' : 'text-amber-500'} />
+            <span>Cables Eléc.</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeConnectionType === 'electricWire'
+                  ? 'bg-amber-700/90 text-amber-100'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {electricWireCount}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
