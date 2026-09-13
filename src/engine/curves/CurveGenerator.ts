@@ -32,36 +32,50 @@ export class CurveGenerator {
 
     if (liqPts.length < 2 || vapPts.length < 2) return '';
 
-    // Trace liquid branch from bottom (lowest P) to critical apex
     let path = '';
-    liqPts.forEach((pt, i) => {
+    let count = 0;
+    liqPts.forEach((pt) => {
+      if (!Number.isFinite(pt.hJkg) || !Number.isFinite(pt.pPa) || pt.pPa <= 0) return;
       const { x, y } = transform.projectPoint(pt);
-      path += i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      path += count === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+      count++;
     });
 
-    // Trace vapor branch from critical apex down to bottom (lowest P) in reverse
     const reversedVap = [...vapPts].reverse();
     reversedVap.forEach((pt) => {
+      if (!Number.isFinite(pt.hJkg) || !Number.isFinite(pt.pPa) || pt.pPa <= 0) return;
       const { x, y } = transform.projectPoint(pt);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
       path += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+      count++;
     });
 
+    if (count < 4) return '';
     path += ' Z'; // Close polygon
     return path;
   }
 
   /**
    * Generates SVG polyline path commands ('M x y L x y...') for a ThermoCurve,
-   * respecting disjoint segments.
+   * respecting disjoint segments and skipping invalid floats.
    */
   static curveToSvgPath(curve: ThermoCurve, transform: DiagramTransform): string {
     let path = '';
     for (const segment of curve.segments) {
       if (segment.length < 2) continue;
-      segment.forEach((pt, i) => {
+      let segPath = '';
+      let validCount = 0;
+      for (const pt of segment) {
+        if (!Number.isFinite(pt.hJkg) || !Number.isFinite(pt.pPa) || pt.pPa <= 0) continue;
         const { x, y } = transform.projectPoint(pt);
-        path += i === 0 ? ` M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
-      });
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        segPath += validCount === 0 ? ` M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+        validCount++;
+      }
+      if (validCount >= 2) {
+        path += segPath;
+      }
     }
     return path.trim();
   }

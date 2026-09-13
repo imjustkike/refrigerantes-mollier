@@ -307,8 +307,8 @@ export const DiagramRenderer: React.FC<DiagramRendererProps> = ({
   const colors = {
     bg: isDanfoss ? '#ffffff' : '#0f1116',
     border: isDanfoss ? '#cbd5e1' : '#242833',
-    grid: isDanfoss ? 'rgba(203, 213, 225, 0.5)' : 'rgba(36, 40, 51, 0.7)',
-    gridMajor: isDanfoss ? 'rgba(148, 163, 184, 0.65)' : 'rgba(51, 60, 77, 0.85)',
+    grid: isDanfoss ? 'rgba(148, 163, 184, 0.45)' : 'rgba(36, 40, 51, 0.7)',
+    gridMajor: isDanfoss ? 'rgba(100, 116, 139, 0.7)' : 'rgba(51, 60, 77, 0.85)',
     domeFill: isDanfoss ? 'rgba(2, 132, 199, 0.04)' : 'rgba(56, 189, 248, 0.05)',
     satCurve: isDanfoss ? '#0284c7' : '#38bdf8',
     isotherm: isDanfoss ? '#dc2626' : '#ef4444',

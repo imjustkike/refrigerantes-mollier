@@ -78,21 +78,110 @@ pub async fn get_fluid_details(fluid_id: String) -> Result<FluidInfo, String> {
     .map_err(|e| format!("Error en hilo de ejecución: {}", e))?
 }
 
+use std::collections::HashMap;
+use std::fs::{create_dir_all, File};
+use std::io::{BufReader, BufWriter};
+use std::path::PathBuf;
+use std::sync::{OnceLock, RwLock};
+
+static DIAGRAM_CURVES_CACHE: OnceLock<RwLock<HashMap<String, DiagramCurvesResponse>>> = OnceLock::new();
+
+fn get_memory_cache() -> &'static RwLock<HashMap<String, DiagramCurvesResponse>> {
+    DIAGRAM_CURVES_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn get_curves_cache_dir() -> PathBuf {
+    let mut dir = std::env::temp_dir().join("coolmollier_curves_cache");
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = std::env::var_os("HOME") {
+            dir = PathBuf::from(home)
+                .join("Library")
+                .join("Caches")
+                .join("CoolMollier")
+                .join("curves");
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = std::env::var_os("LOCALAPPDATA").or_else(|| std::env::var_os("APPDATA")) {
+            dir = PathBuf::from(appdata)
+                .join("CoolMollier")
+                .join("Cache")
+                .join("curves");
+        }
+    }
+    let _ = create_dir_all(&dir);
+    dir
+}
+
+fn sanitize_cache_key(fluid_id: &str) -> String {
+    fluid_id
+        .replace('/', "_")
+        .replace('\\', "_")
+        .replace(':', "_")
+        .replace('*', "_")
+        .replace('?', "_")
+        .replace('"', "_")
+        .replace('<', "_")
+        .replace('>', "_")
+        .replace('|', "_")
+        .replace('&', "_")
+}
+
 #[tauri::command]
 pub async fn get_diagram_curves_cmd(fluid_id: String) -> Result<DiagramCurvesResponse, String> {
-    log::info!("Invocando 'get_diagram_curves_cmd' para fluido '{}' en hilo no bloqueante", fluid_id);
+    log::info!("Invocando 'get_diagram_curves_cmd' para fluido '{}'", fluid_id);
+
+    // 1. Fast in-memory cache check (< 0.1 ms)
+    let cache = get_memory_cache();
+    if let Ok(guard) = cache.read() {
+        if let Some(curves) = guard.get(&fluid_id) {
+            log::info!("'get_diagram_curves_cmd' para '{}': ¡HIT en caché de memoria (0 ms)!", fluid_id);
+            return Ok(curves.clone());
+        }
+    }
+
+    // 2. Offload to background thread for disk cache lookup or fresh calculation
     tauri::async_runtime::spawn_blocking(move || {
+        let norm_id = sanitize_cache_key(&fluid_id);
+        let cache_file = get_curves_cache_dir().join(format!("{}.json", norm_id));
+
+        // 2a. Check persistent disk cache
+        if cache_file.exists() {
+            if let Ok(file) = File::open(&cache_file) {
+                let reader = BufReader::new(file);
+                if let Ok(cached_curves) = serde_json::from_reader::<_, DiagramCurvesResponse>(reader) {
+                    log::info!("'get_diagram_curves_cmd' para '{}': ¡HIT en caché de disco!", fluid_id);
+                    if let Ok(mut guard) = get_memory_cache().write() {
+                        guard.insert(fluid_id.clone(), cached_curves.clone());
+                    }
+                    return Ok(cached_curves);
+                }
+            }
+        }
+
+        // 2b. Compute from thermodynamic engine
         let start = std::time::Instant::now();
         match generate_diagram_curves(&fluid_id) {
             Ok(curves) => {
                 log::info!(
-                    "'get_diagram_curves_cmd' OK para '{}' en {:?} (isotermas: {}, isentrópicas: {}, isocoras: {})",
+                    "'get_diagram_curves_cmd' calculado para '{}' en {:?} (isotermas: {}, isentrópicas: {}, isocoras: {})",
                     fluid_id,
                     start.elapsed(),
                     curves.isotherms.len(),
                     curves.isentropics.len(),
                     curves.isochores.len()
                 );
+                // Save to memory cache
+                if let Ok(mut guard) = get_memory_cache().write() {
+                    guard.insert(fluid_id.clone(), curves.clone());
+                }
+                // Save to persistent disk cache
+                if let Ok(file) = File::create(&cache_file) {
+                    let writer = BufWriter::new(file);
+                    let _ = serde_json::to_writer(writer, &curves);
+                }
                 Ok(curves)
             }
             Err(e) => {
@@ -260,4 +349,33 @@ fn calculate_process_curve_internal(
         delta_s_kj_kg_k,
         intermediate_points,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_diagram_curves_cache() {
+        tauri::async_runtime::block_on(async {
+            let fluid = "R513A".to_string();
+
+            // Call 1: fresh calculation or load
+            let start1 = std::time::Instant::now();
+            let res1 = get_diagram_curves_cmd(fluid.clone()).await.expect("Call 1 failed");
+            let dur1 = start1.elapsed();
+            println!("Call 1 duration: {:?}", dur1);
+            assert!(!res1.saturation_liquid.points.is_empty());
+
+            // Call 2: MUST hit memory cache in < 10ms
+            let start2 = std::time::Instant::now();
+            let res2 = get_diagram_curves_cmd(fluid.clone()).await.expect("Call 2 failed");
+            let dur2 = start2.elapsed();
+            println!("Call 2 (cached) duration: {:?}", dur2);
+
+            assert!(dur2 < std::time::Duration::from_millis(20), "Cached call took too long: {:?}", dur2);
+            assert_eq!(res1.saturation_liquid.points.len(), res2.saturation_liquid.points.len());
+            assert_eq!(res1.isotherms.len(), res2.isotherms.len());
+        });
+    }
 }

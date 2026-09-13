@@ -82,15 +82,19 @@ export class DiagramTransform {
    * Transforms physical coordinates (h in J/kg, p in Pa) to screen pixels (x, y)
    */
   project(hJkg: number, pPa: number): { x: number; y: number } {
-    if (pPa <= 0) {
-      pPa = 1e-12;
-    }
-    const x = this.rect.left + this.rect.width * ((hJkg - this.viewBounds.hMinJkg) / this._hSpan);
+    const safeH = Number.isFinite(hJkg) ? hJkg : this.viewBounds.hMinJkg;
+    const safeP = Number.isFinite(pPa) && pPa > 0 ? pPa : this.viewBounds.pMinPa;
+
+    const x = this.rect.left + this.rect.width * ((safeH - this.viewBounds.hMinJkg) / this._hSpan);
     const y =
       this.rect.top +
-      this.rect.height * (1 - Math.log(pPa / this.viewBounds.pMinPa) / this._lnPRatio);
+      this.rect.height * (1 - Math.log(safeP / this.viewBounds.pMinPa) / this._lnPRatio);
 
-    return { x, y };
+    // Safeguard screen bounds to prevent GPU Skia/WebKit SVG canvas overflow crashes
+    const clampedX = Math.max(-5000, Math.min(20000, Number.isFinite(x) ? x : 0));
+    const clampedY = Math.max(-5000, Math.min(20000, Number.isFinite(y) ? y : 0));
+
+    return { x: clampedX, y: clampedY };
   }
 
   projectPoint(pt: ThermoPoint): { x: number; y: number } {

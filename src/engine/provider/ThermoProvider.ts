@@ -26,6 +26,7 @@ export interface CompleteFluidData {
 
 export class ThermoProvider {
   private static currentRevision = 0;
+  private static fluidCache = new Map<string, CompleteFluidData>();
 
   static isTauri(): boolean {
     return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -52,6 +53,16 @@ export class ThermoProvider {
     revision?: number
   ): Promise<CompleteFluidData> {
     const rev = revision ?? this.nextRevision();
+
+    // Check fast session cache first
+    const cached = this.fluidCache.get(fluidId);
+    if (cached) {
+      return {
+        ...cached,
+        revision: rev,
+      };
+    }
+
     try {
       const [rawCurves, fluidInfo] = await Promise.all([
         thermoService.fetchDiagramCurves(fluidId),
@@ -63,12 +74,17 @@ export class ThermoProvider {
       }
 
       const dataset = this.normalizeCurvesResponse(fluidId, rev, rawCurves, fluidInfo);
-      return {
+      const result: CompleteFluidData = {
         dataset,
         rawCurves,
         fluidInfo,
         revision: rev,
       };
+
+      // Store in session cache
+      this.fluidCache.set(fluidId, result);
+
+      return result;
     } catch (err) {
       if (String(err).includes('Revision obsoleta')) {
         throw err;
@@ -175,7 +191,17 @@ export class ThermoProvider {
               quality: p.q ?? undefined,
             }))
           )
-        : [pts.filter((pt) => Number.isFinite(pt.hJkg) && Number.isFinite(pt.pPa) && pt.pPa > 0)];
+        : [
+            pts.filter(
+              (pt) =>
+                Number.isFinite(pt.hJkg) &&
+                pt.hJkg >= -500_000 &&
+                pt.hJkg <= 3_500_000 &&
+                Number.isFinite(pt.pPa) &&
+                pt.pPa >= 100 &&
+                pt.pPa <= 2.5e8
+            ),
+          ];
 
       return {
         id: s.id,

@@ -1040,7 +1040,6 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
 
     // Find dew point if s >= sCrit and s <= maxVapS
     let pDew: number | null = null;
-    let tDew = tMin;
     if (s >= sCrit && s <= maxVapS) {
       for (let i = 0; i < satVap.length - 1; i++) {
         const s0 = satVap[i].s_kj_kg_k || 0;
@@ -1050,7 +1049,6 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
         if (s >= sLo && s <= sHi) {
           const frac = (sHi - sLo) !== 0 ? (s - s0) / (s1 - s0) : 0;
           pDew = satVap[i].p_bar + (satVap[i + 1].p_bar - satVap[i].p_bar) * frac;
-          tDew = satVap[i].t_c! + (satVap[i + 1].t_c! - satVap[i].t_c!) * frac;
           break;
         }
       }
