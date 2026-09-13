@@ -91,6 +91,8 @@ interface ProjectContextType {
   setEngineMode: React.Dispatch<React.SetStateAction<'svg' | 'plotly'>>;
   mainViewMode: 'diagram' | '3d' | 'schematic' | 'split';
   setMainViewMode: React.Dispatch<React.SetStateAction<'diagram' | '3d' | 'schematic' | 'split'>>;
+  mollierViewMode: 'chart' | 'table';
+  setMollierViewMode: React.Dispatch<React.SetStateAction<'chart' | 'table'>>;
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
@@ -269,6 +271,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [engineMode, setEngineMode] = useState<'svg' | 'plotly'>('svg');
   const [mainViewMode, setMainViewMode] = useState<'diagram' | '3d' | 'schematic' | 'split'>('diagram');
+  const [mollierViewMode, setMollierViewMode] = useState<'chart' | 'table'>('chart');
   const diagramActionsRef = useRef<{ zoomIn: () => void; zoomOut: () => void; resetView: () => void }>({
     zoomIn: () => {},
     zoomOut: () => {},
@@ -1045,6 +1048,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setEngineMode,
         mainViewMode,
         setMainViewMode,
+        mollierViewMode,
+        setMollierViewMode,
         zoomIn,
         zoomOut,
         resetView,

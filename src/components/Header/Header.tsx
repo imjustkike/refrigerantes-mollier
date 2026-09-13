@@ -44,44 +44,49 @@ export const Header: React.FC<HeaderProps> = ({ onExportPng: _onExportPng }) => 
   const [isEditingName, setIsEditingName] = useState(false);
 
   return (
-    <header className="h-13 px-4 bg-white/95 dark:bg-[#14161c]/95 border-b border-slate-200 dark:border-slate-800/90 flex items-center justify-between gap-3 z-30 transition-colors duration-150 shadow-xs">
-      {/* Brand & Project Name */}
+    <header className="h-[52px] bg-white dark:bg-[#111319] border-b border-slate-200 dark:border-slate-800/90 px-3 sm:px-4 flex items-center justify-between z-30 shrink-0 transition-colors duration-200 shadow-2xs select-none">
+      {/* Left: Brand & Project Name */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-          <img src="/icon.png" alt="CoolMollier" className="w-full h-full object-cover" />
-        </div>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold tracking-wider uppercase text-slate-900 dark:text-slate-100 select-none">
-              CoolMollier
-            </span>
-            <span className="text-slate-300 dark:text-slate-700 text-xs">•</span>
-            {isEditingName ? (
-              <input
-                type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                autoFocus
-                className="bg-white dark:bg-slate-950 border border-sky-500 text-slate-900 dark:text-white rounded px-1.5 py-0.5 text-xs font-mono font-medium outline-none"
-              />
-            ) : (
-              <span
-                className="text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight cursor-pointer hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
-                onClick={() => setIsEditingName(true)}
-                title="Haga clic para editar el nombre del proyecto"
-              >
-                {projectName}
-              </span>
-            )}
-            <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded bg-slate-100 dark:bg-[#1a1d24] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              log(p)–h
-            </span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-600 to-cyan-500 flex items-center justify-center text-white font-bold shadow-xs">
+            <span className="text-sm tracking-tighter">M</span>
           </div>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-            CoolProp v{catalog?.engine_version || '8.0'} • bar(a), °C, kJ/kg, m³/kg
-          </span>
+          <div>
+            <div className="text-xs font-bold leading-tight flex items-center gap-1 text-slate-900 dark:text-white">
+              <span>CoolMollier</span>
+              <span className="text-[10px] font-normal px-1 py-0.2 rounded bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800/80">
+                PRO
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono flex items-center gap-1.5">
+              <span>Danfoss Style log(p)-h • v{catalog?.engine_version || '8.0'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 hidden md:block" />
+
+        {/* Project Name Editable */}
+        <div className="hidden md:flex items-center gap-1 text-xs">
+          {isEditingName ? (
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+              autoFocus
+              className="bg-slate-100 dark:bg-[#181b22] px-2 py-0.5 rounded border border-sky-500 text-slate-900 dark:text-slate-100 font-medium outline-none text-xs"
+            />
+          ) : (
+            <span
+              onClick={() => setIsEditingName(true)}
+              className="font-medium text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 cursor-pointer px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+              title="Clic para renombrar proyecto"
+            >
+              {projectName}
+            </span>
+          )}
         </div>
       </div>
 

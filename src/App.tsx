@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { MollierDiagram } from './components/Diagram/MollierDiagram';
+import { MollierTableView } from './components/Diagram/MollierTableView';
 import { Refrigeration3DView } from './components/Refrigeration3D/Refrigeration3DView';
 import { SchematicCanvas } from './components/Schematic/SchematicCanvas';
 import { Header } from './components/Header/Header';
@@ -16,6 +17,7 @@ const MainAppContent: React.FC = () => {
     selectedFluidId,
     themeMode,
     mainViewMode,
+    mollierViewMode,
   } = useProject();
 
   const canvasExportRef = useRef<(() => Promise<string | null>) | null>(null);
@@ -47,7 +49,11 @@ const MainAppContent: React.FC = () => {
         {/* Central Workspace Area */}
         <div className="flex-1 h-full relative overflow-hidden bg-slate-200/70 dark:bg-[#12141a]">
           {mainViewMode === 'diagram' && (
-            <MollierDiagram canvasExportRef={canvasExportRef} />
+            mollierViewMode === 'chart' ? (
+              <MollierDiagram canvasExportRef={canvasExportRef} />
+            ) : (
+              <MollierTableView />
+            )
           )}
 
           {mainViewMode === 'schematic' && (
@@ -62,7 +68,11 @@ const MainAppContent: React.FC = () => {
             <div className="flex w-full h-full">
               {/* Left half: Mollier log(P)-h Diagram */}
               <div className="flex-1 h-full relative border-r border-slate-300 dark:border-slate-800">
-                <MollierDiagram canvasExportRef={canvasExportRef} />
+                {mollierViewMode === 'chart' ? (
+                  <MollierDiagram canvasExportRef={canvasExportRef} />
+                ) : (
+                  <MollierTableView />
+                )}
               </div>
 
               {/* Right half: Schematic P&ID Circuit */}

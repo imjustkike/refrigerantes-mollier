@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, LineChart, Loader2, Table as TableIcon } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { formatSpecificVolume } from '../../utils/formatters';
 import { DiagramRenderer } from '../../engine/renderer/DiagramRenderer';
@@ -46,6 +46,8 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
     engineMode,
     setEngineMode,
     registerDiagramActions,
+    mollierViewMode,
+    setMollierViewMode,
   } = useProject();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -634,8 +636,36 @@ export const MollierDiagram: React.FC<MollierDiagramProps> = ({ canvasExportRef 
           )}
         </div>
 
-        {/* Fluid Selector / Catalog right on diagram toolbar */}
+        {/* Segmented Selector Gráfica / Tabla on diagram top toolbar */}
         <div className="flex items-center gap-2 shrink-0 ml-auto relative z-50">
+          <div className="flex items-center bg-slate-200/80 dark:bg-[#0f1115] p-0.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs font-semibold shadow-2xs">
+            <button
+              onClick={() => setMollierViewMode('chart')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                mollierViewMode === 'chart'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Vista gráfica de Mollier"
+            >
+              <LineChart size={12} />
+              <span>Gráfica</span>
+            </button>
+
+            <button
+              onClick={() => setMollierViewMode('table')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                mollierViewMode === 'table'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Ver tabla termodinámica de datos por temperatura"
+            >
+              <TableIcon size={12} />
+              <span>Tabla (T)</span>
+            </button>
+          </div>
+
           <RefrigerantSelectorDropdown size="sm" />
         </div>
       </div>
