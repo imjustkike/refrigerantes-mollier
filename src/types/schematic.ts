@@ -137,7 +137,14 @@ export type SchematicComponentType =
   | 'voltmeter_basic'
   | 'ammeter_basic'
   | 'ohmmeter_basic'
-  | 'wattmeter_basic';
+  | 'wattmeter_basic'
+  // Semiconductores & Transistores
+  | 'transistor_bjt_npn'
+  | 'transistor_bjt_pnp'
+  // Salidas de Audio & Parlantes
+  | 'audio_speaker'
+  // Motores DC y Voltaje Variable
+  | 'electric_motor_dc';
 
 export type PortDirection = 'left' | 'right' | 'top' | 'bottom';
 
@@ -267,6 +274,28 @@ export interface SchematicNodeData {
   powerWatts?: number;
   isSeriesWarning?: boolean;
   isSeriesPassThrough?: boolean;
+
+  // Motores con Control de Tensión & Umbral de Arranque
+  minOperatingVoltageV?: number;
+  ratedVoltageV?: number;
+  ratedRpm?: number;
+  actualRpm?: number;
+  powerPercent?: number;
+  motorVoltageWarning?: string;
+  voltageWarning?: string;
+  maxCurrentA?: number;
+  acWaveform?: 'sine' | 'square' | 'triangle';
+  currentLimitWarning?: string;
+
+  // Transistores BJT & Semiconductores
+  transistorState?: 'cutoff' | 'saturation' | 'active';
+  vBe?: number;
+  vCe?: number;
+
+  // Salidas de Audio & Parlantes
+  impedanceOhm?: number;
+  audioFrequencyHz?: number;
+  isAudioMuted?: boolean;
 }
 
 export type PipeStateCategory =

@@ -126,6 +126,64 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
     return () => cancelAnimationFrame(frame);
   }, [id, rotation, flippedHorizontal, flippedVertical, updateNodeInternals]);
 
+  // Síntesis acústica realista para altavoces activos (Web Audio API)
+  useEffect(() => {
+    if (
+      nodeData.componentType === 'audio_speaker' &&
+      nodeData.isEnergized &&
+      !nodeData.isAudioMuted
+    ) {
+      let ctx: AudioContext | null = null;
+      let osc: OscillatorNode | null = null;
+      let gain: GainNode | null = null;
+
+      try {
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          ctx = new AudioContextClass();
+          osc = ctx.createOscillator();
+          gain = ctx.createGain();
+
+          const freq = nodeData.audioFrequencyHz || 440;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+          // Volumen suave dependiente de la potencia calculada
+          const p = nodeData.powerWatts || 1;
+          const targetVol = Math.min(0.08, Math.max(0.01, p * 0.008));
+          gain.gain.setValueAtTime(targetVol, ctx.currentTime);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+        }
+      } catch {
+        // AudioContext puede requerir interacción previa del usuario
+      }
+
+      return () => {
+        try {
+          if (osc) {
+            osc.stop();
+            osc.disconnect();
+          }
+          if (gain) gain.disconnect();
+          if (ctx && ctx.state !== 'closed') ctx.close();
+        } catch {
+          // Ignorar error al cerrar contexto
+        }
+      };
+    }
+  }, [
+    nodeData.componentType,
+    nodeData.isEnergized,
+    nodeData.isAudioMuted,
+    nodeData.audioFrequencyHz,
+    nodeData.powerWatts,
+  ]);
+
   const isInteractiveSwitch = [
     'switch_spst',
     'switch_spdt',
@@ -198,13 +256,25 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
   const renderSpecsSnippet = () => {
     // Basic Electrical Loads & Sources
     if (nodeData.componentType === 'light_bulb') {
+      if (nodeData.voltageWarning) {
+        return (
+          <span className="font-bold text-amber-500 dark:text-amber-400 text-[8.5px] leading-tight flex items-center justify-center gap-1">
+            ⚠️ {nodeData.voltageWarning}
+          </span>
+        );
+      }
       return nodeData.isEnergized ? (
-        <span className="font-bold text-amber-500 dark:text-yellow-300 text-[10px] flex items-center justify-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]" />
-          ENCENDIDA (LUZ)
+        <span className="font-bold text-amber-500 dark:text-yellow-300 text-[9.5px] flex flex-col items-center justify-center gap-0.5 leading-none">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]" />
+            ⚡ {nodeData.powerPercent || 100}% POTENCIA ({nodeData.powerWatts ?? 6}W)
+          </span>
+          <span className="font-mono text-[8px] opacity-80">
+            {nodeData.voltageV !== undefined ? `${nodeData.voltageV}V` : ''} • {nodeData.currentA !== undefined ? `${nodeData.currentA}A` : ''} • {nodeData.resistanceOhm !== undefined ? `${nodeData.resistanceOhm}Ω` : ''}
+          </span>
         </span>
       ) : (
-        <span className="text-slate-400 text-[9px]">Apagada</span>
+        <span className="text-slate-400 text-[9px]">Apagada (0 W)</span>
       );
     }
 
@@ -218,40 +288,121 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
     if (nodeData.componentType === 'battery_dc_cell') {
       return (
-        <span className="font-bold text-sky-500 dark:text-sky-400 text-[10px]">
-          DC {nodeData.voltageV || 12}V
+        <span className="font-bold text-sky-500 dark:text-sky-400 text-[10px] flex flex-col items-center leading-none">
+          <span>DC {(nodeData.voltageV || 12).toFixed(1)}V</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              {nodeData.currentA}A • {nodeData.powerWatts}W
+            </span>
+          ) : null}
         </span>
       );
     }
 
     if (nodeData.componentType === 'cell_dc_simple') {
       return (
-        <span className="font-bold text-amber-500 dark:text-amber-400 text-[10px]">
-          DC {nodeData.voltageV || 1.5}V (Pila AA)
+        <span className="font-bold text-amber-500 dark:text-amber-400 text-[10px] flex flex-col items-center leading-none">
+          <span>DC {(nodeData.voltageV || 1.5).toFixed(1)}V (Pila)</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              {nodeData.currentA}A • {nodeData.powerWatts}W
+            </span>
+          ) : null}
         </span>
       );
     }
 
     if (nodeData.componentType === 'dc_power_source') {
+      if (nodeData.currentLimitWarning) {
+        return (
+          <span className="font-bold text-rose-500 text-[8.5px] leading-tight flex items-center justify-center gap-1 animate-pulse">
+            ⚠️ CC: {(nodeData.currentA || 0).toFixed(2)}A / {(nodeData.maxCurrentA || 10).toFixed(1)}A
+          </span>
+        );
+      }
       return (
-        <span className="font-bold text-sky-500 dark:text-sky-400 text-[10px]">
-          DC {nodeData.voltageV || 12}V (Regulable)
+        <span className="font-bold text-sky-500 dark:text-sky-400 text-[9.5px] flex flex-col items-center leading-none">
+          <span>DC {(nodeData.voltageV || 12).toFixed(1)}V (Máx {(nodeData.maxCurrentA || 10).toFixed(1)}A)</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              ⚡ {nodeData.currentA}A • {nodeData.powerWatts}W
+            </span>
+          ) : null}
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'power_source_ac') {
+      if (nodeData.currentLimitWarning) {
+        return (
+          <span className="font-bold text-rose-500 text-[8.5px] leading-tight flex items-center justify-center gap-1 animate-pulse">
+            ⚠️ AC: {(nodeData.currentA || 0).toFixed(2)}A / {(nodeData.maxCurrentA || 16).toFixed(1)}A
+          </span>
+        );
+      }
+      return (
+        <span className="font-bold text-indigo-500 dark:text-indigo-400 text-[9.5px] flex flex-col items-center leading-none">
+          <span>AC {(nodeData.voltageV || 230).toFixed(0)}V {nodeData.frequencyHz || 50}Hz</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              ⚡ {nodeData.currentA}A • {nodeData.powerWatts}W
+            </span>
+          ) : (
+            <span className="text-[8px] text-slate-400 mt-0.5 font-sans">
+              Máx {(nodeData.maxCurrentA || 16).toFixed(0)}A ({nodeData.acWaveform || 'sine'})
+            </span>
+          )}
         </span>
       );
     }
 
     if (nodeData.componentType === 'power_source_ac_3p') {
       return (
-        <span className="font-bold text-amber-500 dark:text-amber-400 text-[10px]">
-          3~ 400V 50Hz (Trifásica)
+        <span className="font-bold text-amber-500 dark:text-amber-400 text-[9.5px] flex flex-col items-center leading-none">
+          <span>3~ {(nodeData.voltageV || 400).toFixed(0)}V {nodeData.frequencyHz || 50}Hz</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              ⚡ {nodeData.currentA}A • {nodeData.powerWatts}W
+            </span>
+          ) : (
+            <span className="text-[8px] text-slate-400 mt-0.5 font-sans">
+              Máx {(nodeData.maxCurrentA || 32).toFixed(0)}A
+            </span>
+          )}
         </span>
       );
     }
 
     if (nodeData.componentType === 'resistor_fixed') {
       return (
-        <span className="font-mono text-amber-500 dark:text-amber-400 text-[10px]">
-          {nodeData.resistanceOhm || 100} Ω
+        <span className="font-mono text-amber-500 dark:text-amber-400 text-[9.5px] flex flex-col items-center leading-none">
+          <span>{nodeData.resistanceOhm || 100} Ω</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              {nodeData.currentA}A • {nodeData.voltageV}V • {nodeData.powerWatts}W
+            </span>
+          ) : null}
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'potentiometer') {
+      return (
+        <span className="font-mono text-amber-500 dark:text-amber-400 text-[9.5px] flex flex-col items-center leading-none">
+          <span>POT {nodeData.resistanceOhm || 10000} Ω ({nodeData.openingPercent ?? 50}%)</span>
+          {nodeData.currentA ? (
+            <span className="text-[8px] text-emerald-500 dark:text-emerald-400 mt-0.5 font-sans font-medium">
+              {nodeData.currentA}A • {nodeData.voltageV}V • {nodeData.powerWatts}W
+            </span>
+          ) : null}
+        </span>
+      );
+    }
+
+    if (nodeData.componentType === 'ammeter_basic') {
+      return (
+        <span className="font-mono font-bold text-sky-500 dark:text-sky-400 text-[10px]">
+          {nodeData.measuredValue !== undefined ? `${nodeData.measuredValue} A` : '0.00 A'}
         </span>
       );
     }
@@ -260,6 +411,64 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
       return (
         <span className={`font-bold text-[9px] ${nodeData.isSwitchClosed ? 'text-emerald-500' : 'text-rose-500'}`}>
           {nodeData.isSwitchClosed ? 'CERRADO (I)' : 'SECCIONADO (0)'}
+        </span>
+      );
+    }
+
+    // Motores (DC, Monofásico, Trifásico) con Umbral de Tensión & Ley de Ohm
+    if (
+      nodeData.componentType === 'electric_motor_dc' ||
+      nodeData.componentType === 'electric_motor_1p' ||
+      nodeData.componentType === 'electric_motor_3p'
+    ) {
+      if (nodeData.motorVoltageWarning) {
+        return (
+          <span className="font-bold text-amber-500 dark:text-amber-400 text-[8.5px] leading-tight flex items-center justify-center gap-1">
+            ⚠️ {nodeData.motorVoltageWarning}
+          </span>
+        );
+      }
+      if (nodeData.isEnergized) {
+        return (
+          <span className="font-bold text-emerald-500 dark:text-emerald-400 text-[9.5px] flex flex-col items-center justify-center gap-0.5 leading-none">
+            <span>
+              ⚡ {nodeData.powerPercent || 100}% POTENCIA • {nodeData.actualRpm || 3000} RPM
+            </span>
+            <span className="font-mono text-[8px] opacity-80 font-normal">
+              {nodeData.voltageV !== undefined ? `${nodeData.voltageV}V` : ''} • {nodeData.currentA !== undefined ? `${nodeData.currentA}A` : ''} • {nodeData.powerWatts !== undefined ? `${nodeData.powerWatts}W` : ''}
+            </span>
+          </span>
+        );
+      }
+      return (
+        <span className="text-slate-400 text-[9px]">Detenido (0 RPM • 0 W)</span>
+      );
+    }
+
+    // Altavoz Dinámico / Salida de Audio
+    if (nodeData.componentType === 'audio_speaker') {
+      return nodeData.isEnergized ? (
+        <span className="font-bold text-sky-500 dark:text-sky-400 text-[9.5px] flex items-center justify-center gap-1">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping" />
+          SONANDO ({nodeData.powerWatts || 0}W • {nodeData.audioFrequencyHz || 440}Hz)
+        </span>
+      ) : (
+        <span className="text-slate-400 text-[9px]">Silencio (0 W)</span>
+      );
+    }
+
+    // Transistores BJT (NPN & PNP)
+    if (
+      nodeData.componentType === 'transistor_bjt_npn' ||
+      nodeData.componentType === 'transistor_bjt_pnp'
+    ) {
+      return nodeData.isEnergized ? (
+        <span className="font-bold text-emerald-500 dark:text-emerald-400 text-[9.5px]">
+          🟢 SATURACIÓN (ON) • Vbe: {nodeData.vBe || 0.7}V
+        </span>
+      ) : (
+        <span className="text-slate-400 text-[9px]">
+          ⚪ CORTE (OFF) • Vbe: {nodeData.vBe || 0}V
         </span>
       );
     }
@@ -450,10 +659,61 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
             resistanceOhm={nodeData.resistanceOhm}
             isSeriesWarning={nodeData.isSeriesWarning}
             isSeriesPassThrough={nodeData.isSeriesPassThrough}
+            powerPercent={nodeData.powerPercent}
+            actualRpm={nodeData.actualRpm}
+            transistorState={nodeData.transistorState}
+            voltageV={nodeData.voltageV}
+            frequencyHz={nodeData.frequencyHz}
+            maxCurrentA={nodeData.maxCurrentA}
+            currentA={nodeData.currentA}
+            powerWatts={nodeData.powerWatts}
+            acWaveform={nodeData.acWaveform}
+            currentLimitWarning={nodeData.currentLimitWarning}
             themeMode={themeMode}
           />
         </div>
       </div>
+
+      {/* Control Interactivo de Sonido para Altavoces */}
+      {nodeData.componentType === 'audio_speaker' && (
+        <div className="flex flex-col items-center gap-1 my-1 w-full px-1 z-30">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === id
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          isAudioMuted: !n.data.isAudioMuted,
+                        },
+                      }
+                    : n
+                )
+              );
+            }}
+            className={`nodrag px-2 py-0.5 rounded text-[8.5px] font-bold tracking-tight shadow-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+              nodeData.isAudioMuted
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-500'
+                : nodeData.isEnergized
+                ? 'bg-sky-600 hover:bg-sky-500 text-white border border-sky-400 shadow-sky-500/30'
+                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-600'
+            }`}
+            title="Activar o silenciar reproducción sonora"
+          >
+            <span>
+              {nodeData.isAudioMuted
+                ? '🔇 Silenciado'
+                : nodeData.isEnergized
+                ? '🔊 Audio Activo'
+                : '🔈 Audio Listo'}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Voltmeter Series Warning & Didactic Bypass Toggle */}
       {nodeData.componentType === 'voltmeter_basic' && (

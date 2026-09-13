@@ -13,6 +13,16 @@ interface SvgSymbolProps {
   resistanceOhm?: number;
   isSeriesWarning?: boolean;
   isSeriesPassThrough?: boolean;
+  powerPercent?: number;
+  actualRpm?: number;
+  transistorState?: 'cutoff' | 'saturation' | 'active';
+  voltageV?: number;
+  frequencyHz?: number;
+  maxCurrentA?: number;
+  currentA?: number;
+  powerWatts?: number;
+  acWaveform?: 'sine' | 'square' | 'triangle';
+  currentLimitWarning?: string;
   color?: string;
   themeMode?: 'dark' | 'light';
 }
@@ -28,6 +38,15 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
   resistanceOhm,
   isSeriesWarning = false,
   isSeriesPassThrough = false,
+  powerPercent,
+  actualRpm,
+  transistorState,
+  voltageV,
+  frequencyHz,
+  maxCurrentA,
+  currentA,
+  acWaveform = 'sine',
+  currentLimitWarning,
   themeMode = 'dark',
 }) => {
   const isDark = themeMode === 'dark';
@@ -1287,10 +1306,248 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
     case 'electric_motor_1p':
       return (
         <svg width={width} height={height} viewBox="0 0 80 80" fill="none">
-          <circle cx="40" cy="40" r="26" fill={fillColor} stroke={strokeColor} strokeWidth="2.5" />
+          <circle
+            cx="40"
+            cy="40"
+            r="26"
+            fill={fillColor}
+            stroke={isEnergized ? '#10b981' : strokeColor}
+            strokeWidth="2.5"
+            className="transition-colors duration-200"
+          />
+          {isEnergized && (
+            <path
+              d="M 22 40 A 18 18 0 0 1 58 40"
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              strokeLinecap="round"
+            />
+          )}
           <text x="40" y="41" fontSize="14" fontWeight="bold" fill={strokeColor} textAnchor="middle">M</text>
           <text x="40" y="54" fontSize="9" fontWeight="bold" fill="#2563eb" textAnchor="middle">1 ~</text>
           <rect x="31" y="8" width="18" height="8" rx="2" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+        </svg>
+      );
+
+    case 'electric_motor_dc':
+      return (
+        <svg width={width} height={height} viewBox="0 0 85 85" fill="none">
+          {/* Active Aura / Glow when spinning */}
+          {isEnergized && (
+            <circle
+              cx="42.5"
+              cy="45"
+              r="30"
+              fill="#10b981"
+              opacity={powerPercent && powerPercent < 100 ? 0.15 : 0.25}
+            />
+          )}
+          {/* Main Motor Casing */}
+          <circle
+            cx="42.5"
+            cy="45"
+            r="26"
+            fill={fillColor}
+            stroke={isEnergized ? '#10b981' : strokeColor}
+            strokeWidth="2.5"
+            className="transition-colors duration-200"
+          />
+          {/* Animated/Spinning Directional Ring when energized */}
+          {isEnergized && (
+            <g className="animate-spin" style={{ transformOrigin: '42.5px 45px', animationDuration: powerPercent && powerPercent < 100 ? '2s' : '1s' }}>
+              <path
+                d="M 23 45 A 19.5 19.5 0 0 1 62 45"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+              />
+              <polygon points="62,45 58,40 58,50" fill="#10b981" />
+            </g>
+          )}
+          {/* Motor Letter M */}
+          <text x="42.5" y="42" fontSize="13" fontWeight="bold" fill={strokeColor} textAnchor="middle">M</text>
+          {actualRpm !== undefined && isEnergized && (
+            <text x="42.5" y="66" fontSize="6.5" fontWeight="bold" fill="#10b981" textAnchor="middle">{actualRpm} rpm</text>
+          )}
+          {/* DC Symbol: Direct Current (Straight line + dashed line) */}
+          <g transform="translate(30, 48)">
+            <line x1="2" y1="2" x2="23" y2="2" stroke="#ef4444" strokeWidth="2" />
+            <line x1="2" y1="5.5" x2="23" y2="5.5" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="3 2" />
+          </g>
+          {/* Top Terminal Block Box with +/- signs */}
+          <rect x="29" y="8" width="27" height="11" rx="2" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          <text x="35" y="17" fontSize="8" fontWeight="bold" fill="#ef4444" textAnchor="middle">+</text>
+          <text x="50" y="17" fontSize="8" fontWeight="bold" fill="#3b82f6" textAnchor="middle">-</text>
+        </svg>
+      );
+
+    case 'audio_speaker':
+      return (
+        <svg width={width} height={height} viewBox="0 0 85 85" fill="none">
+          {/* Speaker Voice Coil / Magnet Box */}
+          <rect
+            x="14"
+            y="30"
+            width="14"
+            height="25"
+            rx="2"
+            fill={secondaryFill}
+            stroke={strokeColor}
+            strokeWidth="2"
+          />
+          {/* Conical Speaker Horn / Basket */}
+          <polygon
+            points="28,33 52,16 52,69 28,52"
+            fill={isEnergized ? (isDark ? '#1e3a5f' : '#e0f2fe') : fillColor}
+            stroke={isEnergized ? '#0284c7' : strokeColor}
+            strokeWidth="2"
+            className="transition-colors duration-200"
+          />
+          {/* Front Baffle / Sound Rim */}
+          <line
+            x1="52"
+            y1="14"
+            x2="52"
+            y2="71"
+            stroke={isEnergized ? '#0284c7' : strokeColor}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          {/* Terminals Pins */}
+          <line x1="4" y1="36" x2="14" y2="36" stroke="#ef4444" strokeWidth="2" />
+          <text x="9" y="32" fontSize="8" fontWeight="bold" fill="#ef4444">+</text>
+          <line x1="4" y1="49" x2="14" y2="49" stroke="#3b82f6" strokeWidth="2" />
+          <text x="9" y="58" fontSize="8" fontWeight="bold" fill="#3b82f6">-</text>
+
+          {/* Radiating Acoustic Sound Waves when ON */}
+          {isEnergized ? (
+            <g className="transition-all duration-200">
+              <path
+                d="M 59 32 Q 65 42.5 59 53"
+                fill="none"
+                stroke="#06b6d4"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 66 25 Q 75 42.5 66 60"
+                fill="none"
+                stroke="#0ea5e9"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 73 18 Q 85 42.5 73 67"
+                fill="none"
+                stroke="#38bdf8"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                opacity="0.85"
+              />
+            </g>
+          ) : (
+            <g opacity="0.3">
+              <path d="M 59 34 Q 63 42.5 59 51" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+          )}
+        </svg>
+      );
+
+    case 'transistor_bjt_npn':
+      return (
+        <svg width={width} height={height} viewBox="0 0 85 85" fill="none">
+          {/* Conduction Glow Aura when Saturated */}
+          {isEnergized && (
+            <circle cx="45" cy="42.5" r="26" fill="#10b981" opacity="0.2" />
+          )}
+          {/* Outer Transistor Package Circle */}
+          <circle
+            cx="45"
+            cy="42.5"
+            r="28"
+            fill={fillColor}
+            stroke={isEnergized ? '#10b981' : strokeColor}
+            strokeWidth="2"
+            strokeDasharray={isEnergized ? 'none' : '3 2'}
+            className="transition-colors duration-200"
+          />
+
+          {/* Base Lead & Vertical Base Bar */}
+          <line x1="12" y1="42.5" x2="35" y2="42.5" stroke={strokeColor} strokeWidth="2.5" />
+          <line x1="35" y1="24" x2="35" y2="61" stroke={strokeColor} strokeWidth="4" strokeLinecap="round" />
+
+          {/* Collector Branch (Top) */}
+          <line x1="58" y1="12" x2="58" y2="28" stroke={strokeColor} strokeWidth="2.5" />
+          <line x1="58" y1="28" x2="35" y2="36" stroke={isEnergized ? '#10b981' : strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+
+          {/* Emitter Branch (Bottom) with Outward Arrow for NPN */}
+          <line x1="35" y1="49" x2="58" y2="57" stroke={isEnergized ? '#10b981' : strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="58" y1="57" x2="58" y2="73" stroke={strokeColor} strokeWidth="2.5" />
+
+          {/* NPN Outward Emitter Arrow pointing away from Base */}
+          <polygon
+            points="54,55.5 44,48 48,58"
+            fill={isEnergized ? '#10b981' : strokeColor}
+          />
+
+          {/* Pin Identifiers */}
+          <text x="22" y="38" fontSize="8" fontWeight="bold" fill={strokeColor} textAnchor="middle">B</text>
+          <text x="64" y="24" fontSize="8" fontWeight="bold" fill={strokeColor}>C</text>
+          <text x="64" y="68" fontSize="8" fontWeight="bold" fill={strokeColor}>E</text>
+          <text x="45" y="78" fontSize="7" fontWeight="bold" fill={isEnergized ? '#10b981' : '#64748b'} textAnchor="middle">
+            {transistorState === 'saturation' || isEnergized ? 'ON (SAT)' : 'OFF (NPN)'}
+          </text>
+        </svg>
+      );
+
+    case 'transistor_bjt_pnp':
+      return (
+        <svg width={width} height={height} viewBox="0 0 85 85" fill="none">
+          {/* Conduction Glow Aura when Saturated */}
+          {isEnergized && (
+            <circle cx="45" cy="42.5" r="26" fill="#10b981" opacity="0.2" />
+          )}
+          {/* Outer Transistor Package Circle */}
+          <circle
+            cx="45"
+            cy="42.5"
+            r="28"
+            fill={fillColor}
+            stroke={isEnergized ? '#10b981' : strokeColor}
+            strokeWidth="2"
+            strokeDasharray={isEnergized ? 'none' : '3 2'}
+            className="transition-colors duration-200"
+          />
+
+          {/* Base Lead & Vertical Base Bar */}
+          <line x1="12" y1="42.5" x2="35" y2="42.5" stroke={strokeColor} strokeWidth="2.5" />
+          <line x1="35" y1="24" x2="35" y2="61" stroke={strokeColor} strokeWidth="4" strokeLinecap="round" />
+
+          {/* Emitter Branch (Top) with Inward Arrow for PNP */}
+          <line x1="58" y1="12" x2="58" y2="28" stroke={strokeColor} strokeWidth="2.5" />
+          <line x1="58" y1="28" x2="35" y2="36" stroke={isEnergized ? '#10b981' : strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+
+          {/* PNP Inward Arrow on Emitter pointing towards Base */}
+          <polygon
+            points="39,34.5 49,27 45,37"
+            fill={isEnergized ? '#10b981' : strokeColor}
+          />
+
+          {/* Collector Branch (Bottom) */}
+          <line x1="35" y1="49" x2="58" y2="57" stroke={isEnergized ? '#10b981' : strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="58" y1="57" x2="58" y2="73" stroke={strokeColor} strokeWidth="2.5" />
+
+          {/* Pin Identifiers */}
+          <text x="22" y="38" fontSize="8" fontWeight="bold" fill={strokeColor} textAnchor="middle">B</text>
+          <text x="64" y="24" fontSize="8" fontWeight="bold" fill={strokeColor}>E</text>
+          <text x="64" y="68" fontSize="8" fontWeight="bold" fill={strokeColor}>C</text>
+          <text x="45" y="78" fontSize="7" fontWeight="bold" fill={isEnergized ? '#10b981' : '#64748b'} textAnchor="middle">
+            {transistorState === 'saturation' || isEnergized ? 'ON (SAT)' : 'OFF (PNP)'}
+          </text>
         </svg>
       );
 
@@ -1343,35 +1600,68 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
         </svg>
       );
 
-    case 'power_source_ac':
+    case 'power_source_ac': {
+      const dispV = voltageV !== undefined ? voltageV : 230;
+      const dispHz = frequencyHz !== undefined ? frequencyHz : 50;
+      const wave = acWaveform || 'sine';
+      const isWarn = !!currentLimitWarning;
+
       return (
         <svg width={width} height={height} viewBox="0 0 80 80" fill="none">
           {/* Top Phase (L) */}
-          <line x1="40" y1="5" x2="40" y2="18" stroke="#b45309" strokeWidth="2.5" />
-          <text x="54" y="17" fontSize="11" fontWeight="bold" fill="#b45309">L</text>
+          <line x1="40" y1="4" x2="40" y2="16" stroke="#b45309" strokeWidth="2.5" />
+          <text x="52" y="14" fontSize="10" fontWeight="bold" fill="#b45309">L</text>
+
+          {/* AC Generator Outer Ring (Glow when energized) */}
+          {isEnergized && (
+            <circle cx="40" cy="40" r="24" fill="none" stroke={isWarn ? '#f43f5e' : '#eab308'} strokeWidth="1.5" opacity="0.4" strokeDasharray="3 2" />
+          )}
 
           {/* AC Generator Circle */}
-          <circle cx="40" cy="40" r="22" fill={fillColor} stroke={strokeColor} strokeWidth="2.5" />
-          {/* Sine Wave */}
-          <path d="M 27 40 Q 33.5 28 40 40 T 53 40" fill="none" stroke="#eab308" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="40" cy="40" r="22" fill={fillColor} stroke={isWarn ? '#f43f5e' : strokeColor} strokeWidth="2" />
+
+          {/* Waveform Symbol */}
+          {wave === 'sine' && (
+            <path d="M 28 40 Q 34 27 40 40 T 52 40" fill="none" stroke="#eab308" strokeWidth="2.2" strokeLinecap="round" />
+          )}
+          {wave === 'square' && (
+            <path d="M 28 40 L 28 32 L 40 32 L 40 48 L 52 48 L 52 40" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" />
+          )}
+          {wave === 'triangle' && (
+            <path d="M 28 40 L 34 30 L 46 50 L 52 40" fill="none" stroke="#a855f7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {/* Voltage & Frequency Labels inside generator */}
+          <text x="40" y="27" fontSize="7.5" fontWeight="bold" fontFamily="monospace" fill={isEnergized ? '#eab308' : '#94a3b8'} textAnchor="middle">
+            ~{dispV}V
+          </text>
+          <text x="40" y="55" fontSize="6.5" fontWeight="bold" fontFamily="monospace" fill={isDark ? '#94a3b8' : '#64748b'} textAnchor="middle">
+            {dispHz}Hz
+          </text>
 
           {/* Bottom Neutral (N) */}
-          <line x1="40" y1="62" x2="40" y2="75" stroke="#2563eb" strokeWidth="2.5" />
-          <text x="54" y="72" fontSize="11" fontWeight="bold" fill="#2563eb">N</text>
+          <line x1="40" y1="64" x2="40" y2="76" stroke="#2563eb" strokeWidth="2.5" />
+          <text x="52" y="74" fontSize="10" fontWeight="bold" fill="#2563eb">N</text>
         </svg>
       );
+    }
 
-    case 'light_bulb':
+    case 'light_bulb': {
+      const bulbPowerPct = isEnergized ? (powerPercent !== undefined ? powerPercent : 100) : 0;
+      const auraOpacity = isEnergized ? Math.max(0.12, (bulbPowerPct / 100) * 0.45) : 0;
+      const rayOpacity = isEnergized ? Math.max(0.2, bulbPowerPct / 100) : 0;
+      const filamentColor = bulbPowerPct > 60 ? '#ffffff' : '#fde047';
+
       return (
         <svg width={width} height={height} viewBox="0 0 85 95" fill="none">
           <defs>
             {isEnergized && (
               <>
                 <radialGradient id="bulbGlowGrad" cx="50%" cy="40%" r="55%">
-                  <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                  <stop offset="35%" stopColor="#fef08a" stopOpacity="0.95" />
-                  <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.85" />
-                  <stop offset="100%" stopColor="#d97706" stopOpacity="0.4" />
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity={Math.min(1, 0.4 + 0.6 * (bulbPowerPct / 100))} />
+                  <stop offset="35%" stopColor="#fef08a" stopOpacity={Math.min(0.95, 0.3 + 0.65 * (bulbPowerPct / 100))} />
+                  <stop offset="70%" stopColor="#f59e0b" stopOpacity={Math.min(0.85, 0.2 + 0.65 * (bulbPowerPct / 100))} />
+                  <stop offset="100%" stopColor="#d97706" stopOpacity={Math.min(0.4, 0.1 + 0.3 * (bulbPowerPct / 100))} />
                 </radialGradient>
               </>
             )}
@@ -1380,15 +1670,15 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
           {/* Radiant Aura when ON */}
           {isEnergized && (
             <>
-              <circle cx="42.5" cy="36" r="32" fill="#fbbf24" opacity="0.35" />
+              <circle cx="42.5" cy="36" r={22 + 10 * (bulbPowerPct / 100)} fill="#fbbf24" opacity={auraOpacity} />
               {/* Radiating Light Rays */}
-              <line x1="42.5" y1="3" x2="42.5" y2="9" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="18" y1="12" x2="23" y2="17" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="67" y1="12" x2="62" y2="17" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="8" y1="36" x2="14" y2="36" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="77" y1="36" x2="71" y2="36" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="18" y1="60" x2="23" y2="55" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="67" y1="60" x2="62" y2="55" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="42.5" y1="3" x2="42.5" y2="9" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="18" y1="12" x2="23" y2="17" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="67" y1="12" x2="62" y2="17" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="8" y1="36" x2="14" y2="36" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="77" y1="36" x2="71" y2="36" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="18" y1="60" x2="23" y2="55" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
+              <line x1="67" y1="60" x2="62" y2="55" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" opacity={rayOpacity} />
             </>
           )}
 
@@ -1408,7 +1698,7 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
           <path
             d="M 36 38 Q 42.5 28 49 38"
             fill="none"
-            stroke={isEnergized ? '#ffffff' : '#f59e0b'}
+            stroke={isEnergized ? filamentColor : '#f59e0b'}
             strokeWidth={isEnergized ? '3.5' : '2'}
             strokeLinecap="round"
           />
@@ -1426,6 +1716,7 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
           <line x1="53" y1="66" x2="83" y2="66" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 2" />
         </svg>
       );
+    }
 
     case 'switch_spst':
       return (
@@ -1734,39 +2025,59 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
         </svg>
       );
 
-    case 'dc_power_source':
+    case 'dc_power_source': {
+      const dispV = voltageV !== undefined ? voltageV : 12.0;
+      const dispI = currentA !== undefined ? currentA : 0.0;
+      const dispLimit = maxCurrentA !== undefined ? maxCurrentA : 10.0;
+      const isCC = !!currentLimitWarning || (dispI > dispLimit && isEnergized);
+
       return (
         <svg width={width} height={height} viewBox="0 0 80 80" fill="none">
           {/* Bench Power Supply Enclosure */}
-          <rect x="6" y="10" width="68" height="60" rx="6" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          <rect x="6" y="8" width="68" height="64" rx="6" fill={fillColor} stroke={isCC ? '#f43f5e' : strokeColor} strokeWidth="2" />
           
-          {/* LED Digital Display */}
-          <rect x="12" y="16" width="56" height="20" rx="3" fill="#090d16" stroke="#0ea5e9" strokeWidth="1" />
-          <text x="40" y="30" fontSize="10" fontWeight="bold" fontFamily="monospace" fill="#38bdf8" textAnchor="middle">
-            {measuredValue !== undefined ? `${measuredValue.toFixed(1)}V` : '12.0 V'}
+          {/* Dual LED Digital Display (Voltage & Current) */}
+          <rect x="11" y="13" width="58" height="24" rx="3" fill="#090d16" stroke={isCC ? '#f43f5e' : '#0ea5e9'} strokeWidth="1" />
+          
+          {/* Voltage Readout (Cyan/Slate) */}
+          <text x="36" y="23" fontSize="8" fontWeight="bold" fontFamily="monospace" fill={isEnergized ? '#38bdf8' : '#64748b'} textAnchor="middle">
+            {dispV.toFixed(1)}V
+          </text>
+          
+          {/* Current Readout (Green if normal, Red if CC) */}
+          <text x="36" y="33" fontSize="8" fontWeight="bold" fontFamily="monospace" fill={!isEnergized ? '#64748b' : isCC ? '#f43f5e' : '#4ade80'} textAnchor="middle">
+            {dispI.toFixed(2)}A
           </text>
 
-          {/* Adjustment Knobs */}
-          <circle cx="22" cy="46" r="6" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
-          <line x1="22" y1="42" x2="22" y2="46" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
-          <text x="22" y="58" fontSize="5.5" fill="#94a3b8" textAnchor="middle">VOLT</text>
+          {/* Mode Indicator LEDs (CV / CC) */}
+          <circle cx="61" cy="20" r="2" fill={isEnergized && !isCC ? '#22c55e' : '#334155'} />
+          <text x="61" y="17" fontSize="4.5" fontWeight="bold" fill="#64748b" textAnchor="middle">CV</text>
 
-          <circle cx="58" cy="46" r="6" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
-          <line x1="58" y1="42" x2="58" y2="46" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" />
-          <text x="58" y="58" fontSize="5.5" fill="#94a3b8" textAnchor="middle">AMP</text>
+          <circle cx="61" cy="30" r="2" fill={isEnergized && isCC ? '#ef4444' : '#334155'} />
+          <text x="61" y="27" fontSize="4.5" fontWeight="bold" fill={isCC ? '#ef4444' : '#64748b'} textAnchor="middle">CC</text>
+
+          {/* Adjustment Knobs */}
+          <circle cx="22" cy="48" r="5.5" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.2" />
+          <line x1="22" y1="44" x2="22" y2="48" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
+          <text x="22" y="59" fontSize="5" fontWeight="bold" fill="#94a3b8" textAnchor="middle">V-ADJ</text>
+
+          <circle cx="58" cy="48" r="5.5" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.2" />
+          <line x1="58" y1="44" x2="58" y2="48" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" />
+          <text x="58" y="59" fontSize="5" fontWeight="bold" fill="#94a3b8" textAnchor="middle">I-SET</text>
 
           {/* Banana Binding Posts */}
-          <circle cx="32" cy="62" r="3.5" fill="#ef4444" stroke="#fff" strokeWidth="0.8" />
-          <text x="32" y="57" fontSize="6" fontWeight="bold" fill="#ef4444" textAnchor="middle">+</text>
+          <circle cx="32" cy="64" r="3" fill="#ef4444" stroke="#fff" strokeWidth="0.8" />
+          <text x="32" y="60" fontSize="5.5" fontWeight="bold" fill="#ef4444" textAnchor="middle">+</text>
 
-          <circle cx="48" cy="62" r="3.5" fill="#1e293b" stroke="#3b82f6" strokeWidth="1" />
-          <text x="48" y="57" fontSize="6" fontWeight="bold" fill="#3b82f6" textAnchor="middle">-</text>
+          <circle cx="48" cy="64" r="3" fill="#1e293b" stroke="#3b82f6" strokeWidth="1" />
+          <text x="48" y="60" fontSize="5.5" fontWeight="bold" fill="#3b82f6" textAnchor="middle">-</text>
 
           {/* External connection leads */}
           <line x1="2" y1="40" x2="6" y2="40" stroke="#ef4444" strokeWidth="2.5" />
           <line x1="74" y1="40" x2="78" y2="40" stroke="#3b82f6" strokeWidth="2.5" />
         </svg>
       );
+    }
 
     case 'power_source_ac_3p':
       return (

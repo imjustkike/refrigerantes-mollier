@@ -1373,6 +1373,26 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
       { id: 'term_minus', name: 'Neutro / Común (-)', shortCode: '-', kind: 'electric_neutral', position: 'bottom', hint: 'Retorno' },
     ],
   },
+  audio_speaker: {
+    type: 'audio_speaker',
+    category: 'basic_electrical',
+    name: 'Altavoz Dinámico / Salida de Audio',
+    description: 'Transductor electroacústico para amplificadores de audio, avisadores sonoros y salida de transistores.',
+    defaultLabel: 'Altavoz 8Ω',
+    defaultTagPrefix: 'SPK-01',
+    dimensions: { width: 95, height: 95 },
+    defaultSpecs: {
+      impedanceOhm: 8.0,
+      audioFrequencyHz: 440,
+      minOperatingVoltageV: 1.0,
+      powerWatts: 0.0,
+      isEnergized: false,
+    },
+    ports: [
+      { id: 'audio_pos', name: 'Entrada Señal Audio (+)', shortCode: '+', kind: 'electric_power', position: 'left', hint: 'Borne Positivo / Señal (+)' },
+      { id: 'audio_neg', name: 'Masa / Retorno (-)', shortCode: '-', kind: 'electric_neutral', position: 'right', hint: 'Borne Negativo / Retorno Masa (-)' },
+    ],
+  },
 
   // --- INSTALACIÓN ELÉCTRICA: CARGAS, MOTORES Y ELECTRÓNICA ---
   electric_motor_3p: {
@@ -1383,7 +1403,7 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     defaultLabel: 'Motor Trifásico',
     defaultTagPrefix: 'M1',
     dimensions: { width: 105, height: 110 },
-    defaultSpecs: { powerKw: 5.5, ratedCurrentA: 11.2 },
+    defaultSpecs: { powerKw: 5.5, ratedCurrentA: 11.2, ratedVoltageV: 400.0, minOperatingVoltageV: 240.0, ratedRpm: 1450 },
     ports: [
       { id: 'term_u1', name: 'Borne U1 (Fase 1)', shortCode: 'U1', kind: 'electric_power', position: 'top', hint: 'Conexión fase L1' },
       { id: 'term_v1', name: 'Borne V1 (Fase 2)', shortCode: 'V1', kind: 'electric_power', position: 'left', hint: 'Conexión fase L2' },
@@ -1399,11 +1419,35 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     defaultLabel: 'Motor Monofásico',
     defaultTagPrefix: 'M2',
     dimensions: { width: 95, height: 100 },
-    defaultSpecs: { powerKw: 0.75, ratedCurrentA: 4.8 },
+    defaultSpecs: { powerKw: 0.75, ratedCurrentA: 4.8, ratedVoltageV: 230.0, minOperatingVoltageV: 140.0, ratedRpm: 2850 },
     ports: [
       { id: 'term_l', name: 'Fase de Trabajo (L)', shortCode: 'L', kind: 'electric_power', position: 'top', hint: 'Alimentación 230V' },
       { id: 'term_n', name: 'Neutro (N)', shortCode: 'N', kind: 'electric_neutral', position: 'bottom', hint: 'Neutro' },
       { id: 'term_pe', name: 'Tierra Chasis (PE)', shortCode: 'PE', kind: 'electric_ground', position: 'left', hint: 'Tierra' },
+    ],
+  },
+  electric_motor_dc: {
+    type: 'electric_motor_dc',
+    category: 'basic_electrical',
+    name: 'Motor DC de Tensión Variable',
+    description: 'Motor de corriente continua didáctico con tensión nominal y umbral de arranque configurables. No enciende si la tensión es insuficiente, y entrega plena potencia a tensión nominal.',
+    defaultLabel: 'Motor DC 12V',
+    defaultTagPrefix: 'M-DC',
+    dimensions: { width: 95, height: 100 },
+    defaultSpecs: {
+      voltageV: 12.0,
+      ratedVoltageV: 12.0,
+      minOperatingVoltageV: 7.0,
+      powerWatts: 24.0,
+      ratedRpm: 3000,
+      actualRpm: 0,
+      powerPercent: 0,
+      isEnergized: false,
+    },
+    ports: [
+      { id: 'term_pos', name: 'Polo Positivo (+)', shortCode: '+', kind: 'electric_power', position: 'top', hint: 'Alimentación positiva (+V DC)' },
+      { id: 'term_neg', name: 'Polo Negativo (-)', shortCode: '-', kind: 'electric_neutral', position: 'bottom', hint: 'Retorno de masa (0V DC)' },
+      { id: 'term_pe', name: 'Tierra Carcasa (PE)', shortCode: 'PE', kind: 'electric_ground', position: 'left', hint: 'Conexión a tierra de protección opcional' },
     ],
   },
   electric_heater: {
@@ -1508,14 +1552,19 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
   power_source_ac: {
     type: 'power_source_ac',
     category: 'basic_electrical',
-    name: 'Fuente de Alimentación AC',
-    description: 'Generador o red eléctrica de corriente alterna monofásica (Fase y Neutro).',
-    defaultLabel: 'Fuente 230V AC',
+    name: 'Fuente de Alimentación AC Regulable',
+    description: 'Generador o red eléctrica de corriente alterna regulable en tensión, frecuencia, amperaje y forma de onda.',
+    defaultLabel: 'Fuente AC Regulable',
     defaultTagPrefix: 'VAC-01',
     dimensions: { width: 105, height: 95 },
     defaultSpecs: {
       voltageV: 230.0,
       frequencyHz: 50.0,
+      maxCurrentA: 16.0,
+      ratedCurrentA: 16.0,
+      acWaveform: 'sine',
+      currentA: 0.0,
+      powerWatts: 0.0,
       isEnergized: true,
     },
     ports: [
@@ -1533,7 +1582,12 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     dimensions: { width: 95, height: 105 },
     defaultSpecs: {
       voltageV: 12.0,
-      powerKw: 0.06,
+      ratedVoltageV: 12.0,
+      minOperatingVoltageV: 6.0,
+      resistanceOhm: 24.0,
+      powerWatts: 6.0,
+      powerKw: 0.006,
+      powerPercent: 0,
       isEnergized: false,
     },
     ports: [
@@ -1680,6 +1734,46 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
       { id: 'cathode', name: 'Cátodo (-)', shortCode: 'K(-)', kind: 'electric_neutral', position: 'right', hint: 'Terminal Cátodo (conectar al polo negativo -)' },
     ],
   },
+  transistor_bjt_npn: {
+    type: 'transistor_bjt_npn',
+    category: 'basic_electrical',
+    name: 'Transistor Bipolar NPN (BJT)',
+    description: 'Semiconductor de 3 terminales (Base, Colector, Emisor). Conmuta y amplifica corriente entre Colector y Emisor cuando la Base recibe al menos 0.7V respecto al Emisor.',
+    defaultLabel: 'Transistor NPN',
+    defaultTagPrefix: 'Q-NPN',
+    dimensions: { width: 95, height: 100 },
+    defaultSpecs: {
+      transistorState: 'cutoff',
+      vBe: 0.0,
+      vCe: 0.0,
+      isEnergized: false,
+    },
+    ports: [
+      { id: 'base', name: 'Base (B)', shortCode: 'B', kind: 'electric_control', position: 'left', hint: 'Entrada de control / señal (requiere Vbe >= 0.7V)' },
+      { id: 'collector', name: 'Colector (C)', shortCode: 'C', kind: 'electric_power', position: 'top', hint: 'Entrada de corriente de carga (+)' },
+      { id: 'emitter', name: 'Emisor (E)', shortCode: 'E', kind: 'electric_neutral', position: 'bottom', hint: 'Salida de corriente hacia masa / retorno (-)' },
+    ],
+  },
+  transistor_bjt_pnp: {
+    type: 'transistor_bjt_pnp',
+    category: 'basic_electrical',
+    name: 'Transistor Bipolar PNP (BJT)',
+    description: 'Semiconductor complementario PNP (Base, Emisor, Colector). Conduce entre Emisor y Colector cuando la Base se polariza negativamente respecto al Emisor (Veb >= 0.7V).',
+    defaultLabel: 'Transistor PNP',
+    defaultTagPrefix: 'Q-PNP',
+    dimensions: { width: 95, height: 100 },
+    defaultSpecs: {
+      transistorState: 'cutoff',
+      vBe: 0.0,
+      vCe: 0.0,
+      isEnergized: false,
+    },
+    ports: [
+      { id: 'base', name: 'Base (B)', shortCode: 'B', kind: 'electric_control', position: 'left', hint: 'Entrada de control / disparo por polo negativo' },
+      { id: 'emitter', name: 'Emisor (E)', shortCode: 'E', kind: 'electric_power', position: 'top', hint: 'Llegada de positivo (+)' },
+      { id: 'collector', name: 'Colector (C)', shortCode: 'C', kind: 'electric_neutral', position: 'bottom', hint: 'Salida hacia la carga (-)' },
+    ],
+  },
   voltmeter_basic: {
     type: 'voltmeter_basic',
     category: 'basic_electrical',
@@ -1740,7 +1834,11 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     defaultTagPrefix: 'VDC-01',
     dimensions: { width: 110, height: 100 },
     defaultSpecs: {
-      voltageV: 24.0,
+      voltageV: 12.0,
+      maxCurrentA: 10.0,
+      ratedCurrentA: 10.0,
+      currentA: 0.0,
+      powerWatts: 0.0,
       isEnergized: true,
     },
     ports: [
@@ -1759,6 +1857,11 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     defaultSpecs: {
       voltageV: 400.0,
       frequencyHz: 50.0,
+      maxCurrentA: 32.0,
+      ratedCurrentA: 32.0,
+      acWaveform: 'sine',
+      currentA: 0.0,
+      powerWatts: 0.0,
       isEnergized: true,
     },
     ports: [

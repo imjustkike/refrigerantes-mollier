@@ -113,9 +113,15 @@ const ELECTRICAL_GROUPS = [
   },
   {
     id: 'receptores',
-    label: 'Receptores',
+    label: 'Receptores y Motores',
     icon: '💡',
-    types: ['light_bulb', 'diode_led', 'electric_heater', 'electric_motor_1p', 'electric_motor_3p', 'buzzer_siren', 'solenoid_coil'],
+    types: ['light_bulb', 'audio_speaker', 'buzzer_siren', 'electric_motor_dc', 'electric_motor_1p', 'electric_motor_3p', 'electric_heater', 'solenoid_coil'],
+  },
+  {
+    id: 'semiconductores',
+    label: 'Transistores y Electrónica',
+    icon: '🎛️',
+    types: ['transistor_bjt_npn', 'transistor_bjt_pnp', 'diode_led', 'resistor_fixed', 'potentiometer', 'capacitor_fixed'],
   },
   {
     id: 'transformacion',
@@ -127,7 +133,7 @@ const ELECTRICAL_GROUPS = [
     id: 'medicion',
     label: 'Medición',
     icon: '📟',
-    types: ['voltmeter_basic', 'ammeter_basic', 'ohmmeter_basic', 'wattmeter_basic', 'multimeter_digital'],
+    types: ['voltmeter_basic', 'ammeter_basic', 'ohmmeter_basic', 'wattmeter_basic'],
   },
 ];
 
