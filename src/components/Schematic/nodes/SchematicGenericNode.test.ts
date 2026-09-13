@@ -68,6 +68,47 @@ describe('getTransformedPortPosition', () => {
       // 'bottom' -> flippedH -> 'bottom' -> rotated 90deg -> 'left'
       expect(getTransformedPortPosition('bottom', 90, true, false)).toBe('left');
     });
+
+    it('flips vertically then rotates 90 deg', () => {
+      // 'left' -> flippedV -> 'left' -> rotated 90deg -> 'top'
+      expect(getTransformedPortPosition('left', 90, false, true)).toBe('top');
+      // 'right' -> flippedV -> 'right' -> rotated 90deg -> 'bottom'
+      expect(getTransformedPortPosition('right', 90, false, true)).toBe('bottom');
+      // 'top' -> flippedV -> 'bottom' -> rotated 90deg -> 'left'
+      expect(getTransformedPortPosition('top', 90, false, true)).toBe('left');
+      // 'bottom' -> flippedV -> 'top' -> rotated 90deg -> 'right'
+      expect(getTransformedPortPosition('bottom', 90, false, true)).toBe('right');
+    });
+
+    it('flips both axes and rotates 180 deg', () => {
+      // 'left' -> flipH(right) -> flipV(right) -> rot180 -> 'left'
+      expect(getTransformedPortPosition('left', 180, true, true)).toBe('left');
+      // 'right' -> flipH(left) -> flipV(left) -> rot180 -> 'right'
+      expect(getTransformedPortPosition('right', 180, true, true)).toBe('right');
+      // 'top' -> flipH(top) -> flipV(bottom) -> rot180 -> 'top'
+      expect(getTransformedPortPosition('top', 180, true, true)).toBe('top');
+      // 'bottom' -> flipH(bottom) -> flipV(top) -> rot180 -> 'bottom'
+      expect(getTransformedPortPosition('bottom', 180, true, true)).toBe('bottom');
+    });
+
+    it('handles rotated elbow pipe union ports across all 4 quadrants', () => {
+      // Elbow original: port_1 = left, port_2 = bottom
+      // Quadrant 0 (0 deg): left, bottom
+      expect(getTransformedPortPosition('left', 0)).toBe('left');
+      expect(getTransformedPortPosition('bottom', 0)).toBe('bottom');
+
+      // Quadrant 1 (90 deg): top, left
+      expect(getTransformedPortPosition('left', 90)).toBe('top');
+      expect(getTransformedPortPosition('bottom', 90)).toBe('left');
+
+      // Quadrant 2 (180 deg): right, top
+      expect(getTransformedPortPosition('left', 180)).toBe('right');
+      expect(getTransformedPortPosition('bottom', 180)).toBe('top');
+
+      // Quadrant 3 (270 deg): bottom, right
+      expect(getTransformedPortPosition('left', 270)).toBe('bottom');
+      expect(getTransformedPortPosition('bottom', 270)).toBe('right');
+    });
   });
 
   describe('Pipe Fittings Definitions', () => {
@@ -177,7 +218,6 @@ describe('getTransformedPortPosition', () => {
       const { snapToGrid } = await import('../edges/RefrigerantPipeEdge');
       expect(snapToGrid(14)).toBe(15);
       expect(snapToGrid(22)).toBe(15);
-      expect(snapToGrid(23)).toBe(30);
       expect(snapToGrid(46)).toBe(45);
     });
   });

@@ -40,7 +40,7 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
     // --- COMPRESORES ---
     case 'compressor_scroll':
       return (
-        <svg width={width} height={height} viewBox="0 0 100 110" fill="none" className="transition-transform">
+        <svg width={width} height={height} viewBox="0 0 100 110" fill="none">
           <defs>
             <radialGradient id="scrollGrad" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor={isDark ? '#2a324b' : '#e0e7ff'} />
@@ -1380,7 +1380,7 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
           {/* Radiant Aura when ON */}
           {isEnergized && (
             <>
-              <circle cx="42.5" cy="36" r="32" fill="#fbbf24" opacity="0.45" filter="drop-shadow(0 0 16px rgba(251, 191, 36, 0.9))" />
+              <circle cx="42.5" cy="36" r="32" fill="#fbbf24" opacity="0.35" />
               {/* Radiating Light Rays */}
               <line x1="42.5" y1="3" x2="42.5" y2="9" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
               <line x1="18" y1="12" x2="23" y2="17" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
@@ -1612,7 +1612,7 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
       return (
         <svg width={width} height={height} viewBox="0 0 80 75" fill="none">
           {isEnergized && (
-            <circle cx="40" cy="40" r="22" fill="#22c55e" opacity="0.3" filter="drop-shadow(0 0 8px #22c55e)" />
+            <circle cx="40" cy="40" r="22" fill="#22c55e" opacity="0.25" />
           )}
           <line x1="2" y1="40" x2="28" y2="40" stroke="#ef4444" strokeWidth="2" />
           <polygon

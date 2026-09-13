@@ -449,8 +449,32 @@ const SchematicCanvasContent: React.FC = () => {
           return node;
         })
       );
+
+      // Si se rota o voltea el componente, invalidar waypoints obsoletos en las tuberías/cables
+      // conectados para que se re-enruten limpiamente hacia las nuevas orientaciones de los bornes
+      if (
+        updates.rotation !== undefined ||
+        updates.flippedHorizontal !== undefined ||
+        updates.flippedVertical !== undefined
+      ) {
+        setEdges((eds) =>
+          eds.map((edge) => {
+            if (edge.source === nodeId || edge.target === nodeId) {
+              return {
+                ...edge,
+                data: {
+                  pipeState: edge.data?.pipeState || 'discharge_superheated',
+                  ...edge.data,
+                  waypoints: undefined,
+                },
+              };
+            }
+            return edge;
+          })
+        );
+      }
     },
-    [setNodes]
+    [setNodes, setEdges]
   );
 
   // Update Edge Data
@@ -1283,6 +1307,8 @@ const SchematicCanvasContent: React.FC = () => {
             onDragEnter={onDragEnter}
             onSelectionChange={onSelectionChange}
             fitView
+            minZoom={0.2}
+            maxZoom={4}
             snapToGrid
             snapGrid={[15, 15]}
             elevateEdgesOnSelect={true}

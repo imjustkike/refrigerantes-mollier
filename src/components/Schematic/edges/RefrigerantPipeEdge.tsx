@@ -841,8 +841,11 @@ export const RefrigerantPipeEdge: React.FC<EdgeProps> = ({
               }`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${isAnimated ? 'animate-ping' : ''}`}
-                style={{ backgroundColor: color }}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: color,
+                  boxShadow: isAnimated ? `0 0 6px ${color}` : undefined,
+                }}
               />
               {edgeData.customLabel && (
                 <span className="font-semibold text-slate-300">{edgeData.customLabel}</span>

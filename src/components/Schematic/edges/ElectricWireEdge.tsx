@@ -477,7 +477,7 @@ export const ElectricWireEdge: React.FC<EdgeProps> = ({
             }`}
             title="Opciones de cable eléctrico"
           >
-            <Zap size={10} className={isAnimated ? 'text-amber-400 animate-pulse' : 'text-slate-400'} />
+            <Zap size={10} className={isAnimated ? 'text-amber-400 drop-shadow-[0_0_4px_#f59e0b]' : 'text-slate-400'} />
             <span>
               {edgeData.wireTag || (edgeData.wireSectionMm2 ? `${edgeData.wireSectionMm2}mm²` : 'Cable')}
             </span>

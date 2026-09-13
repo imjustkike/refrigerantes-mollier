@@ -119,6 +119,10 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
   useEffect(() => {
     updateNodeInternals(id);
+    const frame = requestAnimationFrame(() => {
+      updateNodeInternals(id);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [id, rotation, flippedHorizontal, flippedVertical, updateNodeInternals]);
 
   const isInteractiveSwitch = [
@@ -179,7 +183,8 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
   const flippedH = flippedHorizontal ? -1 : 1;
   const flippedV = flippedVertical ? -1 : 1;
-  const transform = `rotate(${rotation}deg) scale(${flippedH}, ${flippedV})`;
+  const isTransformed = rotation !== 0 || flippedHorizontal || flippedVertical;
+  const transform = isTransformed ? `rotate(${rotation}deg) scale(${flippedH}, ${flippedV})` : undefined;
 
   // Summary Specs text to display on node footer
   const renderSpecsSnippet = () => {
@@ -187,7 +192,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
     if (nodeData.componentType === 'light_bulb') {
       return nodeData.isEnergized ? (
         <span className="font-bold text-amber-500 dark:text-yellow-300 text-[10px] flex items-center justify-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping" />
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]" />
           ENCENDIDA (LUZ)
         </span>
       ) : (
@@ -308,10 +313,10 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
   return (
     <div
-      className={`group relative flex flex-col items-center justify-start p-2 rounded-xl transition-all duration-150 select-none bg-white/95 dark:bg-[#141720]/95 border shadow-md ${
+      className={`group relative flex flex-col items-center justify-start p-2 rounded-xl transition-[border-color,box-shadow] duration-150 select-none bg-white dark:bg-[#141720] border shadow-md ${
         selected
           ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-900 border-sky-400 shadow-sky-500/20'
-          : 'border-slate-300/80 dark:border-slate-750/90 hover:border-sky-400/70 hover:shadow-lg'
+          : 'border-slate-300 dark:border-slate-700 hover:border-sky-400/70 hover:shadow-lg'
       }`}
       style={{
         width: `${def.dimensions.width + 10}px`,
@@ -334,9 +339,8 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
         {/* Operating Status Indicator */}
         <div className="flex items-center gap-1 shrink-0">
           {nodeData.isEnergized ? (
-            <span className="flex h-2 w-2 relative" title="En servicio / Activo">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span className="flex h-2 w-2 relative items-center justify-center" title="En servicio / Activo">
+              <span className="inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
             </span>
           ) : (
             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" title="Detenido" />
@@ -346,10 +350,10 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
       {/* Main SVG Symbol Body */}
       <div
-        className={`relative flex items-center justify-center p-1 rounded-lg transition-transform duration-100 my-auto ${
+        className={`relative flex items-center justify-center p-1 rounded-lg my-auto ${
           isInteractiveSwitch ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
         }`}
-        style={{ transform }}
+        style={isTransformed ? { transform, transformOrigin: 'center center' } : undefined}
         onClick={isInteractiveSwitch ? handleToggleState : undefined}
         title={isInteractiveSwitch ? 'Haz clic para alternar estado' : undefined}
       >
@@ -424,7 +428,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
                 : 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-400 shadow-amber-500/30'
               : nodeData.componentType === 'emergency_stop_button'
               ? nodeData.isPushButtonPressed
-                ? 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 animate-pulse shadow-rose-500/30'
+                ? 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 shadow-[0_0_10px_#f43f5e]'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400'
               : nodeData.componentType === 'selector_switch_rotary'
               ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600'
@@ -439,7 +443,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
               nodeData.componentType === 'switch_spdt'
                 ? 'bg-white'
                 : nodeData.isSwitchClosed
-                ? 'bg-white animate-pulse'
+                ? 'bg-white shadow-[0_0_6px_#ffffff]'
                 : 'bg-rose-200'
             }`}
           />
@@ -487,7 +491,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
               isConnectable={true}
               onMouseEnter={() => setHoveredPortId(port.id)}
               onMouseLeave={() => setHoveredPortId(null)}
-              className="w-4! h-4! rounded-full border-2 border-white dark:border-slate-950 transition-all duration-150 hover:scale-140! z-30 cursor-crosshair shadow-md hover:ring-2 hover:ring-sky-400"
+              className="w-4! h-4! rounded-full border-2 border-white dark:border-slate-950 transition-[transform,background-color,border-color,box-shadow] duration-150 hover:scale-140! z-30 cursor-crosshair shadow-md hover:ring-2 hover:ring-sky-400"
               style={{
                 backgroundColor: handleColor,
               }}
@@ -497,12 +501,12 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
             <div
               className={`absolute pointer-events-none z-20 flex items-center px-1 py-0.2 rounded font-mono font-bold text-[8px] border shadow-xs transition-opacity duration-150 ${
                 effectivePosition === 'left'
-                  ? 'left-0 -translate-x-full mr-1'
+                  ? 'left-0 -translate-x-full mr-1 top-1/2 -translate-y-1/2'
                   : effectivePosition === 'right'
-                  ? 'right-0 translate-x-full ml-1'
+                  ? 'right-0 translate-x-full ml-1 top-1/2 -translate-y-1/2'
                   : effectivePosition === 'top'
-                  ? 'top-0 -translate-y-full mb-1'
-                  : 'bottom-0 translate-y-full mt-1'
+                  ? 'top-0 -translate-y-full mb-1 left-1/2 -translate-x-1/2'
+                  : 'bottom-0 translate-y-full mt-1 left-1/2 -translate-x-1/2'
               } ${
                 isHovered
                   ? 'bg-sky-600 text-white border-sky-400 opacity-100 z-40 scale-105'

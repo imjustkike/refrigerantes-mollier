@@ -287,6 +287,18 @@
   z-index: 6 !important;
 }
 
+/* Crisp Vector Rendering on High Zoom for Schematic SVGs */
+.react-flow__node svg,
+.schematic-flow-canvas svg {
+  shape-rendering: geometricPrecision !important;
+  text-rendering: geometricPrecision !important;
+}
+
+.react-flow__node * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 .react-flow__handle {
   z-index: 30 !important;
   pointer-events: auto !important;
