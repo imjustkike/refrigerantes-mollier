@@ -327,6 +327,27 @@ impl CoolPropEngine {
         Self::read_string_param(cp, param)
     }
 
+    /// Sets the reference state for a fluid (e.g. "IIR", "ASHRAE", "NBP", "DEF")
+    pub fn set_reference_state_s(&self, fluid: &str, ref_state: &str) -> Result<(), String> {
+        let fluid_c = CString::new(fluid).map_err(|e| e.to_string())?;
+        let ref_c = CString::new(ref_state).map_err(|e| e.to_string())?;
+
+        let mut lock = self.state.lock().map_err(|e| format!("Mutex error: {}", e))?;
+        let (cp, _, _) = self.ensure_initialized(&mut lock)?;
+
+        let res = unsafe { cp.set_reference_stateS(fluid_c.as_ptr(), ref_c.as_ptr()) };
+        if res == 1 {
+            Ok(())
+        } else {
+            let err = Self::get_errstring_internal(cp);
+            Err(if err.is_empty() {
+                format!("Error estableciendo estado de referencia '{}' para {}", ref_state, fluid)
+            } else {
+                err
+            })
+        }
+    }
+
     /// Returns engine diagnosis information.
     pub fn get_engine_info(&self) -> EngineInfo {
         let mut lock = match self.state.lock() {

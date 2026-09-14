@@ -57,10 +57,15 @@ export class ThermoProvider {
     // Check fast session cache first
     const cached = this.fluidCache.get(fluidId);
     if (cached) {
-      return {
-        ...cached,
-        revision: rev,
-      };
+      // Discard stale R717 data if it still has old DEF reference state
+      if (fluidId === 'R717' && cached.dataset.domain.hCritJkg > 1_200_000) {
+        this.fluidCache.delete(fluidId);
+      } else {
+        return {
+          ...cached,
+          revision: rev,
+        };
+      }
     }
 
     try {

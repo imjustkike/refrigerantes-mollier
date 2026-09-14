@@ -91,7 +91,7 @@ fn get_memory_cache() -> &'static RwLock<HashMap<String, DiagramCurvesResponse>>
 }
 
 fn get_curves_cache_dir() -> PathBuf {
-    let mut dir = std::env::temp_dir().join("coolmollier_curves_cache");
+    let mut dir = std::env::temp_dir().join("coolmollier_curves_cache_v2");
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
@@ -99,7 +99,7 @@ fn get_curves_cache_dir() -> PathBuf {
                 .join("Library")
                 .join("Caches")
                 .join("CoolMollier")
-                .join("curves");
+                .join("curves_v2");
         }
     }
     #[cfg(target_os = "windows")]
@@ -108,7 +108,7 @@ fn get_curves_cache_dir() -> PathBuf {
             dir = PathBuf::from(appdata)
                 .join("CoolMollier")
                 .join("Cache")
-                .join("curves");
+                .join("curves_v2");
         }
     }
     let _ = create_dir_all(&dir);
@@ -145,18 +145,22 @@ pub async fn get_diagram_curves_cmd(fluid_id: String) -> Result<DiagramCurvesRes
     // 2. Offload to background thread for disk cache lookup or fresh calculation
     tauri::async_runtime::spawn_blocking(move || {
         let norm_id = sanitize_cache_key(&fluid_id);
-        let cache_file = get_curves_cache_dir().join(format!("{}.json", norm_id));
+        let cache_file = get_curves_cache_dir().join(format!("{}_iir_v2.json", norm_id));
 
         // 2a. Check persistent disk cache
         if cache_file.exists() {
             if let Ok(file) = File::open(&cache_file) {
                 let reader = BufReader::new(file);
                 if let Ok(cached_curves) = serde_json::from_reader::<_, DiagramCurvesResponse>(reader) {
-                    log::info!("'get_diagram_curves_cmd' para '{}': ¡HIT en caché de disco!", fluid_id);
-                    if let Ok(mut guard) = get_memory_cache().write() {
-                        guard.insert(fluid_id.clone(), cached_curves.clone());
+                    // Sanity check: discard stale R717 curves if they still use DEF reference state (h_crit > 1200)
+                    let is_stale_r717 = fluid_id == "R717" && cached_curves.domain.h_crit_kj_kg > 1200.0;
+                    if !is_stale_r717 {
+                        log::info!("'get_diagram_curves_cmd' para '{}': ¡HIT en caché de disco v2!", fluid_id);
+                        if let Ok(mut guard) = get_memory_cache().write() {
+                            guard.insert(fluid_id.clone(), cached_curves.clone());
+                        }
+                        return Ok(cached_curves);
                     }
-                    return Ok(cached_curves);
                 }
             }
         }

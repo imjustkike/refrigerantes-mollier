@@ -192,6 +192,7 @@ interface FluidThermodynamicModel {
   h_ref_0c_liq: number; // reference h at 0C liquid
   p_sat_0c_bar: number;
   cp_ideal: number;
+  cp_liq?: number;
   is_pure: boolean;
   is_mixture: boolean;
   gwp: number;
@@ -214,6 +215,7 @@ const FLUID_MODELS: Record<string, FluidThermodynamicModel> = {
     h_ref_0c_liq: 200.0,
     p_sat_0c_bar: 2.928,
     cp_ideal: 0.95,
+    cp_liq: 1.38,
     is_pure: true,
     is_mixture: false,
     gwp: 1430,
@@ -233,6 +235,7 @@ const FLUID_MODELS: Record<string, FluidThermodynamicModel> = {
     h_ref_0c_liq: 200.0,
     p_sat_0c_bar: 34.85,
     cp_ideal: 1.15,
+    cp_liq: 2.50,
     is_pure: true,
     is_mixture: false,
     gwp: 1,
@@ -248,10 +251,11 @@ const FLUID_MODELS: Record<string, FluidThermodynamicModel> = {
     p_crit_bar: 113.33,
     p_min_bar: 0.1,
     p_max_bar: 180.0,
-    h_crit_kj_kg: 1450.0,
+    h_crit_kj_kg: 1121.65, // IIR standard reference state (Danfoss Coolselector)
     h_ref_0c_liq: 200.0,
     p_sat_0c_bar: 4.295,
     cp_ideal: 2.35,
+    cp_liq: 4.60, // Specific heat of liquid ammonia ~4.6 kJ/(kg·K)
     is_pure: true,
     is_mixture: false,
     gwp: 0,
@@ -754,11 +758,15 @@ function calculateSatEnthalpies(
   const Tr = Math.min(0.999, Math.max(0.01, (tC + 273.15) / (Tc + 273.15)));
   const tau = 1 - Tr;
 
-  // Liquid enthalpy (from reference state at 0°C)
-  const hL = model.h_ref_0c_liq + 1.45 * tC + 0.0018 * Math.pow(tC, 2);
+  // Liquid enthalpy (from reference state at 0°C with fluid-specific liquid heat capacity)
+  const cpLiq = model.cp_liq || 1.45;
+  const hL = model.h_ref_0c_liq + cpLiq * tC + 0.0018 * Math.pow(tC, 2);
 
   // Latent heat of vaporization: Watson-type correlation Delta_H_vap ~ tau^0.38
-  const deltaH0 = (model.h_crit_kj_kg - model.h_ref_0c_liq) * 1.8;
+  // For R717, latent heat at 0C (tau ~ 0.326) is ~ 1262 kJ/kg matching Danfoss / IIR
+  const deltaH0 = model.id === 'R717'
+    ? 1930.0
+    : (model.h_crit_kj_kg - model.h_ref_0c_liq) * 1.8;
   const deltaHvap = deltaH0 * Math.pow(tau, 0.38);
 
   const hV = Math.min(model.h_crit_kj_kg + 35, hL + Math.max(5.0, deltaHvap));
@@ -894,7 +902,7 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
   const maxSatH = satVap.reduce((max, pt) => Math.max(max, pt.h_kj_kg), 450);
   const hSpan = Math.max(200, maxSatH - minSatH);
 
-  const hMinDomain = Math.max(-100, minSatH - hSpan * 0.15);
+  const hMinDomain = Math.max(-350, minSatH - hSpan * 0.15);
   const hMaxDomain = maxSatH + hSpan * 0.60;
   const pMinDomain = pMin;
   const pMaxDomain = pMax;
@@ -903,7 +911,7 @@ function getMockDiagramCurves(fluidId: string): DiagramCurvesResponse {
   const pMaxGen = Math.max(pCrit * 8.0, 400.0);
   const pMinGen = Math.max(0.005, Math.min(pMin * 0.35, 0.05));
   const hMaxGen = maxSatH + hSpan * 1.5;
-  const hMinGen = Math.max(-250, minSatH - hSpan * 0.25);
+  const hMinGen = Math.max(-500, minSatH - hSpan * 0.25);
 
   // Quality lines (x = 0.1 .. 0.9)
   const quality_lines = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map((q) => {

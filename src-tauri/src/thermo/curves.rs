@@ -1,4 +1,4 @@
-use crate::thermo::{get_fluid_constants, props_si, resolve_coolprop_fluid_id};
+use crate::thermo::{ensure_standard_reference_state, get_fluid_constants, props_si, resolve_coolprop_fluid_id};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +105,7 @@ fn interpolate_sat_curve(pts: &[CurvePoint], p_bar: f64) -> Option<(f64, f64, f6
 pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, String> {
     let resolved_fluid = resolve_coolprop_fluid_id(fluid_id);
     let fluid_id = resolved_fluid.as_str();
+    ensure_standard_reference_state(fluid_id);
     let consts = get_fluid_constants(fluid_id)?;
 
     let t_crit_k = consts.t_crit_k;
@@ -197,7 +198,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     let min_sat_h = sat_liquid_pts.first().map(|p| p.h_kj_kg).unwrap_or(100.0);
     let max_sat_h = sat_vapor_pts.iter().map(|p| p.h_kj_kg).fold(f64::NEG_INFINITY, f64::max);
     let h_span = (max_sat_h - min_sat_h).max(200.0);
-    let h_min = (min_sat_h - h_span * 0.10).max(-150.0);
+    let h_min = (min_sat_h - h_span * 0.10).max(-350.0);
     let h_max = max_sat_h + h_span * 0.65;
     let p_min = (p_min_pa / 1e5).max(0.02);
     let p_max = (p_crit_bar * 1.10).max(10.0);
@@ -218,7 +219,7 @@ pub fn generate_diagram_curves(fluid_id: &str) -> Result<DiagramCurvesResponse, 
     let p_max_gen_bar = (p_crit_bar * 8.0).max(400.0).min(1000.0);
     let p_min_gen_bar = (p_min_bar * 0.35).min(0.05).max(0.005);
     let h_max_gen_kj = max_sat_h + h_span * 1.5;
-    let h_min_gen_kj = (min_sat_h - h_span * 0.25).max(-250.0);
+    let h_min_gen_kj = (min_sat_h - h_span * 0.25).max(-500.0);
 
     // Quality lines (x = 0.1 .. 0.9) inside the dome:
     // Deriving directly from calculated saturation points eliminates >1000 heavy flash calls in CoolProp
@@ -942,6 +943,30 @@ mod tests {
                 res.domain.p_max_bar
             );
         }
+    }
+
+    #[test]
+    fn test_r717_danfoss_reference_state() {
+        use crate::thermo::calculate_state;
+
+        let res = generate_diagram_curves("R717")
+            .expect("Failed to generate curves for R717");
+
+        // 1. Verify 0 °C saturated liquid enthalpy is exactly 200 kJ/kg (IIR reference state)
+        let s_0c = calculate_state("R717", "T", 0.0, "Q", 0.0).unwrap();
+        assert!((s_0c.enthalpy_kj_kg - 200.0).abs() < 0.1, "Expected h=200 kJ/kg at 0°C, got {}", s_0c.enthalpy_kj_kg);
+        assert!((s_0c.entropy_kj_kg_k - 1.0).abs() < 0.05, "Expected s=1.0 kJ/kg·K at 0°C, got {}", s_0c.entropy_kj_kg_k);
+
+        // 2. Verify low-temperature saturated liquid enthalpy matches Danfoss (-110 to -115 kJ/kg at -70 °C)
+        let s_neg70c = calculate_state("R717", "T", -70.0, "Q", 0.0).unwrap();
+        assert!((s_neg70c.enthalpy_kj_kg - (-112.6)).abs() < 1.0, "Expected h ~ -112.6 kJ/kg at -70°C, got {}", s_neg70c.enthalpy_kj_kg);
+
+        // 3. Verify base of liquid curve in diagram spans into negative enthalpy matching Danfoss
+        let first_liq = res.saturation_liquid.points.first().unwrap();
+        assert!(first_liq.h_kj_kg < -100.0, "Base of liquid curve should be < -100 kJ/kg, got {}", first_liq.h_kj_kg);
+
+        // 4. Verify domain h_min allows displaying down to Danfoss scale (-250 kJ/kg)
+        assert!(res.domain.h_min_kj_kg <= -150.0, "Domain h_min should allow negative scale, got {}", res.domain.h_min_kj_kg);
     }
 }
 

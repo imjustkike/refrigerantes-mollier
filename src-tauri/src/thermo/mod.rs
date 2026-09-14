@@ -85,6 +85,19 @@ pub fn props_si(
     get_engine().props_si(out_prop, in1_name, in1_val, in2_name, in2_val, fluid)
 }
 
+/// Helper to set fluid reference state (e.g. "IIR", "ASHRAE", "NBP", "DEF")
+pub fn set_reference_state(fluid: &str, ref_state: &str) -> Result<(), String> {
+    get_engine().set_reference_state_s(fluid, ref_state)
+}
+
+/// Ensures the fluid uses the European standard refrigeration reference state (IIR: h=200 kJ/kg, s=1 kJ/kg·K at 0°C sat liq),
+/// exactly matching Danfoss Coolselector 2.
+pub fn ensure_standard_reference_state(fluid_id: &str) {
+    if !fluid_id.contains(".mix") && !fluid_id.contains(".MIX") && !fluid_id.contains('&') {
+        let _ = set_reference_state(fluid_id, "IIR");
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FluidConstants {
     pub id: String,
@@ -167,6 +180,7 @@ pub fn resolve_coolprop_fluid_id(input_id: &str) -> String {
 
 pub fn get_fluid_constants(fluid_id: &str) -> Result<FluidConstants, String> {
     let resolved = resolve_coolprop_fluid_id(fluid_id);
+    ensure_standard_reference_state(&resolved);
     let norm = resolved.to_uppercase().replace(".MIX", "").trim().to_string();
 
     // Comprehensive ASHRAE & Refprop standard critical property lookup for mixtures and specialty fluids
@@ -273,7 +287,11 @@ pub fn get_fluid_info(fluid_id: &str) -> Result<FluidInfo, String> {
         is_mixture: consts.is_mixture,
         gwp: consts.gwp,
         ashrae_safety: consts.ashrae_safety,
-        reference_state: "IIR / DEF (según configuración del motor CoolProp)".to_string(),
+        reference_state: if consts.is_mixture {
+            "DEF (Mezcla - CoolProp EOS)".to_string()
+        } else {
+            "IIR (h=200 kJ/kg, s=1 kJ/kg·K a 0°C liq. sat. - Estándar Danfoss Coolselector)".to_string()
+        },
     })
 }
 
@@ -287,6 +305,7 @@ pub fn calculate_state(
 ) -> Result<ThermodynamicState, String> {
     let resolved_fluid = resolve_coolprop_fluid_id(fluid_id);
     let fluid_id = resolved_fluid.as_str();
+    ensure_standard_reference_state(fluid_id);
 
     // Standardize input variable symbols and convert user units to SI
     let (coolprop_in1, si_val1) = to_si_input(in1_type, in1_val)?;

@@ -36,10 +36,15 @@ describe('Refrigerant Fluid Distinctness and Physical Accuracy Tests', () => {
     const hCritR134a = Units.jkgToKjkg(r134a.domain.hCritJkg);
     const hCritR717 = Units.jkgToKjkg(r717.domain.hCritJkg);
 
-    expect(hCritR717).toBeGreaterThan(1200); // NH3 latent heat is huge (~1450 kJ/kg)
+    expect(hCritR717).toBeGreaterThan(1000); // NH3 latent heat is huge (~1262 kJ/kg at 0°C, hCrit ~1122 kJ/kg in IIR)
     expect(hCritR134a).toBeLessThan(500);
 
-    // 4. Verify all fluids contain full isolines (isotherms, isentropes, isochores, quality lines)
+    // 4. Verify R717 reference state matches Danfoss Coolselector (IIR: h=200 at 0°C, base < -100 kJ/kg)
+    const r717LiqPts = r717.saturationLiquid.segments.flat();
+    const r717LiqMinH = Math.min(...r717LiqPts.map((p) => Units.jkgToKjkg(p.hJkg)));
+    expect(r717LiqMinH).toBeLessThan(-100); // Danfoss base of liquid curve is ~ -110 kJ/kg
+
+    // 5. Verify all fluids contain full isolines (isotherms, isentropes, isochores, quality lines)
     for (const dataset of [r134a, r744, r717, r290]) {
       expect(dataset.saturationLiquid.segments.length).toBeGreaterThan(0);
       expect(dataset.saturationVapor.segments.length).toBeGreaterThan(0);
