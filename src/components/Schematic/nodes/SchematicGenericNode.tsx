@@ -1,10 +1,112 @@
 import React, { memo, useEffect, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from '@xyflow/react';
-import { RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react';
-import { SchematicNodeData, PortDirection } from '../../../types/schematic';
+import { SchematicNodeData, PortDirection, ComponentPort } from '../../../types/schematic';
 import { COMPONENT_DEFINITIONS } from '../symbols/componentDefinitions';
 import { SvgSymbol } from '../symbols/SvgSymbols';
 import { useProject } from '../../../context/ProjectContext';
+
+export interface PortLayoutInfo {
+  effectivePosition: PortDirection;
+  offsetPercent: number; // 0 to 100
+}
+
+export const calculatePortLayout = (
+  portsOnSide: ComponentPort[],
+  portIndexOnSide: number,
+  originalSide: PortDirection,
+  rotation: number = 0,
+  flippedHorizontal: boolean = false,
+  flippedVertical: boolean = false
+): PortLayoutInfo => {
+  const port = portsOnSide[portIndexOnSide];
+  const count = portsOnSide.length;
+
+  // Fraction t along the edge (0 to 1)
+  let t = (portIndexOnSide + 1) / (count + 1);
+  if (port?.relativeOffset) {
+    if (originalSide === 'top' || originalSide === 'bottom') {
+      if (port.relativeOffset.x !== undefined) {
+        t = port.relativeOffset.x > 1 ? port.relativeOffset.x / 100 : port.relativeOffset.x;
+      }
+    } else {
+      if (port.relativeOffset.y !== undefined) {
+        t = port.relativeOffset.y > 1 ? port.relativeOffset.y / 100 : port.relativeOffset.y;
+      }
+    }
+  }
+
+  // Canonical (u, v) on [0, 1] x [0, 1]
+  let u = 0.5;
+  let v = 0.5;
+
+  if (originalSide === 'top') {
+    u = t;
+    v = 0;
+  } else if (originalSide === 'bottom') {
+    u = t;
+    v = 1;
+  } else if (originalSide === 'left') {
+    u = 0;
+    v = t;
+  } else if (originalSide === 'right') {
+    u = 1;
+    v = t;
+  }
+
+  // 1. Flip Horizontal (mirror across Y axis: left <-> right)
+  if (flippedHorizontal) {
+    u = 1 - u;
+  }
+
+  // 2. Flip Vertical (mirror across X axis: top <-> bottom)
+  if (flippedVertical) {
+    v = 1 - v;
+  }
+
+  // 3. Rotation clockwise (0, 90, 180, 270)
+  const normalizedRotation = ((rotation % 360) + 360) % 360;
+  const rotSteps = Math.round(normalizedRotation / 90) % 4;
+
+  let uPrime = u;
+  let vPrime = v;
+
+  if (rotSteps === 1) {
+    // 90 deg CW
+    uPrime = 1 - v;
+    vPrime = u;
+  } else if (rotSteps === 2) {
+    // 180 deg CW
+    uPrime = 1 - u;
+    vPrime = 1 - v;
+  } else if (rotSteps === 3) {
+    // 270 deg CW
+    uPrime = v;
+    vPrime = 1 - u;
+  }
+
+  // Determine effective side & offsetPercent along the border
+  let effectivePosition: PortDirection = 'top';
+  let offsetPercent = 50;
+
+  if (vPrime <= 0.001) {
+    effectivePosition = 'top';
+    offsetPercent = uPrime * 100;
+  } else if (vPrime >= 0.999) {
+    effectivePosition = 'bottom';
+    offsetPercent = uPrime * 100;
+  } else if (uPrime <= 0.001) {
+    effectivePosition = 'left';
+    offsetPercent = vPrime * 100;
+  } else {
+    effectivePosition = 'right';
+    offsetPercent = vPrime * 100;
+  }
+
+  return {
+    effectivePosition,
+    offsetPercent: Math.round(offsetPercent * 100) / 100,
+  };
+};
 
 export const getTransformedPortPosition = (
   originalPos: PortDirection,
@@ -93,18 +195,6 @@ const getPortHandleColor = (kind: string): string => {
   }
 };
 
-const getPortOffsetClass = (pos: PortDirection) => {
-  switch (pos) {
-    case 'left':
-      return '-left-1 -translate-x-full';
-    case 'right':
-      return '-right-1 translate-x-full';
-    case 'top':
-      return '-top-1 -translate-y-full';
-    case 'bottom':
-      return '-bottom-1 translate-y-full';
-  }
-};
 
 export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
   const nodeData = data as unknown as SchematicNodeData;
@@ -423,8 +513,13 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
     ) {
       if (nodeData.motorVoltageWarning) {
         return (
-          <span className="font-bold text-amber-500 dark:text-amber-400 text-[8.5px] leading-tight flex items-center justify-center gap-1">
-            ⚠️ {nodeData.motorVoltageWarning}
+          <span className="font-bold text-amber-500 dark:text-amber-400 text-[8.5px] leading-tight flex flex-col items-center justify-center gap-0.5">
+            <span>⚠️ {nodeData.motorVoltageWarning}</span>
+            {nodeData.isEnergized && (
+              <span className="font-mono text-[8px] opacity-90 font-normal text-amber-600 dark:text-amber-300">
+                {nodeData.actualRpm} RPM • {nodeData.voltageV}V • {nodeData.powerWatts}W
+              </span>
+            )}
           </span>
         );
       }
@@ -540,65 +635,7 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
         minHeight: `${cardMinHeight}px`,
       }}
     >
-      {/* Floating Quick Action Toolbar on Selected Node */}
-      {selected && (
-        <div className="nodrag nopan absolute -top-9 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-1.5 py-1 rounded-lg bg-slate-900/95 text-white border border-slate-700/80 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              const nextRot = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
-              setNodes((nds) =>
-                nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, rotation: nextRot } } : n))
-              );
-            }}
-            className="p-1 rounded hover:bg-slate-800 text-slate-200 hover:text-white transition cursor-pointer flex items-center gap-0.5 text-[9px]"
-            title="Rotar 90° en sentido horario (Tecla R)"
-          >
-            <RotateCw size={12} className="text-sky-400" />
-            <span className="font-mono text-[8.5px] font-bold">{rotation}°</span>
-          </button>
-          <div className="w-[1px] h-3 bg-slate-700" />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setNodes((nds) =>
-                nds.map((n) =>
-                  n.id === id ? { ...n, data: { ...n.data, flippedHorizontal: !flippedHorizontal } } : n
-                )
-              );
-            }}
-            className={`p-1 rounded transition cursor-pointer ${
-              flippedHorizontal
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'hover:bg-slate-800 text-slate-300 hover:text-white'
-            }`}
-            title="Volteo Horizontal (Tecla H)"
-          >
-            <FlipHorizontal size={12} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setNodes((nds) =>
-                nds.map((n) =>
-                  n.id === id ? { ...n, data: { ...n.data, flippedVertical: !flippedVertical } } : n
-                )
-              );
-            }}
-            className={`p-1 rounded transition cursor-pointer ${
-              flippedVertical
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'hover:bg-slate-800 text-slate-300 hover:text-white'
-            }`}
-            title="Volteo Vertical (Tecla V)"
-          >
-            <FlipVertical size={12} />
-          </button>
-        </div>
-      )}
+
 
       {/* Top Header: Tag & Model */}
       <div className="w-full flex items-center justify-between gap-1 pb-1 mb-1 border-b border-slate-200 dark:border-slate-800">
@@ -813,15 +850,21 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
 
       {/* Port Handles & Visual Badges */}
       {def.ports.map((port) => {
-        const effectivePosition = getTransformedPortPosition(
+        const portsOnSameSide = def.ports.filter((p) => p.position === port.position);
+        const portIndex = portsOnSameSide.findIndex((p) => p.id === port.id);
+        const { effectivePosition, offsetPercent } = calculatePortLayout(
+          portsOnSameSide,
+          portIndex >= 0 ? portIndex : 0,
           port.position,
           rotation,
           flippedHorizontal,
           flippedVertical
         );
+
         const handlePosition = mapPortPosition(effectivePosition);
         const handleColor = getPortHandleColor(port.kind);
         const isHovered = hoveredPortId === port.id;
+        const isHorizontal = effectivePosition === 'top' || effectivePosition === 'bottom';
 
         return (
           <React.Fragment key={port.id}>
@@ -836,25 +879,31 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
               className="w-4! h-4! rounded-full border-2 border-white dark:border-slate-950 transition-[transform,background-color,border-color,box-shadow] duration-150 hover:scale-140! z-30 cursor-crosshair shadow-md hover:ring-2 hover:ring-sky-400"
               style={{
                 backgroundColor: handleColor,
+                left: isHorizontal ? `${offsetPercent}%` : undefined,
+                top: !isHorizontal ? `${offsetPercent}%` : undefined,
               }}
             />
 
             {/* Port Short Code Label Pin */}
             <div
-              className={`absolute pointer-events-none z-20 flex items-center px-1 py-0.2 rounded font-mono font-bold text-[8px] border shadow-xs transition-opacity duration-150 ${
-                effectivePosition === 'left'
-                  ? 'left-0 -translate-x-full mr-1 top-1/2 -translate-y-1/2'
-                  : effectivePosition === 'right'
-                  ? 'right-0 translate-x-full ml-1 top-1/2 -translate-y-1/2'
-                  : effectivePosition === 'top'
-                  ? 'top-0 -translate-y-full mb-1 left-1/2 -translate-x-1/2'
-                  : 'bottom-0 translate-y-full mt-1 left-1/2 -translate-x-1/2'
-              } ${
+              className={`absolute pointer-events-none z-20 flex items-center justify-center px-1.5 py-0.5 rounded-md font-mono font-bold text-[8.5px] border shadow-md transition-all duration-150 ${
                 isHovered
-                  ? 'bg-sky-600 text-white border-sky-400 opacity-100 z-40 scale-105'
-                  : 'bg-slate-900/90 dark:bg-black/90 text-slate-200 border-slate-700/80 opacity-80'
+                  ? 'bg-sky-600 text-white border-sky-400 opacity-100 z-40 scale-110 shadow-lg shadow-sky-500/30 ring-2 ring-sky-400/40'
+                  : 'bg-slate-900/90 dark:bg-black/90 text-slate-100 border-slate-700/80 opacity-90'
               }`}
               style={{
+                left: isHorizontal ? `${offsetPercent}%` : effectivePosition === 'left' ? '0px' : undefined,
+                right: effectivePosition === 'right' ? '0px' : undefined,
+                top: !isHorizontal ? `${offsetPercent}%` : effectivePosition === 'top' ? '0px' : undefined,
+                bottom: effectivePosition === 'bottom' ? '0px' : undefined,
+                transform:
+                  effectivePosition === 'top'
+                    ? 'translate(-50%, -100%) translateY(-7px)'
+                    : effectivePosition === 'bottom'
+                    ? 'translate(-50%, 100%) translateY(7px)'
+                    : effectivePosition === 'left'
+                    ? 'translate(-100%, -50%) translateX(-7px)'
+                    : 'translate(100%, -50%) translateX(7px)',
                 borderLeftColor: effectivePosition === 'left' ? handleColor : undefined,
                 borderRightColor: effectivePosition === 'right' ? handleColor : undefined,
                 borderTopColor: effectivePosition === 'top' ? handleColor : undefined,
@@ -867,9 +916,21 @@ export const SchematicGenericNode: React.FC<NodeProps> = memo(({ id, data, selec
             {/* Floating Rich Tooltip on Handle Hover */}
             {isHovered && (
               <div
-                className={`absolute z-50 pointer-events-none nodrag nopan w-48 p-2 rounded-lg bg-slate-900/95 dark:bg-black/95 text-white border border-sky-500/60 shadow-xl backdrop-blur-md flex flex-col gap-1 text-left animate-in fade-in zoom-in-95 duration-100 ${getPortOffsetClass(
-                  effectivePosition
-                )}`}
+                className="absolute z-50 pointer-events-none nodrag nopan w-48 p-2 rounded-lg bg-slate-900/95 dark:bg-black/95 text-white border border-sky-500/60 shadow-xl backdrop-blur-md flex flex-col gap-1 text-left animate-in fade-in zoom-in-95 duration-100"
+                style={{
+                  left: isHorizontal ? `${offsetPercent}%` : effectivePosition === 'left' ? '0px' : undefined,
+                  right: effectivePosition === 'right' ? '0px' : undefined,
+                  top: !isHorizontal ? `${offsetPercent}%` : effectivePosition === 'top' ? '0px' : undefined,
+                  bottom: effectivePosition === 'bottom' ? '0px' : undefined,
+                  transform:
+                    effectivePosition === 'top'
+                      ? 'translate(-50%, calc(-100% - 32px))'
+                      : effectivePosition === 'bottom'
+                      ? 'translate(-50%, 32px)'
+                      : effectivePosition === 'left'
+                      ? 'translate(calc(-100% - 32px), -50%)'
+                      : 'translate(32px, -50%)',
+                }}
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: handleColor }} />

@@ -331,7 +331,7 @@ function getLoadTerminals(componentType: string): { t1: string; t2: string } {
     case 'electric_motor_1p':
       return { t1: 'term_l', t2: 'term_n' };
     case 'electric_motor_3p':
-      return { t1: 'term_u1', t2: 'term_pe' };
+      return { t1: 'term_u1', t2: 'term_v1' };
     case 'electric_motor_dc':
       return { t1: 'term_pos', t2: 'term_neg' };
     case 'electric_heater':
@@ -549,6 +549,18 @@ export function solveElectricalCircuit(
       const vLine = data.voltageV !== undefined ? data.voltageV : 400.0;
       const vPhase = Math.round((vLine / Math.sqrt(3)) * 10) / 10;
       sourceConstraints.push(
+        {
+          nodeId: node.id,
+          negTerminal: `${node.id}::l2`,
+          posTerminal: `${node.id}::l1`,
+          voltage: vLine,
+        },
+        {
+          nodeId: node.id,
+          negTerminal: `${node.id}::l3`,
+          posTerminal: `${node.id}::l2`,
+          voltage: vLine,
+        },
         {
           nodeId: node.id,
           negTerminal: `${node.id}::neutral`,
@@ -839,21 +851,49 @@ export function solveElectricalCircuit(
 
       let isEnergized = false;
 
-      if (pot1 !== undefined && pot2 !== undefined) {
+      if (type === 'electric_motor_3p') {
+        const termU = `${node.id}::term_u1`;
+        const termV = `${node.id}::term_v1`;
+        const termW = `${node.id}::term_w1`;
+        const netU = netMap.get(termU);
+        const netV = netMap.get(termV);
+        const netW = netMap.get(termW);
+
+        const potU = netU !== undefined ? netPotentials.get(netU) : undefined;
+        const potV = netV !== undefined ? netPotentials.get(netV) : undefined;
+        const potW = netW !== undefined ? netPotentials.get(netW) : undefined;
+
+        const lineVoltages: number[] = [];
+        if (potU !== undefined && potV !== undefined) lineVoltages.push(Math.abs(potU - potV));
+        if (potV !== undefined && potW !== undefined) lineVoltages.push(Math.abs(potV - potW));
+        if (potU !== undefined && potW !== undefined) lineVoltages.push(Math.abs(potU - potW) / 2);
+
+        const deltaV = lineVoltages.length > 0 ? Math.round(Math.min(...lineVoltages) * 100) / 100 : 0;
+
+        const ratedV = node.data.ratedVoltageV || 400.0;
+        const minV = node.data.minOperatingVoltageV !== undefined ? node.data.minOperatingVoltageV : ratedV * 0.6;
+        isEnergized = deltaV >= minV && deltaV > 0;
+
+        if (isEnergized) {
+          energizedNodeIds.add(node.id);
+          anyEnergized = true;
+          if (netU !== undefined) collectWirePathsToSource(termU);
+          if (netV !== undefined) collectWirePathsToSource(termV);
+          if (netW !== undefined) collectWirePathsToSource(termW);
+          collectWirePathsToSource(`${node.id}::term_pe`);
+        }
+      } else if (pot1 !== undefined && pot2 !== undefined) {
         const deltaV = Math.abs(pot1 - pot2);
         if (type === 'diode_led') {
           // LED requires anode at higher potential than cathode
           isEnergized = pot1 - pot2 >= 1.0;
         } else if (
           type === 'electric_motor_dc' ||
-          type === 'electric_motor_1p' ||
-          type === 'electric_motor_3p'
+          type === 'electric_motor_1p'
         ) {
           const ratedV =
             node.data.ratedVoltageV ||
-            (type === 'electric_motor_3p'
-              ? 400
-              : type === 'electric_motor_1p'
+            (type === 'electric_motor_1p'
               ? 230
               : node.data.voltageV || 12.0);
           const minV =
@@ -876,13 +916,13 @@ export function solveElectricalCircuit(
         } else {
           isEnergized = deltaV >= 1.0;
         }
-      }
 
-      if (isEnergized) {
-        energizedNodeIds.add(node.id);
-        anyEnergized = true;
-        collectWirePathsToSource(term1);
-        collectWirePathsToSource(term2);
+        if (isEnergized) {
+          energizedNodeIds.add(node.id);
+          anyEnergized = true;
+          collectWirePathsToSource(term1);
+          collectWirePathsToSource(term2);
+        }
       }
     }
   }
@@ -898,11 +938,70 @@ export function solveElectricalCircuit(
     const type = node.data.componentType;
     const nodeId = node.id;
 
-    // Motors (DC, 1P, 3P) with voltage threshold and speed/power calculation
+    // 3-Phase Motors
+    if (type === 'electric_motor_3p') {
+      const termU = `${nodeId}::term_u1`;
+      const termV = `${nodeId}::term_v1`;
+      const termW = `${nodeId}::term_w1`;
+      const netU = netMap.get(termU);
+      const netV = netMap.get(termV);
+      const netW = netMap.get(termW);
+      const potU = netU !== undefined ? netPotentials.get(netU) : undefined;
+      const potV = netV !== undefined ? netPotentials.get(netV) : undefined;
+      const potW = netW !== undefined ? netPotentials.get(netW) : undefined;
+
+      const lineVoltages: number[] = [];
+      if (potU !== undefined && potV !== undefined) lineVoltages.push(Math.abs(potU - potV));
+      if (potV !== undefined && potW !== undefined) lineVoltages.push(Math.abs(potV - potW));
+      if (potU !== undefined && potW !== undefined) lineVoltages.push(Math.abs(potU - potW) / 2);
+
+      const deltaV = lineVoltages.length > 0 ? Math.round(Math.min(...lineVoltages) * 100) / 100 : 0;
+
+      const ratedV = node.data.ratedVoltageV || 400.0;
+      const minV = node.data.minOperatingVoltageV !== undefined ? node.data.minOperatingVoltageV : ratedV * 0.6;
+      const ratedRpm = node.data.ratedRpm || 1450;
+      const resistanceOhm = getComponentResistance(node);
+      const isEnergized = deltaV >= minV && deltaV > 0;
+      const currentA = isEnergized && resistanceOhm > 0 ? Math.round((deltaV / resistanceOhm) * 100) / 100 : 0.0;
+      const powerWatts = isEnergized && currentA > 0 ? Math.round(Math.sqrt(3) * deltaV * currentA * 0.85 * 10) / 10 || Math.round(deltaV * currentA * 10) / 10 : 0.0;
+
+      let powerPercent = 0;
+      let actualRpm = 0;
+      let motorVoltageWarning: string | undefined = undefined;
+
+      if (deltaV > 0 && deltaV < minV) {
+        motorVoltageWarning = `Subtensión (${deltaV.toFixed(1)}V < ${minV.toFixed(1)}V mín) - Motor no enciende`;
+      } else if (isEnergized) {
+        if (deltaV >= ratedV) {
+          powerPercent = 100;
+          actualRpm = ratedRpm;
+        } else {
+          powerPercent = Math.min(100, Math.max(1, Math.round((deltaV / ratedV) * 100)));
+          actualRpm = Math.round(ratedRpm * (deltaV / ratedV));
+          motorVoltageWarning = `Tensión reducida (${deltaV.toFixed(1)}V / ${ratedV.toFixed(1)}V nom) - ${powerPercent}% potencia`;
+        }
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isEnergized,
+          voltageV: isEnergized ? deltaV : (deltaV > 0 ? deltaV : 0),
+          currentA,
+          resistanceOhm,
+          powerWatts,
+          powerPercent,
+          actualRpm,
+          motorVoltageWarning,
+        },
+      };
+    }
+
+    // Motors (DC, 1P) with voltage threshold and speed/power calculation
     if (
       type === 'electric_motor_dc' ||
-      type === 'electric_motor_1p' ||
-      type === 'electric_motor_3p'
+      type === 'electric_motor_1p'
     ) {
       const { t1, t2 } = getLoadTerminals(type);
       const net1 = netMap.get(`${nodeId}::${t1}`);
@@ -913,9 +1012,7 @@ export function solveElectricalCircuit(
 
       const ratedV =
         node.data.ratedVoltageV ||
-        (type === 'electric_motor_3p'
-          ? 400
-          : type === 'electric_motor_1p'
+        (type === 'electric_motor_1p'
           ? 230
           : node.data.voltageV || 12.0);
       const minV =
@@ -924,9 +1021,7 @@ export function solveElectricalCircuit(
           : ratedV * 0.6;
       const ratedRpm =
         node.data.ratedRpm ||
-        (type === 'electric_motor_3p'
-          ? 1450
-          : type === 'electric_motor_1p'
+        (type === 'electric_motor_1p'
           ? 2850
           : 3000);
 
@@ -1377,7 +1472,7 @@ export function solveElectricalCircuit(
           negTerm = 'neutral';
         } else if (type === 'power_source_ac_3p') {
           posTerm = 'l1';
-          negTerm = 'neutral';
+          negTerm = 'l2';
         } else if (type === 'power_supply_dc_24v') {
           posTerm = 'dc_plus';
           negTerm = 'dc_minus';
@@ -1389,17 +1484,25 @@ export function solveElectricalCircuit(
         for (const otherNode of nodes) {
           if (otherNode.id === nodeId) continue;
           if (isLoadType(otherNode.data.componentType) && energizedNodeIds.has(otherNode.id)) {
-            const { t1, t2 } = getLoadTerminals(otherNode.data.componentType);
-            const n1 = netMap.get(`${otherNode.id}::${t1}`);
-            const n2 = netMap.get(`${otherNode.id}::${t2}`);
-            if (
-              (n1 === posNet && n2 === negNet) ||
-              (n1 === negNet && n2 === posNet)
-            ) {
+            if (otherNode.data.componentType === 'electric_motor_3p') {
               const r = getComponentResistance(otherNode);
-              const v = Math.abs((netPotentials.get(n1 ?? -1) ?? 0) - (netPotentials.get(n2 ?? -1) ?? 0));
+              const v = otherNode.data.voltageV !== undefined ? otherNode.data.voltageV : 400.0;
               if (r > 0 && v > 0) {
                 deliveredCurrent += v / r;
+              }
+            } else {
+              const { t1, t2 } = getLoadTerminals(otherNode.data.componentType);
+              const n1 = netMap.get(`${otherNode.id}::${t1}`);
+              const n2 = netMap.get(`${otherNode.id}::${t2}`);
+              if (
+                (n1 === posNet && n2 === negNet) ||
+                (n1 === negNet && n2 === posNet)
+              ) {
+                const r = getComponentResistance(otherNode);
+                const v = Math.abs((netPotentials.get(n1 ?? -1) ?? 0) - (netPotentials.get(n2 ?? -1) ?? 0));
+                if (r > 0 && v > 0) {
+                  deliveredCurrent += v / r;
+                }
               }
             }
           }

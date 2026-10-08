@@ -195,14 +195,14 @@ export class RefrigerationSceneManager {
     fillLight.position.set(-10, 6, -8);
     this.scene.add(fillLight);
 
-    // Cold accent light on Evaporator
+    // Cold accent light on Evaporator (Bottom)
     const coldAccent = new THREE.PointLight(0x00d2ff, 1.8, 14);
-    coldAccent.position.set(-2.5, 3.5, 1.5);
+    coldAccent.position.set(0.0, -2.1, 2.0);
     this.scene.add(coldAccent);
 
-    // Hot accent light on Condenser
+    // Hot accent light on Condenser (Top)
     const hotAccent = new THREE.PointLight(0xff3d00, 2.0, 14);
-    hotAccent.position.set(2.5, -1.0, 1.5);
+    hotAccent.position.set(0.0, 2.4, 2.0);
     this.scene.add(hotAccent);
   }
 
@@ -228,7 +228,7 @@ export class RefrigerationSceneManager {
   }
 
   // ==========================================
-  // 3D REFRIGERATION CIRCUIT BUILDER
+  // 3D REFRIGERATION CIRCUIT BUILDER (MOLLIER P-h LAYOUT - NO CLIPPING)
   // ==========================================
   private buildRefrigerationLoop() {
     const isThermal = this.options.viewMode === 'thermal';
@@ -237,36 +237,40 @@ export class RefrigerationSceneManager {
     const transparent = isXray;
     const depthWrite = !isXray;
 
-    // Layout coordinates
-    const posCompressor = new THREE.Vector3(-4.2, -2.2, 0);
-    const posCondenser = new THREE.Vector3(1.8, -1.2, 0);
-    const posReceiver = new THREE.Vector3(1.8, -3.1, 0);
-    const posExpValve = new THREE.Vector3(4.5, 2.5, 0);
-    const posEvaporator = new THREE.Vector3(-1.8, 2.5, 0);
+    // Layout coordinates configured according to Mollier P-h diagram with generous clearances:
+    // - Bottom-Right: Compressor & Evaporator Outlet (Point 3 / Low P, High h)
+    // - Top-Right: Compressor Discharge -> Condenser Inlet (Point 4 / High P, Very High h)
+    // - Top-Left: Condenser Outlet -> Vertical Liquid Receiver -> TXV Inlet (Point 6 / High P, Low h)
+    // - Bottom-Left: TXV Outlet -> Evaporator Inlet (Point 1 / Low P, Low h)
+    const posCompressor = new THREE.Vector3(3.6, -2.1, 0);
+    const posCondenser = new THREE.Vector3(0.0, 2.4, 0);
+    const posReceiver = new THREE.Vector3(-3.0, 1.5, 0);
+    const posExpValve = new THREE.Vector3(-4.8, 0.2, 0);
+    const posEvaporator = new THREE.Vector3(0.0, -2.1, 0);
 
-    // 1. Compressor
+    // 1. Compressor (Bottom-Right)
     this.buildCompressor(posCompressor, shellOpacity, transparent, depthWrite, isXray);
 
-    // 2. Condenser
+    // 2. Condenser (Top)
     this.buildCondenser(posCondenser, isXray);
 
-    // 3. Liquid Receiver
+    // 3. Vertical Liquid Receiver (Top-Left / Between Condenser and TXV - No Clipping)
     this.buildLiquidReceiver(posReceiver, shellOpacity, transparent, depthWrite, isXray);
 
-    // 4. Thermostatic Expansion Valve
+    // 4. Thermostatic Expansion Valve (Top-Left / Descending)
     this.buildExpansionValve(posExpValve, shellOpacity, transparent, depthWrite);
 
-    // 5. Evaporator
+    // 5. Evaporator (Bottom)
     this.buildEvaporator(posEvaporator, isXray);
 
     // 6. Smooth Curved Piping Circuit (Always solid and high priority in X-Ray)
     this.buildPipingCircuit(posCompressor, posCondenser, posReceiver, posExpValve, posEvaporator, isThermal, isXray);
 
-    // 7. Animated Flow Particles
+    // 7. Animated Flow Particles (Clockwise Mollier cycle)
     this.buildFlowParticles();
   }
 
-  // --- 1. COMPRESSOR ---
+  // --- 1. COMPRESSOR (ABAJO DERECHA) ---
   private buildCompressor(
     pos: THREE.Vector3,
     opacity: number,
@@ -288,21 +292,21 @@ export class RefrigerationSceneManager {
       side: isXray ? THREE.DoubleSide : THREE.FrontSide,
     });
 
-    const bodyGeo = new THREE.CylinderGeometry(1.0, 1.0, 2.2, 32);
+    const bodyGeo = new THREE.CylinderGeometry(0.85, 0.85, 1.8, 32);
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.rotation.z = Math.PI / 2;
     body.castShadow = !isXray;
     body.receiveShadow = true;
     compGroup.add(body);
 
-    // Bell end
-    const bellGeo = new THREE.SphereGeometry(1.0, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    // Bell end (Left side facing evaporator suction line)
+    const bellGeo = new THREE.SphereGeometry(0.85, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const bell = new THREE.Mesh(bellGeo, bodyMat);
     bell.rotation.z = -Math.PI / 2;
-    bell.position.x = -1.1;
+    bell.position.x = -0.9;
     compGroup.add(bell);
 
-    // Cylinder Head
+    // Cylinder Head (Right side towards discharge)
     const headMat = new THREE.MeshStandardMaterial({
       color: 0x145a32,
       metalness: 0.7,
@@ -311,9 +315,9 @@ export class RefrigerationSceneManager {
       transparent,
       depthWrite,
     });
-    const headGeo = new THREE.BoxGeometry(1.2, 1.4, 1.4);
+    const headGeo = new THREE.BoxGeometry(1.0, 1.2, 1.2);
     const head = new THREE.Mesh(headGeo, headMat);
-    head.position.set(0.6, 0.4, 0);
+    head.position.set(0.5, 0.35, 0);
     head.castShadow = !isXray;
     compGroup.add(head);
 
@@ -326,8 +330,8 @@ export class RefrigerationSceneManager {
       transparent,
       depthWrite,
     });
-    for (let i = -0.7; i <= 0.4; i += 0.22) {
-      const finGeo = new THREE.TorusGeometry(1.08, 0.04, 8, 32);
+    for (let i = -0.6; i <= 0.3; i += 0.22) {
+      const finGeo = new THREE.TorusGeometry(0.92, 0.035, 8, 32);
       const fin = new THREE.Mesh(finGeo, finMat);
       fin.rotation.y = Math.PI / 2;
       fin.position.x = i;
@@ -336,37 +340,39 @@ export class RefrigerationSceneManager {
 
     // Terminal Box
     const tBox = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.5, 0.5),
+      new THREE.BoxGeometry(0.5, 0.45, 0.45),
       new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, opacity, transparent, depthWrite })
     );
-    tBox.position.set(-0.2, 1.15, 0.4);
+    tBox.position.set(-0.2, 1.0, 0.35);
     compGroup.add(tBox);
 
     // Mounting Base
     const feetMat = new THREE.MeshStandardMaterial({ color: 0x263238, metalness: 0.8, roughness: 0.4, opacity, transparent, depthWrite });
-    const foot1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.2, 0.4), feetMat);
-    foot1.position.set(0, -1.05, 0.7);
+    const foot1 = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.18, 0.35), feetMat);
+    foot1.position.set(0, -0.95, 0.6);
     compGroup.add(foot1);
 
     const foot2 = foot1.clone();
-    foot2.position.z = -0.7;
+    foot2.position.z = -0.6;
     compGroup.add(foot2);
 
-    // Valves
+    // Valves:
     const valveBrass = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.25 });
-    const suctionValve = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.6, 16), valveBrass);
-    suctionValve.position.set(-1.1, 0.5, 0.6);
+    // Suction valve on left (Point 3 / Aspiración desde evaporador)
+    const suctionValve = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.5, 16), valveBrass);
+    suctionValve.position.set(-0.9, 0.5, 0.45);
     compGroup.add(suctionValve);
 
-    const dischargeValve = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.6, 16), valveBrass);
-    dischargeValve.position.set(1.1, 0.8, 0);
+    // Discharge valve on right top (Point 4 / Descarga hacia condensador)
+    const dischargeValve = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 16), valveBrass);
+    dischargeValve.position.set(0.8, 0.85, 0);
     compGroup.add(dischargeValve);
 
     this.scene.add(compGroup);
     this.registerInteractive(compGroup, 'compressor');
   }
 
-  // --- 2. CONDENSER ---
+  // --- 2. CONDENSER (ARRIBA) ---
   private buildCondenser(
     pos: THREE.Vector3,
     isXray: boolean
@@ -374,7 +380,7 @@ export class RefrigerationSceneManager {
     const condGroup = new THREE.Group();
     condGroup.position.copy(pos);
 
-    // Open Industrial Sheet Metal Chassis (Top, Bottom, Left, Right panels)
+    // Open Industrial Sheet Metal Chassis
     const chassisMat = new THREE.MeshStandardMaterial({
       color: 0x546e7a,
       metalness: 0.6,
@@ -385,24 +391,24 @@ export class RefrigerationSceneManager {
     });
 
     // Top & Bottom panels
-    const topPanel = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.06, 0.75), chassisMat);
-    topPanel.position.set(0, 1.1, 0);
+    const topPanel = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.06, 0.6), chassisMat);
+    topPanel.position.set(0, 0.9, 0);
     condGroup.add(topPanel);
 
-    const bottomPanel = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.06, 0.75), chassisMat);
-    bottomPanel.position.set(0, -1.1, 0);
+    const bottomPanel = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.06, 0.6), chassisMat);
+    bottomPanel.position.set(0, -0.9, 0);
     condGroup.add(bottomPanel);
 
     // Side header plates
-    const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.75), chassisMat);
-    leftPanel.position.set(-2.15, 0, 0);
+    const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.8, 0.6), chassisMat);
+    leftPanel.position.set(-1.8, 0, 0);
     condGroup.add(leftPanel);
 
-    const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.75), chassisMat);
-    rightPanel.position.set(2.15, 0, 0);
+    const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.8, 0.6), chassisMat);
+    rightPanel.position.set(1.8, 0, 0);
     condGroup.add(rightPanel);
 
-    // Internal copper tubes
+    // Internal copper tubes (Hot gas enters top right, condenses to liquid at bottom left)
     const copperMat = new THREE.MeshStandardMaterial({
       color: 0xd85c35,
       metalness: 0.85,
@@ -411,20 +417,20 @@ export class RefrigerationSceneManager {
       emissiveIntensity: isXray ? 0.25 : 0.0,
     });
 
-    const tubeRadius = 0.08;
+    const tubeRadius = 0.075;
     const numRows = 5;
     for (let r = 0; r < numRows; r++) {
-      const y = -0.8 + r * 0.4;
-      const straightGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, 3.6, 16);
+      const y = -0.6 + r * 0.3;
+      const straightGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, 3.0, 16);
       const tube = new THREE.Mesh(straightGeo, copperMat);
       tube.rotation.z = Math.PI / 2;
       tube.position.set(0, y, 0.15);
       condGroup.add(tube);
 
       if (r < numRows - 1) {
-        const uBend = new THREE.Mesh(new THREE.TorusGeometry(0.2, tubeRadius, 12, 16, Math.PI), copperMat);
+        const uBend = new THREE.Mesh(new THREE.TorusGeometry(0.15, tubeRadius, 12, 16, Math.PI), copperMat);
         const isRight = r % 2 === 0;
-        uBend.position.set(isRight ? 1.8 : -1.8, y + 0.2, 0.15);
+        uBend.position.set(isRight ? 1.5 : -1.5, y + 0.15, 0.15);
         uBend.rotation.z = isRight ? -Math.PI / 2 : Math.PI / 2;
         condGroup.add(uBend);
       }
@@ -439,22 +445,22 @@ export class RefrigerationSceneManager {
       transparent: true,
       depthWrite: false,
     });
-    for (let f = -1.6; f <= 1.6; f += 0.14) {
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.8, 0.4), finMat);
+    for (let f = -1.3; f <= 1.3; f += 0.13) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.5, 0.35), finMat);
       fin.position.set(f, 0, 0.15);
       condGroup.add(fin);
     }
 
-    // 2 Realistic Industrial Axial Fans (Prominently mounted and fully visible in all modes)
-    this.createRealisticAxialFan(condGroup, new THREE.Vector3(-0.95, 0, -0.22), 0.78, isXray);
-    this.createRealisticAxialFan(condGroup, new THREE.Vector3(0.95, 0, -0.22), 0.78, isXray);
+    // 2 Realistic Industrial Axial Fans
+    this.createRealisticAxialFan(condGroup, new THREE.Vector3(-0.8, 0, -0.2), 0.62, isXray);
+    this.createRealisticAxialFan(condGroup, new THREE.Vector3(0.8, 0, -0.2), 0.62, isXray);
 
-    // Heat Out Arrows
+    // Heat Out Arrows (Disipación Q_cond - Arriba)
     const arrowMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.85 });
     for (let i = 0; i < 3; i++) {
-      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 16), arrowMat);
-      arrow.rotation.z = -Math.PI / 2;
-      arrow.position.set(2.8 + i * 0.5, -0.2 + (i - 1) * 0.3, 0);
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.42, 16), arrowMat);
+      arrow.rotation.z = 0; // Pointing UP
+      arrow.position.set(-0.8 + i * 0.8, 1.2, 0);
       condGroup.add(arrow);
       this.heatArrowsOut.push(arrow);
     }
@@ -463,7 +469,7 @@ export class RefrigerationSceneManager {
     this.registerInteractive(condGroup, 'condenser');
   }
 
-  // --- 3. LIQUID RECEIVER (CALDERÍN) ---
+  // --- 3. VERTICAL LIQUID RECEIVER (CALDERÍN VERTICAL - ARRIBA IZQUIERDA) ---
   private buildLiquidReceiver(
     pos: THREE.Vector3,
     opacity: number,
@@ -476,65 +482,96 @@ export class RefrigerationSceneManager {
 
     const tankMat = new THREE.MeshStandardMaterial({
       color: isXray ? 0xef4444 : 0xb71c1c,
-      metalness: 0.5,
-      roughness: 0.35,
+      metalness: 0.55,
+      roughness: 0.32,
       opacity,
       transparent,
       depthWrite,
       side: isXray ? THREE.DoubleSide : THREE.FrontSide,
     });
 
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 2.6, 24), tankMat);
-    body.rotation.z = Math.PI / 2;
+    const radius = 0.36;
+    const bodyHeight = 1.4;
+
+    // Vertical Tank Body
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, bodyHeight, 32), tankMat);
+    body.castShadow = !isXray;
+    body.receiveShadow = true;
     recvGroup.add(body);
 
-    const capGeo = new THREE.SphereGeometry(0.45, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-    const capL = new THREE.Mesh(capGeo, tankMat);
-    capL.rotation.z = Math.PI / 2;
-    capL.position.x = -1.3;
-    recvGroup.add(capL);
+    // Top Torispherical Dome Cap
+    const capGeo = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const topCap = new THREE.Mesh(capGeo, tankMat);
+    topCap.position.y = bodyHeight / 2;
+    recvGroup.add(topCap);
 
-    const capR = new THREE.Mesh(capGeo, tankMat);
-    capR.rotation.z = -Math.PI / 2;
-    capR.position.x = 1.3;
-    recvGroup.add(capR);
+    // Bottom Torispherical Dome Cap
+    const bottomCap = new THREE.Mesh(capGeo, tankMat);
+    bottomCap.rotation.x = Math.PI;
+    bottomCap.position.y = -bodyHeight / 2;
+    recvGroup.add(bottomCap);
 
-    // Sight Glass with visible liquid column inside in X-Ray
+    // Mounting Base Legs (Sturdy Floor/Wall Skirt)
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x263238, metalness: 0.8, roughness: 0.3 });
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 1.15, 0.25, 24), baseMat);
+    skirt.position.y = -bodyHeight / 2 - 0.15;
+    recvGroup.add(skirt);
+
+    // Dual Optical Sight Glasses with liquid level column inside
     const glassMat = new THREE.MeshPhysicalMaterial({
       color: 0x4fc3f7,
       transmission: 0.85,
       roughness: 0.1,
       ior: 1.5,
     });
-    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.18, 16), glassMat);
-    glass.rotation.x = Math.PI / 2;
-    glass.position.set(0.2, 0.2, 0.42);
-    recvGroup.add(glass);
+    const brassRing = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85 });
 
-    // Internal liquid core in X-Ray
+    // Upper Sight Glass
+    const glassTop = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), glassMat);
+    glassTop.rotation.x = Math.PI / 2;
+    glassTop.position.set(0, 0.3, radius + 0.02);
+    recvGroup.add(glassTop);
+
+    const ringTop = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.022, 8, 24), brassRing);
+    ringTop.position.set(0, 0.3, radius + 0.03);
+    recvGroup.add(ringTop);
+
+    // Lower Sight Glass
+    const glassBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), glassMat);
+    glassBottom.rotation.x = Math.PI / 2;
+    glassBottom.position.set(0, -0.3, radius + 0.02);
+    recvGroup.add(glassBottom);
+
+    const ringBottom = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.022, 8, 24), brassRing);
+    ringBottom.position.set(0, -0.3, radius + 0.03);
+    recvGroup.add(ringBottom);
+
+    // Internal liquid core in X-Ray mode
     if (isXray) {
       const liquidCore = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.38, 0.38, 2.4, 16),
+        new THREE.CylinderGeometry(radius * 0.88, radius * 0.88, bodyHeight * 0.95, 16),
         new THREE.MeshStandardMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.7, emissive: 0xf59e0b, emissiveIntensity: 0.3 })
       );
-      liquidCore.rotation.z = Math.PI / 2;
       recvGroup.add(liquidCore);
     }
 
-    const valveMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 });
-    const inletValve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.35, 16), valveMat);
-    inletValve.position.set(-0.8, 0.55, 0);
+    // Top Inlet Port / Valve (From Condenser)
+    const valveMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85 });
+    const inletValve = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 16), valveMat);
+    inletValve.position.set(0, bodyHeight / 2 + radius + 0.1, 0);
     recvGroup.add(inletValve);
 
-    const outletValve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.35, 16), valveMat);
-    outletValve.position.set(0.8, 0.55, 0);
+    // Bottom Outlet Rotalock Service Valve (Towards TXV)
+    const outletValve = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 16), valveMat);
+    outletValve.rotation.z = Math.PI / 2;
+    outletValve.position.set(-radius - 0.1, -bodyHeight / 2 + 0.15, 0);
     recvGroup.add(outletValve);
 
     this.scene.add(recvGroup);
     this.registerInteractive(recvGroup, 'receiver');
   }
 
-  // --- 4. THERMOSTATIC EXPANSION VALVE (TXV / VET) ---
+  // --- 4. THERMOSTATIC EXPANSION VALVE (TXV / VET - ARRIBA IZQUIERDA / DESCENDIENDO) ---
   private buildExpansionValve(
     pos: THREE.Vector3,
     opacity: number,
@@ -562,46 +599,47 @@ export class RefrigerationSceneManager {
       depthWrite,
     });
 
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.55, 16), brassMat);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 16), brassMat);
     valveGroup.add(body);
 
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.35, 0.28, 24), stainlessMat);
-    head.position.y = 0.42;
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.22, 24), stainlessMat);
+    head.position.y = 0.32;
     valveGroup.add(head);
 
-    const headDome = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), stainlessMat);
-    headDome.position.y = 0.56;
+    const headDome = new THREE.Mesh(new THREE.SphereGeometry(0.35, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), stainlessMat);
+    headDome.position.y = 0.43;
     valveGroup.add(headDome);
 
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 16), brassMat);
-    stem.position.y = -0.42;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.25, 16), brassMat);
+    stem.position.y = -0.32;
     valveGroup.add(stem);
 
-    // Smooth Capillary Tube
+    // Smooth Capillary Tube routing from TXV head across the front to the Suction Line
     const capillaryMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.8 });
     const capilCurvePoints = [
-      new THREE.Vector3(0, 0.65, 0),
-      new THREE.Vector3(-0.4, 0.9, 0.2),
-      new THREE.Vector3(-1.4, 1.05, -0.1),
-      new THREE.Vector3(-2.8, 1.15, 0.1),
-      new THREE.Vector3(-3.8, 1.05, 0),
+      new THREE.Vector3(0, 0.55, 0),
+      new THREE.Vector3(0.4, 0.4, 0.35),
+      new THREE.Vector3(2.8, -0.1, 0.35),
+      new THREE.Vector3(5.3, -0.8, 0.35),
+      new THREE.Vector3(7.0, -1.55, 0.35),
     ];
     const smoothCapil = createFilletedCurvePoints(capilCurvePoints, 0.3, 6);
     const capilCurve = new THREE.CatmullRomCurve3(smoothCapil, false, 'catmullrom', 0.1);
-    const capilGeo = new THREE.TubeGeometry(capilCurve, 32, 0.035, 8, false);
+    const capilGeo = new THREE.TubeGeometry(capilCurve, 40, 0.03, 8, false);
     const capilMesh = new THREE.Mesh(capilGeo, capillaryMat);
     valveGroup.add(capilMesh);
 
-    const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.65, 16), capillaryMat);
+    // Feeler Bulb clamped onto Suction Line (Point 3)
+    const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6, 16), capillaryMat);
     bulb.rotation.z = Math.PI / 2;
-    bulb.position.set(-3.8, 1.05, 0);
+    bulb.position.set(7.0, -1.65, 0.2);
     valveGroup.add(bulb);
 
     this.scene.add(valveGroup);
     this.registerInteractive(valveGroup, 'expansion_valve');
   }
 
-  // --- 5. EVAPORATOR ---
+  // --- 5. EVAPORATOR (ABAJO) ---
   private buildEvaporator(
     pos: THREE.Vector3,
     isXray: boolean
@@ -609,7 +647,7 @@ export class RefrigerationSceneManager {
     const evapGroup = new THREE.Group();
     evapGroup.position.copy(pos);
 
-    // Open Industrial Sheet Metal Chassis (Top, Bottom, Left, Right panels)
+    // Open Industrial Sheet Metal Chassis
     const chassisMat = new THREE.MeshStandardMaterial({
       color: 0x455a64,
       metalness: 0.5,
@@ -619,20 +657,20 @@ export class RefrigerationSceneManager {
       depthWrite: !isXray,
     });
 
-    const topPanel = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.06, 0.75), chassisMat);
-    topPanel.position.set(0, 1.1, 0);
+    const topPanel = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.06, 0.6), chassisMat);
+    topPanel.position.set(0, 0.9, 0);
     evapGroup.add(topPanel);
 
-    const bottomPanel = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.06, 0.75), chassisMat);
-    bottomPanel.position.set(0, -1.1, 0);
+    const bottomPanel = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.06, 0.6), chassisMat);
+    bottomPanel.position.set(0, -0.9, 0);
     evapGroup.add(bottomPanel);
 
-    const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.75), chassisMat);
-    leftPanel.position.set(-2.25, 0, 0);
+    const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.8, 0.6), chassisMat);
+    leftPanel.position.set(-1.8, 0, 0);
     evapGroup.add(leftPanel);
 
-    const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.75), chassisMat);
-    rightPanel.position.set(2.25, 0, 0);
+    const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.8, 0.6), chassisMat);
+    rightPanel.position.set(1.8, 0, 0);
     evapGroup.add(rightPanel);
 
     const coldTubeMat = new THREE.MeshStandardMaterial({
@@ -643,20 +681,21 @@ export class RefrigerationSceneManager {
       emissiveIntensity: isXray ? 0.25 : 0.0,
     });
 
-    const tubeRadius = 0.08;
+    // Internal tubes: Enters bottom-left (Point 1), evaporates to vapor at top-right (Point 3)
+    const tubeRadius = 0.075;
     const numRows = 5;
     for (let r = 0; r < numRows; r++) {
-      const y = -0.8 + r * 0.4;
-      const straightGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, 3.8, 16);
+      const y = -0.6 + r * 0.3;
+      const straightGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, 3.0, 16);
       const tube = new THREE.Mesh(straightGeo, coldTubeMat);
       tube.rotation.z = Math.PI / 2;
       tube.position.set(0, y, 0.15);
       evapGroup.add(tube);
 
       if (r < numRows - 1) {
-        const uBend = new THREE.Mesh(new THREE.TorusGeometry(0.2, tubeRadius, 12, 16, Math.PI), coldTubeMat);
+        const uBend = new THREE.Mesh(new THREE.TorusGeometry(0.15, tubeRadius, 12, 16, Math.PI), coldTubeMat);
         const isRight = r % 2 === 0;
-        uBend.position.set(isRight ? 1.9 : -1.9, y + 0.2, 0.15);
+        uBend.position.set(isRight ? 1.5 : -1.5, y + 0.15, 0.15);
         uBend.rotation.z = isRight ? -Math.PI / 2 : Math.PI / 2;
         evapGroup.add(uBend);
       }
@@ -670,22 +709,22 @@ export class RefrigerationSceneManager {
       transparent: true,
       depthWrite: false,
     });
-    for (let f = -1.8; f <= 1.8; f += 0.14) {
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.8, 0.4), frostFinMat);
+    for (let f = -1.3; f <= 1.3; f += 0.13) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.5, 0.35), frostFinMat);
       fin.position.set(f, 0, 0.15);
       evapGroup.add(fin);
     }
 
-    // 2 Realistic Evaporator Fans (Prominently mounted and fully visible in all modes)
-    this.createRealisticAxialFan(evapGroup, new THREE.Vector3(-0.95, 0, -0.22), 0.78, isXray);
-    this.createRealisticAxialFan(evapGroup, new THREE.Vector3(0.95, 0, -0.22), 0.78, isXray);
+    // 2 Realistic Evaporator Fans
+    this.createRealisticAxialFan(evapGroup, new THREE.Vector3(-0.8, 0, -0.2), 0.62, isXray);
+    this.createRealisticAxialFan(evapGroup, new THREE.Vector3(0.8, 0, -0.2), 0.62, isXray);
 
-    // Heat In Absorption Arrows
+    // Heat In Absorption Arrows (Absorción Q_evap - Abajo entrando al evaporador)
     const inArrowMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.85 });
     for (let i = 0; i < 3; i++) {
-      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 16), inArrowMat);
-      arrow.rotation.z = Math.PI / 2;
-      arrow.position.set(-3.2 - i * 0.5, -0.2 + (i - 1) * 0.3, 0);
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.42, 16), inArrowMat);
+      arrow.rotation.z = 0; // Pointing UP into evaporator
+      arrow.position.set(-0.8 + i * 0.8, -1.2, 0);
       evapGroup.add(arrow);
       this.heatArrowsIn.push(arrow);
     }
@@ -713,20 +752,20 @@ export class RefrigerationSceneManager {
       transparent: isXray,
       depthWrite: !isXray,
     });
-    const shroudGeo = new THREE.CylinderGeometry(radius * 1.04, radius * 1.01, 0.32, 32, 1, true);
+    const shroudGeo = new THREE.CylinderGeometry(radius * 1.04, radius * 1.01, 0.28, 32, 1, true);
     const shroud = new THREE.Mesh(shroudGeo, shroudMat);
     shroud.rotation.x = Math.PI / 2;
     fanAssembly.add(shroud);
 
     // Outer flared inlet ring
-    const flareGeo = new THREE.TorusGeometry(radius * 1.04, 0.045, 12, 32);
+    const flareGeo = new THREE.TorusGeometry(radius * 1.04, 0.04, 12, 32);
     const flare = new THREE.Mesh(flareGeo, shroudMat);
-    flare.position.z = 0.16;
+    flare.position.z = 0.14;
     fanAssembly.add(flare);
 
     // 2. Fixed Motor Housing & Rear Stator Struts
     const motorMat = new THREE.MeshStandardMaterial({ color: 0x1c1e22, metalness: 0.8, roughness: 0.3 });
-    const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.28, radius * 0.28, 0.28, 20), motorMat);
+    const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.28, radius * 0.28, 0.24, 20), motorMat);
     motorBody.rotation.x = Math.PI / 2;
     motorBody.position.z = -0.06;
     fanAssembly.add(motorBody);
@@ -736,7 +775,7 @@ export class RefrigerationSceneManager {
     for (let s = 0; s < 4; s++) {
       const angle = (s * Math.PI) / 2 + Math.PI / 4;
       const strutLen = radius * 0.82;
-      const strutGeo = new THREE.CylinderGeometry(0.02, 0.02, strutLen, 8);
+      const strutGeo = new THREE.CylinderGeometry(0.018, 0.018, strutLen, 8);
       const strut = new THREE.Mesh(strutGeo, strutMat);
       strut.position.set((Math.cos(angle) * strutLen) / 2, (Math.sin(angle) * strutLen) / 2, -0.06);
       strut.rotation.z = angle + Math.PI / 2;
@@ -745,15 +784,15 @@ export class RefrigerationSceneManager {
 
     // 3. Rotating Impeller with 7 Sickle Aerodynamic Blades
     const rotatingImpeller = new THREE.Group();
-    rotatingImpeller.position.z = 0.05;
+    rotatingImpeller.position.z = 0.04;
 
     // Streamlined Spinner Nose Cone
     const hubCone = new THREE.Mesh(
-      new THREE.ConeGeometry(radius * 0.26, 0.22, 24),
+      new THREE.ConeGeometry(radius * 0.26, 0.2, 24),
       new THREE.MeshStandardMaterial({ color: 0x15181c, metalness: 0.7, roughness: 0.25 })
     );
     hubCone.rotation.x = Math.PI / 2;
-    hubCone.position.z = 0.08;
+    hubCone.position.z = 0.06;
     rotatingImpeller.add(hubCone);
 
     // 7 Aerodynamic Curved Sickle Blades
@@ -768,7 +807,6 @@ export class RefrigerationSceneManager {
     for (let b = 0; b < numBlades; b++) {
       const angle = (b * Math.PI * 2) / numBlades;
 
-      // Realistic 3D Sickle Blade Curve Shape
       const shape = new THREE.Shape();
       shape.moveTo(0, 0);
       shape.bezierCurveTo(radius * 0.25, radius * 0.08, radius * 0.55, radius * 0.22, radius * 0.75, radius * 0.12);
@@ -776,19 +814,19 @@ export class RefrigerationSceneManager {
       shape.closePath();
 
       const extrudeSettings = {
-        depth: 0.015,
+        depth: 0.012,
         bevelEnabled: true,
         bevelSegments: 2,
         steps: 1,
-        bevelSize: 0.005,
-        bevelThickness: 0.005,
+        bevelSize: 0.004,
+        bevelThickness: 0.004,
       };
 
       const bladeGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
       const bladeMesh = new THREE.Mesh(bladeGeo, bladeMat);
 
       bladeMesh.rotation.z = angle;
-      bladeMesh.rotation.x = 0.42; // Pitch angle (aerofoil twist)
+      bladeMesh.rotation.x = 0.42;
       bladeMesh.position.set((Math.cos(angle) * radius * 0.22), (Math.sin(angle) * radius * 0.22), 0);
       rotatingImpeller.add(bladeMesh);
     }
@@ -799,15 +837,15 @@ export class RefrigerationSceneManager {
     // 4. Heavy-duty Wire Grille (Finger guard)
     const grillMat = new THREE.MeshStandardMaterial({ color: 0x90a4ae, metalness: 0.85, roughness: 0.2 });
     for (let gr = 0.38; gr <= 1.02; gr += 0.32) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * gr, 0.018, 8, 32), grillMat);
-      ring.position.z = 0.18;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * gr, 0.015, 8, 32), grillMat);
+      ring.position.z = 0.16;
       fanAssembly.add(ring);
     }
 
     parent.add(fanAssembly);
   }
 
-  // --- 6. SMOOTH CURVED PIPING CIRCUIT ---
+  // --- 6. SMOOTH CURVED PIPING CIRCUIT (MOLLIER ROUTING - ZERO CLIPPING) ---
   private buildPipingCircuit(
     pComp: THREE.Vector3,
     pCond: THREE.Vector3,
@@ -817,58 +855,60 @@ export class RefrigerationSceneManager {
     isThermal: boolean,
     isXray: boolean
   ) {
-    // 1. Discharge Line (Compressor -> Condenser)
+    // 1. Discharge Line (Compresor Abajo-Derecha -> Condensador Arriba-Derecha)
     const waypointsDischarge = [
-      new THREE.Vector3(pComp.x + 1.1, pComp.y + 0.8, 0),
-      new THREE.Vector3(-1.0, pComp.y + 0.8, 0),
-      new THREE.Vector3(-1.0, pCond.y + 0.8, 0),
-      new THREE.Vector3(pCond.x - 2.1, pCond.y + 0.8, 0),
+      new THREE.Vector3(pComp.x + 0.8, pComp.y + 0.85, 0),
+      new THREE.Vector3(4.4, pComp.y + 0.85, 0),
+      new THREE.Vector3(4.4, pCond.y + 0.6, 0),
+      new THREE.Vector3(pCond.x + 1.8, pCond.y + 0.6, 0.15),
     ];
-    this.createSmoothPipe(waypointsDischarge, isThermal ? 0xff1744 : 0xd32f2f, 0.09, 'Línea de Descarga', isXray);
+    this.createSmoothPipe(waypointsDischarge, isThermal ? 0xff1744 : 0xd32f2f, 0.085, 'Línea de Descarga', isXray);
 
-    // 2. Condenser to Liquid Receiver
+    // 2. Condenser Outlet to Vertical Liquid Receiver (Condensador Arriba -> Calderín Vertical Top)
     const waypointsCondToRecv = [
-      new THREE.Vector3(pCond.x - 1.8, pCond.y - 0.8, 0),
-      new THREE.Vector3(pCond.x - 1.8, pCond.y - 1.6, 0),
-      new THREE.Vector3(pRecv.x - 0.8, pCond.y - 1.6, 0),
-      new THREE.Vector3(pRecv.x - 0.8, pRecv.y + 0.55, 0),
+      new THREE.Vector3(pCond.x - 1.8, pCond.y - 0.6, 0.15),
+      new THREE.Vector3(pRecv.x + 0.4, pCond.y - 0.6, 0.15),
+      new THREE.Vector3(pRecv.x, pCond.y - 0.6, 0),
+      new THREE.Vector3(pRecv.x, pRecv.y + 1.15, 0),
     ];
     this.createSmoothPipe(waypointsCondToRecv, isThermal ? 0xff5722 : 0xe64a19, 0.075, 'Línea de Condensado', isXray);
 
-    // 3. Liquid Line (Receiver -> TXV)
+    // 3. Liquid Line (Calderín Vertical Bottom -> TXV Arriba-Izquierda)
     const waypointsLiquid = [
-      new THREE.Vector3(pRecv.x + 0.8, pRecv.y + 0.55, 0),
-      new THREE.Vector3(5.6, pRecv.y + 0.55, 0),
-      new THREE.Vector3(5.6, pExp.y, 0),
-      new THREE.Vector3(pExp.x + 0.22, pExp.y, 0),
+      new THREE.Vector3(pRecv.x - 0.38, pRecv.y - 0.55, 0),
+      new THREE.Vector3(pExp.x, pRecv.y - 0.55, 0),
+      new THREE.Vector3(pExp.x, pExp.y + 0.45, 0),
     ];
     this.createSmoothPipe(waypointsLiquid, isThermal ? 0xff9800 : 0xf57c00, 0.075, 'Línea de Líquido', isXray);
 
-    // 4. Injection Line (TXV -> Evaporator)
+    // 4. Injection Line (TXV Bottom -> Evaporador Abajo-Izquierda)
     const waypointsInjection = [
-      new THREE.Vector3(pExp.x - 0.22, pExp.y, 0),
-      new THREE.Vector3(pEvap.x + 2.2, pEvap.y + 0.8, 0),
+      new THREE.Vector3(pExp.x, pExp.y - 0.45, 0),
+      new THREE.Vector3(pExp.x, pEvap.y - 0.6, 0),
+      new THREE.Vector3(pEvap.x - 1.8, pEvap.y - 0.6, 0.15),
     ];
     this.createSmoothPipe(waypointsInjection, isThermal ? 0x00e5ff : 0x00bcd4, 0.075, 'Línea de Inyección', isXray);
 
-    // 5. Suction Line (Evaporator -> Compressor)
+    // 5. Suction Line (Evaporador Abajo-Derecha -> Compresor Aspiración)
     const waypointsSuction = [
-      new THREE.Vector3(pEvap.x - 2.2, pEvap.y - 0.8, 0),
-      new THREE.Vector3(-5.8, pEvap.y - 0.8, 0),
-      new THREE.Vector3(-5.8, pComp.y + 0.5, 0),
-      new THREE.Vector3(pComp.x - 1.1, pComp.y + 0.5, 0.6),
+      new THREE.Vector3(pEvap.x + 1.8, pEvap.y + 0.6, 0.15),
+      new THREE.Vector3(pComp.x - 0.9, pEvap.y + 0.6, 0.15),
+      new THREE.Vector3(pComp.x - 0.9, pComp.y + 0.5, 0.45),
     ];
-    this.createSmoothPipe(waypointsSuction, isThermal ? 0x2979ff : 0x03a9f4, 0.09, 'Línea de Aspiración', isXray);
+    this.createSmoothPipe(waypointsSuction, isThermal ? 0x2979ff : 0x03a9f4, 0.085, 'Línea de Aspiración', isXray);
 
-    // Complete smooth continuous spline for fluid particle animation
+    // Complete smooth continuous spline for fluid particle animation (Clockwise loop)
     const completeWaypoints = [
       ...waypointsDischarge,
+      new THREE.Vector3(pCond.x, pCond.y, 0.15),
       ...waypointsCondToRecv,
+      new THREE.Vector3(pRecv.x, pRecv.y, 0),
       ...waypointsLiquid,
       ...waypointsInjection,
+      new THREE.Vector3(pEvap.x, pEvap.y, 0.15),
       ...waypointsSuction,
     ];
-    const smoothedLoop = createFilletedCurvePoints(completeWaypoints, 0.55, 8);
+    const smoothedLoop = createFilletedCurvePoints(completeWaypoints, 0.5, 8);
     const loopCurve = new THREE.CatmullRomCurve3(smoothedLoop, true, 'centripetal', 0.1);
     this.particleSplinePoints = loopCurve.getSpacedPoints(500);
   }
@@ -922,21 +962,31 @@ export class RefrigerationSceneManager {
       positions[i * 3 + 1] = pt.y;
       positions[i * 3 + 2] = pt.z;
 
-      if (progress < 0.25) {
+      // Color coding along the thermodynamic cycle:
+      // 0.0 - 0.22: Discharge / Hot High-P Vapor (Red)
+      // 0.22 - 0.45: Condensation (Orange-Red)
+      // 0.45 - 0.55: Subcooled Liquid / Receiver / TXV (Amber)
+      // 0.55 - 0.78: Injection & Evaporation Mixture (Cyan)
+      // 0.78 - 1.0: Superheated Suction Vapor (Blue)
+      if (progress < 0.22) {
         colors[i * 3] = 1.0;
-        colors[i * 3 + 1] = 0.2;
+        colors[i * 3 + 1] = 0.15;
         colors[i * 3 + 2] = 0.2;
-      } else if (progress < 0.5) {
+      } else if (progress < 0.45) {
         colors[i * 3] = 1.0;
-        colors[i * 3 + 1] = 0.6;
+        colors[i * 3 + 1] = 0.45;
+        colors[i * 3 + 2] = 0.05;
+      } else if (progress < 0.55) {
+        colors[i * 3] = 1.0;
+        colors[i * 3 + 1] = 0.75;
         colors[i * 3 + 2] = 0.0;
-      } else if (progress < 0.75) {
+      } else if (progress < 0.78) {
         colors[i * 3] = 0.0;
         colors[i * 3 + 1] = 0.9;
         colors[i * 3 + 2] = 1.0;
       } else {
-        colors[i * 3] = 0.2;
-        colors[i * 3 + 1] = 0.5;
+        colors[i * 3] = 0.15;
+        colors[i * 3 + 1] = 0.55;
         colors[i * 3 + 2] = 1.0;
       }
     }
@@ -1042,10 +1092,10 @@ export class RefrigerationSceneManager {
       case 'compressor':
         return {
           id,
-          name: 'Compresor Frigorífico',
+          name: 'Compresor Frigorífico (Abajo-Derecha)',
           category: 'compression',
           description:
-            'Aspira vapor sobrecalentado a baja presión y baja temperatura (Punto 3) desde el evaporador, comprimiéndolo mecánicamente hasta la alta presión de descarga (Punto 4) hacia el condensador.',
+            'Aspira vapor sobrecalentado a baja presión y baja temperatura (Punto 3 / Abajo-Derecha) desde el evaporador, comprimiéndolo mecánicamente hasta la alta presión de descarga (Punto 4 / Arriba-Derecha) hacia el condensador.',
           thermoProcess: 'Compresión Isoentrópica / Real (3 → 4)',
           parameters: [
             { label: 'Presión Aspiración (P₃)', value: t.p_evap.toFixed(2), unit: 'bar' },
@@ -1062,10 +1112,10 @@ export class RefrigerationSceneManager {
       case 'condenser':
         return {
           id,
-          name: 'Condensador de Aire',
+          name: 'Condensador de Aire (Arriba-Derecha / Arriba)',
           category: 'condensation',
           description:
-            'Disipa el calor de desecho hacia el ambiente exterior (q_cond = h₄ - h₆), desrecalentando el gas caliente de descarga (Punto 4), condensándolo a líquido saturado y subenfriándolo (Punto 6).',
+            'Disipa el calor de desecho hacia el ambiente exterior (q_cond = h₄ - h₆), desrecalentando el gas caliente de descarga (Punto 4 / Arriba-Derecha), condensándolo a líquido saturado y subenfriándolo (Punto 6 / Arriba-Izquierda).',
           thermoProcess: 'Condensación y Subenfriamiento Isobárico (4 → 6)',
           parameters: [
             { label: 'Presión Condensación (P₄ = P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
@@ -1078,10 +1128,10 @@ export class RefrigerationSceneManager {
       case 'receiver':
         return {
           id,
-          name: 'Recipiente de Líquido (Calderín)',
+          name: 'Recipiente de Líquido (Calderín / Arriba-Izquierda)',
           category: 'storage',
           description:
-            'Almacena el refrigerante líquido condensado a alta presión (Punto 6), garantizando alimentación continua a la válvula de expansión.',
+            'Almacena el refrigerante líquido condensado a alta presión (Punto 6 / Arriba-Izquierda), garantizando alimentación continua a la válvula de expansión.',
           thermoProcess: 'Almacenamiento Isobárico Líquido',
           parameters: [
             { label: 'Presión Almacenamiento (P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
@@ -1092,10 +1142,10 @@ export class RefrigerationSceneManager {
       case 'expansion_valve':
         return {
           id,
-          name: 'Válvula de Expansión Termostática (TXV)',
+          name: 'Válvula de Expansión Termostática (TXV / Arriba-Izquierda)',
           category: 'expansion',
           description:
-            'Regula el caudal de refrigerante hacia el evaporador provocando una caída brusca de presión (flash gas) manteniendo entalpía constante (h₆ = h₁).',
+            'Regula el caudal de refrigerante hacia el evaporador provocando una caída brusca de presión desde alta presión (Punto 6 / Arriba-Izquierda) hasta baja presión (Punto 1 / Abajo-Izquierda) manteniendo entalpía constante (h₆ = h₁).',
           thermoProcess: 'Expansión Isoentálpica (6 → 1)',
           parameters: [
             { label: 'Presión Entrada (P₆)', value: t.p_cond.toFixed(2), unit: 'bar' },
@@ -1108,10 +1158,10 @@ export class RefrigerationSceneManager {
       default:
         return {
           id: 'evaporator',
-          name: 'Evaporador de Tiro Forzado',
+          name: 'Evaporador de Tiro Forzado (Abajo-Izquierda / Abajo)',
           category: 'evaporation',
           description:
-            'Absorbe calor del recinto refrigerado (q_evap = h₃ - h₁), evaporando la mezcla líquida a baja presión (Punto 1) y sobrecalentando el vapor hacia la aspiración (Punto 3).',
+            'Absorbe calor del recinto refrigerado (q_evap = h₃ - h₁), evaporando la mezcla líquida a baja presión (Punto 1 / Abajo-Izquierda) y sobrecalentando el vapor hacia la aspiración del compresor (Punto 3 / Abajo-Derecha).',
           thermoProcess: 'Evaporación y Sobrecalentamiento Isobárico (1 → 3)',
           parameters: [
             { label: 'Presión Evaporación (P₁ = P₃)', value: t.p_evap.toFixed(2), unit: 'bar' },
@@ -1140,13 +1190,13 @@ export class RefrigerationSceneManager {
 
   public resetCamera(view: 'iso' | 'front' | 'top' = 'iso') {
     if (view === 'iso') {
-      this.camera.position.set(0, 3.5, 14.5);
-      this.controls.target.set(0.5, 0.2, 0);
+      this.camera.position.set(0, 1.5, 14.5);
+      this.controls.target.set(0, 0, 0);
     } else if (view === 'front') {
-      this.camera.position.set(0, 0.5, 15);
+      this.camera.position.set(0, 0.2, 14.5);
       this.controls.target.set(0, 0, 0);
     } else if (view === 'top') {
-      this.camera.position.set(0, 16, 0.1);
+      this.camera.position.set(0, 15.5, 0.1);
       this.controls.target.set(0, 0, 0);
     }
     this.controls.update();
@@ -1166,13 +1216,13 @@ export class RefrigerationSceneManager {
       });
     }
 
-    // 2. Animate heat arrows
+    // 2. Animate heat arrows (Condenser heat UP, Evaporator heat INTO coil)
     const time = Date.now() * 0.003;
     this.heatArrowsOut.forEach((arrow, i) => {
-      arrow.position.x = 2.8 + ((time + i * 0.4) % 1.2);
+      arrow.position.y = 3.4 + ((time + i * 0.3) % 0.6);
     });
     this.heatArrowsIn.forEach((arrow, i) => {
-      arrow.position.x = -3.8 + ((time + i * 0.4) % 1.2);
+      arrow.position.y = -3.6 + ((time + i * 0.3) % 0.6);
     });
 
     // 3. Animate fluid particles along the continuous spline

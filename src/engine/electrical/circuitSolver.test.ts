@@ -1033,5 +1033,107 @@ describe('solveElectricalCircuit', () => {
     expect(acSrc?.data.powerWatts).toBe(600.0);
     expect(acSrc?.data.currentLimitWarning).toBeUndefined();
   });
+
+  it('energizes 3-phase electric motor (400V) when connected to 3-phase generator (L1, L2, L3)', () => {
+    const nodes: SchematicNode[] = [
+      {
+        id: 'gen-3p',
+        type: 'schematicGeneric',
+        position: { x: 0, y: 0 },
+        data: {
+          componentType: 'power_source_ac_3p',
+          voltageV: 400.0,
+          frequencyHz: 50.0,
+          isEnergized: true,
+          label: 'Generador Trifásico 400V',
+        },
+      },
+      {
+        id: 'mot-3p',
+        type: 'schematicGeneric',
+        position: { x: 300, y: 0 },
+        data: {
+          componentType: 'electric_motor_3p',
+          ratedVoltageV: 400.0,
+          minOperatingVoltageV: 240.0,
+          ratedRpm: 1450,
+          powerWatts: 5500,
+          label: 'Motor Trifásico 400V',
+        },
+      },
+    ];
+
+    const edges: SchematicEdge[] = [
+      { id: 'e1', source: 'gen-3p', sourceHandle: 'l1', target: 'mot-3p', targetHandle: 'term_u1' },
+      { id: 'e2', source: 'gen-3p', sourceHandle: 'l2', target: 'mot-3p', targetHandle: 'term_v1' },
+      { id: 'e3', source: 'gen-3p', sourceHandle: 'l3', target: 'mot-3p', targetHandle: 'term_w1' },
+    ];
+
+    const res = solveElectricalCircuit(nodes, edges);
+    const motor = res.nodes.find((n) => n.id === 'mot-3p');
+    const generator = res.nodes.find((n) => n.id === 'gen-3p');
+
+    expect(motor?.data.isEnergized).toBe(true);
+    expect(motor?.data.voltageV).toBe(400.0);
+    expect(motor?.data.powerPercent).toBe(100);
+    expect(motor?.data.actualRpm).toBe(1450);
+    expect(motor?.data.motorVoltageWarning).toBeUndefined();
+
+    expect(generator?.data.voltageV).toBe(400.0);
+    expect(generator?.data.currentA).toBeGreaterThan(0);
+    expect(generator?.data.powerWatts).toBeGreaterThan(0);
+
+    // All 3 phase connection wires should be animated with electric current
+    const animated = res.edges.filter((e) => e.data?.isAnimated);
+    expect(animated.length).toBe(3);
+  });
+
+  it('regulates 3-phase motor values proportionally when generator is set to reduced voltage (e.g. 305V)', () => {
+    const nodes: SchematicNode[] = [
+      {
+        id: 'gen-3p',
+        type: 'schematicGeneric',
+        position: { x: 0, y: 0 },
+        data: {
+          componentType: 'power_source_ac_3p',
+          voltageV: 305.0,
+          frequencyHz: 50.0,
+          isEnergized: true,
+          label: 'Generador Trifásico 305V',
+        },
+      },
+      {
+        id: 'mot-3p',
+        type: 'schematicGeneric',
+        position: { x: 300, y: 0 },
+        data: {
+          componentType: 'electric_motor_3p',
+          ratedVoltageV: 400.0,
+          minOperatingVoltageV: 240.0,
+          ratedRpm: 1450,
+          powerWatts: 5500,
+          label: 'Motor Trifásico',
+        },
+      },
+    ];
+
+    const edges: SchematicEdge[] = [
+      { id: 'e1', source: 'gen-3p', sourceHandle: 'l1', target: 'mot-3p', targetHandle: 'term_u1' },
+      { id: 'e2', source: 'gen-3p', sourceHandle: 'l2', target: 'mot-3p', targetHandle: 'term_v1' },
+      { id: 'e3', source: 'gen-3p', sourceHandle: 'l3', target: 'mot-3p', targetHandle: 'term_w1' },
+    ];
+
+    const res = solveElectricalCircuit(nodes, edges);
+    const motor = res.nodes.find((n) => n.id === 'mot-3p');
+    const generator = res.nodes.find((n) => n.id === 'gen-3p');
+
+    expect(motor?.data.isEnergized).toBe(true);
+    expect(motor?.data.voltageV).toBe(305.0);
+    expect(motor?.data.powerPercent).toBe(76); // 305 / 400 = 76.25%
+    expect(motor?.data.actualRpm).toBe(1106); // 1450 * (305 / 400) = 1105.625 => 1106
+    expect(motor?.data.motorVoltageWarning).toContain('Tensión reducida (305.0V / 400.0V nom) - 76% potencia');
+
+    expect(generator?.data.voltageV).toBe(305.0);
+  });
 });
 

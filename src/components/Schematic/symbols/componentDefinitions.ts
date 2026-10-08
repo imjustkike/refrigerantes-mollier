@@ -1036,9 +1036,9 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     defaultSpecs: { voltageV: 400 },
     ports: [
       { id: 'term_l1', name: 'Fase L1 (R)', shortCode: 'L1', kind: 'electric_power', position: 'top', hint: 'Llegada fase 1' },
-      { id: 'term_l2', name: 'Fase L2 (S)', shortCode: 'L2', kind: 'electric_power', position: 'left', hint: 'Llegada fase 2' },
-      { id: 'term_l3', name: 'Fase L3 (T)', shortCode: 'L3', kind: 'electric_power', position: 'right', hint: 'Llegada fase 3' },
-      { id: 'term_n', name: 'Neutro (N)', shortCode: 'N', kind: 'electric_neutral', position: 'bottom', hint: 'Neutro de red de alimentación' },
+      { id: 'term_l2', name: 'Fase L2 (S)', shortCode: 'L2', kind: 'electric_power', position: 'top', hint: 'Llegada fase 2' },
+      { id: 'term_l3', name: 'Fase L3 (T)', shortCode: 'L3', kind: 'electric_power', position: 'top', hint: 'Llegada fase 3' },
+      { id: 'term_n', name: 'Neutro (N)', shortCode: 'N', kind: 'electric_neutral', position: 'top', hint: 'Neutro de red de alimentación' },
     ],
   },
   ground_earth: {
@@ -1405,9 +1405,9 @@ export const COMPONENT_DEFINITIONS: Record<SchematicComponentType, SchematicComp
     dimensions: { width: 105, height: 110 },
     defaultSpecs: { powerKw: 5.5, ratedCurrentA: 11.2, ratedVoltageV: 400.0, minOperatingVoltageV: 240.0, ratedRpm: 1450 },
     ports: [
-      { id: 'term_u1', name: 'Borne U1 (Fase 1)', shortCode: 'U1', kind: 'electric_power', position: 'top', hint: 'Conexión fase L1' },
-      { id: 'term_v1', name: 'Borne V1 (Fase 2)', shortCode: 'V1', kind: 'electric_power', position: 'left', hint: 'Conexión fase L2' },
-      { id: 'term_w1', name: 'Borne W1 (Fase 3)', shortCode: 'W1', kind: 'electric_power', position: 'right', hint: 'Conexión fase L3' },
+      { id: 'term_u1', name: 'Borne U1 (Fase 1)', shortCode: 'U1', kind: 'electric_power', position: 'top', hint: 'Conexión fase L1 (Marrón)' },
+      { id: 'term_v1', name: 'Borne V1 (Fase 2)', shortCode: 'V1', kind: 'electric_power', position: 'top', hint: 'Conexión fase L2 (Negro)' },
+      { id: 'term_w1', name: 'Borne W1 (Fase 3)', shortCode: 'W1', kind: 'electric_power', position: 'top', hint: 'Conexión fase L3 (Gris)' },
       { id: 'term_pe', name: 'Toma Tierra (PE)', shortCode: 'PE', kind: 'electric_ground', position: 'bottom', hint: 'Puesta a tierra del chasis del motor' },
     ],
   },

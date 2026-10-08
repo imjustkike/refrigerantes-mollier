@@ -1042,18 +1042,19 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
         <svg width={width} height={height} viewBox="0 0 100 80" fill="none">
           {/* Terminal Block */}
           <rect x="10" y="15" width="80" height="50" rx="4" fill={fillColor} stroke={strokeColor} strokeWidth="2" />
-          {/* 4 Terminals L1, L2, L3, N */}
-          {[22, 40, 58, 76].map((x, i) => (
+          {/* 4 Terminals L1, L2, L3, N at 20%, 40%, 60%, 80% */}
+          {[20, 40, 60, 80].map((x, i) => (
             <g key={i}>
+              <line x1={x} y1="4" x2={x} y2="26" stroke={strokeColor} strokeWidth="1.5" />
               <circle cx={x} cy="26" r="4" fill={secondaryFill} stroke={strokeColor} strokeWidth="1" />
               <circle cx={x} cy="54" r="4" fill={secondaryFill} stroke={strokeColor} strokeWidth="1" />
               <line x1={x} y1="26" x2={x} y2="54" stroke={strokeColor} strokeWidth="1.5" />
             </g>
           ))}
-          <text x="22" y="74" fontSize="7" fontWeight="bold" fill="#b45309" textAnchor="middle">L1</text>
+          <text x="20" y="74" fontSize="7" fontWeight="bold" fill="#b45309" textAnchor="middle">L1</text>
           <text x="40" y="74" fontSize="7" fontWeight="bold" fill="#1e293b" textAnchor="middle">L2</text>
-          <text x="58" y="74" fontSize="7" fontWeight="bold" fill="#64748b" textAnchor="middle">L3</text>
-          <text x="76" y="74" fontSize="7" fontWeight="bold" fill="#2563eb" textAnchor="middle">N</text>
+          <text x="60" y="74" fontSize="7" fontWeight="bold" fill="#64748b" textAnchor="middle">L3</text>
+          <text x="80" y="74" fontSize="7" fontWeight="bold" fill="#2563eb" textAnchor="middle">N</text>
         </svg>
       );
 
@@ -1295,11 +1296,43 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
     case 'electric_motor_3p':
       return (
         <svg width={width} height={height} viewBox="0 0 85 85" fill="none">
-          <circle cx="42.5" cy="42.5" r="28" fill={fillColor} stroke={strokeColor} strokeWidth="2.5" />
-          <text x="42.5" y="44" fontSize="14" fontWeight="bold" fill={strokeColor} textAnchor="middle">M</text>
-          <text x="42.5" y="57" fontSize="9" fontWeight="bold" fill="#b45309" textAnchor="middle">3 ~</text>
-          {/* Terminal block box on top */}
-          <rect x="33" y="8" width="19" height="9" rx="2" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* Active Aura / Glow when spinning */}
+          {isEnergized && (
+            <>
+              <circle cx="42.5" cy="45" r="30" fill="#10b981" opacity="0.2" />
+              <path
+                d="M 22.5 45 A 20 20 0 0 1 62.5 45"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="2.2"
+                strokeDasharray="4 3"
+                strokeLinecap="round"
+              />
+            </>
+          )}
+          <circle
+            cx="42.5"
+            cy="45"
+            r="27"
+            fill={fillColor}
+            stroke={isEnergized ? '#10b981' : strokeColor}
+            strokeWidth="2.5"
+            className="transition-colors duration-200"
+          />
+          <text x="42.5" y="47" fontSize="13" fontWeight="bold" fill={isEnergized ? '#10b981' : strokeColor} textAnchor="middle">M</text>
+          <text x="42.5" y="60" fontSize="8.5" fontWeight="bold" fill="#b45309" textAnchor="middle">3 ~</text>
+          {/* Terminal block box on top across U1, V1, W1 */}
+          <rect x="15" y="7" width="55" height="12" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.5" />
+          {/* 3 Terminals U1, V1, W1 at 25%, 50%, 75% */}
+          <circle cx="21.25" cy="13" r="2.5" fill="#b45309" stroke="#78350f" strokeWidth="0.8" />
+          <circle cx="42.5" cy="13" r="2.5" fill="#1e293b" stroke="#0f172a" strokeWidth="0.8" />
+          <circle cx="63.75" cy="13" r="2.5" fill="#64748b" stroke="#334155" strokeWidth="0.8" />
+          <line x1="21.25" y1="2" x2="21.25" y2="7" stroke="#b45309" strokeWidth="2" />
+          <line x1="42.5" y1="2" x2="42.5" y2="7" stroke="#1e293b" strokeWidth="2" />
+          <line x1="63.75" y1="2" x2="63.75" y2="7" stroke="#64748b" strokeWidth="2" />
+          {/* Bottom PE connection lead */}
+          <line x1="42.5" y1="72" x2="42.5" y2="82" stroke="#65a30d" strokeWidth="2.5" />
+          <text x="42.5" y="70" fontSize="6.5" fontWeight="bold" fill="#65a30d" textAnchor="middle">PE</text>
         </svg>
       );
 
@@ -2094,22 +2127,22 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
           <text x="54" y="38" fontSize="8" fontWeight="bold" fill="#eab308">3~</text>
           <text x="54" y="48" fontSize="6" fontWeight="bold" fill={strokeColor}>400V</text>
 
-          {/* Phase Lines (L1 Brown, L2 Black, L3 Grey) */}
-          <line x1="40" y1="2" x2="40" y2="14" stroke="#b45309" strokeWidth="2" />
-          <text x="32" y="10" fontSize="7" fontWeight="bold" fill="#b45309">L1</text>
+          {/* Phase Lines (L1 Brown at 25%, L2 Black at 50%, L3 Grey at 75%) */}
+          <line x1="20" y1="2" x2="20" y2="18" stroke="#b45309" strokeWidth="2.2" />
+          <text x="14" y="11" fontSize="6.5" fontWeight="bold" fill="#b45309">L1</text>
 
-          <line x1="10" y1="20" x2="20" y2="28" stroke="#1e293b" strokeWidth="2" />
-          <text x="6" y="18" fontSize="7" fontWeight="bold" fill="#64748b">L2</text>
+          <line x1="40" y1="2" x2="40" y2="14" stroke="#1e293b" strokeWidth="2.2" />
+          <text x="44" y="11" fontSize="6.5" fontWeight="bold" fill="#64748b">L2</text>
 
-          <line x1="70" y1="20" x2="60" y2="28" stroke="#64748b" strokeWidth="2" />
-          <text x="72" y="18" fontSize="7" fontWeight="bold" fill="#64748b">L3</text>
+          <line x1="60" y1="2" x2="60" y2="18" stroke="#64748b" strokeWidth="2.2" />
+          <text x="64" y="11" fontSize="6.5" fontWeight="bold" fill="#64748b">L3</text>
 
-          {/* Neutral and Earth (Bottom) */}
-          <line x1="30" y1="66" x2="30" y2="78" stroke="#2563eb" strokeWidth="2" />
-          <text x="22" y="74" fontSize="7" fontWeight="bold" fill="#2563eb">N</text>
+          {/* Neutral and Earth (Bottom at 33.3% and 66.7%) */}
+          <line x1="26.7" y1="62" x2="26.7" y2="78" stroke="#2563eb" strokeWidth="2.2" />
+          <text x="19" y="74" fontSize="6.5" fontWeight="bold" fill="#2563eb">N</text>
 
-          <line x1="50" y1="66" x2="50" y2="78" stroke="#65a30d" strokeWidth="2" />
-          <text x="54" y="74" fontSize="7" fontWeight="bold" fill="#65a30d">PE</text>
+          <line x1="53.3" y1="62" x2="53.3" y2="78" stroke="#65a30d" strokeWidth="2.2" />
+          <text x="57" y="74" fontSize="6.5" fontWeight="bold" fill="#65a30d">PE</text>
         </svg>
       );
 
@@ -2167,23 +2200,25 @@ export const SvgSymbol: React.FC<SvgSymbolProps> = ({
       return (
         <svg width={width} height={height} viewBox="0 0 80 80" fill="none">
           {/* Female Socket (Left) */}
-          <rect x="10" y="24" width="22" height="32" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.8" />
-          <rect x="26" y="30" width="6" height="6" rx="1" fill="#0f172a" />
-          <rect x="26" y="44" width="6" height="6" rx="1" fill="#0f172a" />
+          <rect x="10" y="18" width="22" height="44" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.8" />
+          <rect x="24" y="23.7" width="6" height="6" rx="1" fill="#0f172a" />
+          <rect x="24" y="50.3" width="6" height="6" rx="1" fill="#0f172a" />
           
           {/* Male Plug (Right) */}
-          <rect x="48" y="24" width="22" height="32" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.8" />
+          <rect x="48" y="18" width="22" height="44" rx="3" fill={secondaryFill} stroke={strokeColor} strokeWidth="1.8" />
           {/* Pins entering */}
-          <rect x="34" y="31" width="14" height="4" rx="1" fill="#f59e0b" stroke="#b45309" strokeWidth="0.8" />
-          <rect x="34" y="45" width="14" height="4" rx="1" fill="#f59e0b" stroke="#b45309" strokeWidth="0.8" />
+          <rect x="32" y="24.7" width="16" height="4" rx="1" fill="#f59e0b" stroke="#b45309" strokeWidth="0.8" />
+          <rect x="32" y="51.3" width="16" height="4" rx="1" fill="#f59e0b" stroke="#b45309" strokeWidth="0.8" />
 
           {/* Unplug / Disconnect arrow indicator */}
-          <path d="M 41 16 L 35 19 L 41 22" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M 40 64 L 46 61 L 40 58" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M 41 12 L 35 15 L 41 18" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M 40 68 L 46 65 L 40 62" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" />
 
-          {/* Terminal leads */}
-          <line x1="2" y1="40" x2="10" y2="40" stroke="#ef4444" strokeWidth="2.5" />
-          <line x1="70" y1="40" x2="78" y2="40" stroke="#3b82f6" strokeWidth="2.5" />
+          {/* Terminal leads aligned to 33.3% (y=26.7) and 66.7% (y=53.3) */}
+          <line x1="2" y1="26.7" x2="10" y2="26.7" stroke="#b45309" strokeWidth="2.5" />
+          <line x1="2" y1="53.3" x2="10" y2="53.3" stroke="#2563eb" strokeWidth="2.5" />
+          <line x1="70" y1="26.7" x2="78" y2="26.7" stroke="#b45309" strokeWidth="2.5" />
+          <line x1="70" y1="53.3" x2="78" y2="53.3" stroke="#2563eb" strokeWidth="2.5" />
         </svg>
       );
 

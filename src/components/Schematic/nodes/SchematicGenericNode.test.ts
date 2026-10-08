@@ -1,5 +1,75 @@
 import { describe, it, expect } from 'vitest';
-import { getTransformedPortPosition } from './SchematicGenericNode';
+import { getTransformedPortPosition, calculatePortLayout } from './SchematicGenericNode';
+import { ComponentPort } from '../../../types/schematic';
+
+describe('calculatePortLayout', () => {
+  const createPorts = (count: number, position: 'top' | 'bottom' | 'left' | 'right'): ComponentPort[] => {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `p_${i + 1}`,
+      name: `Port ${i + 1}`,
+      shortCode: `P${i + 1}`,
+      kind: 'electric_power',
+      position,
+      hint: '',
+    }));
+  };
+
+  it('distributes 1 port at 50% center', () => {
+    const ports = createPorts(1, 'top');
+    const layout = calculatePortLayout(ports, 0, 'top', 0, false, false);
+    expect(layout.effectivePosition).toBe('top');
+    expect(layout.offsetPercent).toBe(50);
+  });
+
+  it('distributes 3-phase generator ports evenly (L1, L2, L3 at 25%, 50%, 75% on top)', () => {
+    const topPorts = createPorts(3, 'top'); // L1, L2, L3
+    const l1 = calculatePortLayout(topPorts, 0, 'top', 0, false, false);
+    const l2 = calculatePortLayout(topPorts, 1, 'top', 0, false, false);
+    const l3 = calculatePortLayout(topPorts, 2, 'top', 0, false, false);
+
+    expect(l1).toEqual({ effectivePosition: 'top', offsetPercent: 25 });
+    expect(l2).toEqual({ effectivePosition: 'top', offsetPercent: 50 });
+    expect(l3).toEqual({ effectivePosition: 'top', offsetPercent: 75 });
+  });
+
+  it('distributes neutral and ground ports on bottom (N at 33.33%, PE at 66.67%)', () => {
+    const bottomPorts = createPorts(2, 'bottom'); // N, PE
+    const n = calculatePortLayout(bottomPorts, 0, 'bottom', 0, false, false);
+    const pe = calculatePortLayout(bottomPorts, 1, 'bottom', 0, false, false);
+
+    expect(n).toEqual({ effectivePosition: 'bottom', offsetPercent: 33.33 });
+    expect(pe).toEqual({ effectivePosition: 'bottom', offsetPercent: 66.67 });
+  });
+
+  it('distributes 4 ports on an edge at 20%, 40%, 60%, 80%', () => {
+    const ports = createPorts(4, 'top');
+    expect(calculatePortLayout(ports, 0, 'top').offsetPercent).toBe(20);
+    expect(calculatePortLayout(ports, 1, 'top').offsetPercent).toBe(40);
+    expect(calculatePortLayout(ports, 2, 'top').offsetPercent).toBe(60);
+    expect(calculatePortLayout(ports, 3, 'top').offsetPercent).toBe(80);
+  });
+
+  it('correctly shifts distributed ports during 90-degree CW rotation', () => {
+    const topPorts = createPorts(3, 'top');
+    // On 90 deg rotation, top border becomes right border, indices from top to bottom
+    const p1 = calculatePortLayout(topPorts, 0, 'top', 90, false, false);
+    const p2 = calculatePortLayout(topPorts, 1, 'top', 90, false, false);
+    const p3 = calculatePortLayout(topPorts, 2, 'top', 90, false, false);
+
+    expect(p1).toEqual({ effectivePosition: 'right', offsetPercent: 25 });
+    expect(p2).toEqual({ effectivePosition: 'right', offsetPercent: 50 });
+    expect(p3).toEqual({ effectivePosition: 'right', offsetPercent: 75 });
+  });
+
+  it('correctly inverts port order when horizontally flipped', () => {
+    const topPorts = createPorts(3, 'top');
+    const p1 = calculatePortLayout(topPorts, 0, 'top', 0, true, false);
+    const p3 = calculatePortLayout(topPorts, 2, 'top', 0, true, false);
+
+    expect(p1).toEqual({ effectivePosition: 'top', offsetPercent: 75 });
+    expect(p3).toEqual({ effectivePosition: 'top', offsetPercent: 25 });
+  });
+});
 
 describe('getTransformedPortPosition', () => {
   it('returns original position when no flip or rotation is applied', () => {
